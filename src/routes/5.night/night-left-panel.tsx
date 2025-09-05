@@ -1,0 +1,151 @@
+import { Column } from '~/styles'
+import { cn } from '~/utils/cn'
+import { Progress } from '~/components/ui/progress'
+import { clearPatchSelection } from '~/stores/ui'
+
+export type NightLeftPanelProps = {
+  labelCounts: Record<string, number>
+  identifiedLabelCounts?: Record<string, number>
+  totalPatches: number
+  totalDetections: number
+  totalIdentified?: number
+  selectedLabel?: string
+  selectedBucket?: 'auto' | 'user'
+  onSelectLabel: (params: { label?: string; bucket: 'auto' | 'user' }) => void
+  className?: string
+}
+
+export function NightLeftPanel(props: NightLeftPanelProps) {
+  const {
+    labelCounts,
+    identifiedLabelCounts,
+    totalPatches,
+    totalDetections,
+    totalIdentified = 0,
+    selectedLabel,
+    selectedBucket,
+    onSelectLabel,
+    className,
+  } = props
+
+  return (
+    <Column className={cn('p-20 pt-12', className)}>
+      <div className='mb-16'>
+        <h3 className='mb-6 text-16 font-semibold'>Summary</h3>
+        <div className='space-y-4 text-13 text-neutral-700'>
+          <div className='flex items-center justify-between'>
+            <span>Total patches</span>
+            <span className='font-medium'>{totalPatches}</span>
+          </div>
+          <div className='flex items-center justify-between'>
+            <span>Total detections</span>
+            <span className='font-medium'>{totalDetections}</span>
+          </div>
+          <div className='flex items-center justify-between'>
+            <span>Identified</span>
+            <span className='font-medium'>{totalIdentified}</span>
+          </div>
+          <div className='pt-4'>
+            <Progress value={totalDetections ? Math.round((totalIdentified / totalDetections) * 100) : 0} />
+          </div>
+        </div>
+      </div>
+
+      <CountsListSection
+        title='Labels'
+        counts={labelCounts}
+        bucket='auto'
+        selectedLabel={selectedLabel}
+        selectedBucket={selectedBucket}
+        onSelectLabel={onSelectLabel}
+        emptyText='No labels'
+      />
+
+      <CountsListSection
+        className='mt-16'
+        title='Identified'
+        counts={identifiedLabelCounts}
+        bucket='user'
+        selectedLabel={selectedLabel}
+        selectedBucket={selectedBucket}
+        onSelectLabel={onSelectLabel}
+        emptyText='No identified labels yet'
+      />
+    </Column>
+  )
+}
+
+type CountsListSectionProps = {
+  title: string
+  counts?: Record<string, number>
+  bucket: 'auto' | 'user'
+  selectedLabel?: string
+  selectedBucket?: 'auto' | 'user'
+  onSelectLabel: (params: { label?: string; bucket: 'auto' | 'user' }) => void
+  emptyText: string
+  className?: string
+}
+
+function CountsListSection(props: CountsListSectionProps) {
+  const { title, counts, bucket, selectedLabel, selectedBucket, onSelectLabel, emptyText, className } = props
+
+  if (!counts || Object.keys(counts).length === 0) {
+    return (
+      <div className={className}>
+        <h4 className='mb-6 text-14 font-semibold'>{title}</h4>
+        <p className='text-13 text-neutral-500'>{emptyText}</p>
+      </div>
+    )
+  }
+
+  const items = Object.entries(counts).sort((a, b) => b[1] - a[1])
+
+  return (
+    <div className={className}>
+      <h4 className='mb-6 text-14 font-semibold'>{title}</h4>
+      <div>
+        {items.map(([label, count]) => {
+          const isSelected = label === selectedLabel
+          return (
+            <CountsRow
+              key={`${title}-${label}`}
+              label={label}
+              count={count}
+              selected={isSelected && selectedBucket === bucket}
+              onSelect={() => {
+                clearPatchSelection()
+                onSelectLabel({ label: isSelected && selectedBucket === bucket ? undefined : label, bucket })
+              }}
+            />
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+type CountsRowProps = {
+  label: string
+  count: number
+  selected?: boolean
+  onSelect: () => void
+}
+
+function CountsRow(props: CountsRowProps) {
+  const { label, count, selected, onSelect } = props
+
+  return (
+    <div
+      className={cn(
+        'flex items-center justify-between first:rounded-t-md last:rounded-b-md hover:z-2 relative -mt-1 px-8 py-6 cursor-pointer ring-1 ring-inset',
+        selected
+          ? 'z-2 bg-brand/20 text-brand ring-brand/20 hover:bg-brand/20 hover:ring-brand/20'
+          : 'bg-background text-ink-primary ring-[rgba(0,0,0,0.1)] hover:bg-neutral-100',
+      )}
+      onClick={onSelect}
+    >
+      <span className='text-13 font-medium'>{label}</span>
+      <span className='text-13 text-neutral-700'>{count}</span>
+    </div>
+  )
+}

@@ -1,0 +1,272 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@plugin "@tailwindcss/typography";
+
+body {
+  @apply text-14 text-ink-primary;
+}
+
+html,
+body,
+#root {
+  min-height: 100vh;
+}
+
+.text-wrap-pretty {
+  text-wrap: pretty;
+}
+
+.mapboxgl-ctrl-logo {
+  display: none !important;
+}
+
+/* Timeline utilities */
+.mask-gradient-to-r {
+  --mask-from: 0%;
+  mask-image: linear-gradient(to right, black var(--mask-from), transparent 100%);
+  -webkit-mask-image: linear-gradient(to right, black var(--mask-from), transparent 100%);
+}
+
+/* Gradient mask from values */
+.from-0 {
+  --mask-from: 0%;
+}
+.from-20 {
+  --mask-from: 20%;
+}
+.from-40 {
+  --mask-from: 40%;
+}
+.from-60 {
+  --mask-from: 60%;
+}
+.from-80 {
+  --mask-from: 80%;
+}
+
+/* Other gradient directions */
+.mask-gradient-to-l {
+  mask-image: linear-gradient(to left, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to left, black 0%, transparent 100%);
+}
+
+.mask-gradient-to-t {
+  mask-image: linear-gradient(to top, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to top, black 0%, transparent 100%);
+}
+
+.mask-gradient-to-b {
+  mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+  -webkit-mask-image: linear-gradient(to bottom, black 0%, transparent 100%);
+}
+
+/* @layer utilities { */
+.row {
+  @apply flex flex-row;
+}
+.col {
+  @apply flex flex-col;
+}
+
+.center {
+  @apply flex items-center justify-center;
+}
+
+.row-vcenter {
+  @apply flex-row items-center;
+}
+.col-vcenter {
+  @apply flex-col justify-center;
+}
+.row-hcenter {
+  @apply flex-row justify-center;
+}
+.col-hcenter {
+  @apply flex-col items-center;
+}
+
+.full {
+  @apply h-full w-full;
+}
+
+.center {
+  @apply items-center justify-center;
+}
+
+.t-small {
+  @apply text-13 text-ink-secondary;
+}
+
+.p-container {
+  @apply p-[var(--container-padding-sm)] sm:p-[var(--container-padding)];
+}
+
+.px-container {
+  @apply px-[var(--container-padding-sm)] sm:px-[var(--container-padding)];
+}
+
+.py-container {
+  @apply py-[var(--container-padding-sm)] sm:py-[var(--container-padding)];
+}
+
+.pt-container {
+  @apply pt-[var(--container-padding-sm)] sm:pt-[var(--container-padding)];
+}
+
+.pb-container {
+  @apply pb-[var(--container-padding-sm)] sm:pb-[var(--container-padding)];
+}
+
+.pl-container {
+  @apply pl-[var(--container-padding-sm)] sm:pl-[var(--container-padding)];
+}
+
+.pr-container {
+  @apply pr-[var(--container-padding-sm)] sm:pr-[var(--container-padding)];
+}
+
+.mx-container {
+  @apply mx-[var(--container-padding-sm)] sm:mx-[var(--container-padding)];
+}
+
+.ring-overlay {
+  @apply after:pointer-events-none after:absolute after:inset-0 after:rounded-md after:ring-1 after:ring-inset after:ring-black/10;
+}
+
+/* ---------- ShadCN UI ---------- */
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 222.2 47.4% 11.2%;
+
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+
+    --primary: 133 37% 36%;
+    --primary-foreground: 210 40% 98%;
+
+    --secondary: 133 0% 100%;
+    --secondary-foreground: 222.2 47.4% 11.2%;
+
+    /* 
+  const sage = {
+    sage1: "hsl(150, 33%, 99%)",
+    sage2: "hsl(150, 14%, 97%)",
+    sage3: "hsl)",
+    sage4: "hsl(160, 6%, 91%)",
+    sage5: "hsl(140, 5%, 88%)",
+    sage6: "hsl(160, 4%, 85%)",
+    sage7: "hsl(150, 4%, 80%)",
+    sage8: "hsl(150, 3%, 73%)",
+    sage9: "hsl(157, 3%, 54%)",
+    sage10: "hsl(157, 3%, 50%)",
+    sage11: "hsl(160, 3%, 38%)",
+    sage12: "hsl(154, 12%, 12%)",
+  } */
+
+    --accent: 160, 10%, 94%;
+    --accent-foreground: 222.2 47.4% 11.2%;
+
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 210 40% 98%;
+
+    --ring: 215 20.2% 65.1%;
+
+    --radius: 0.5rem;
+    --input-radius: 0.25rem;
+
+    --chart-1: 12 76% 61%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    --background: 224 71% 4%;
+    --foreground: 213 31% 91%;
+
+    --muted: 223 47% 11%;
+    --muted-foreground: 215.4 16.3% 56.9%;
+
+    --popover: 224 71% 4%;
+    --popover-foreground: 215 20.2% 65.1%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+
+    --border: 216 34% 17%;
+    --input: 216 34% 17%;
+
+    --primary: 210 40% 98%;
+    --primary-foreground: 222.2 47.4% 1.2%;
+
+    --secondary: 222.2 47.4% 11.2%;
+    --secondary-foreground: 210 40% 98%;
+
+    --accent: 216 34% 17%;
+    --accent-foreground: 210 40% 98%;
+
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+
+    --ring: 216 34% 17%;
+
+    --radius: 0.5rem;
+
+    --chart-1: 220 70% 50%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+
+    --sidebar-background: 240 5.9% 10%;
+    --sidebar-foreground: 240 4.8% 95.9%;
+    --sidebar-primary: 224.3 76.3% 48%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 240 3.7% 15.9%;
+    --sidebar-accent-foreground: 240 4.8% 95.9%;
+    --sidebar-border: 240 3.7% 15.9%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: 'rlig' 1, 'calt' 1;
+    font-optical-sizing: auto;
+  }
+}
+
+.vignette-overlay {
+  background: radial-gradient(circle, transparent 30%, rgba(0, 0, 0, 1) 70%, rgba(0, 0, 0, 1) 100%);
+}
+
+.popover-shadow {
+  box-shadow: lch(0 0 0 / 0.022) 0px 6px 18px, lch(0 0 0 / 0.044) 0px 3px 9px, lch(0 0 0 / 0.044) 0px 1px 1px;
+}

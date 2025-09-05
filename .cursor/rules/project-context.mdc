@@ -1,0 +1,107 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+This is an app to help label photos of insects.
+It's meant to run purely locally.
+
+There's a hardware called MothBox that has a white surface and captures photos at an interval. These photos then get processed through some pyhton scripts that outputs a series folder structure where:
+a session (a night), has photos, and each photo is cropped with ai into a cropped part of the image showing an insect. Each photo has a json file mentioning what was detected. Each detection is assigned a label based on the ai model. The goal of the app is to help humans finalize the detection and complete it.
+
+The user loads folders taht have a specific structure.
+
+Then the user can navigate through that structure, see metadata and subfolders that map to entities (see below). the goal is for the user to approve and/or further classify detections
+
+Entities Structure:
+Projects → Sites → Deployments → Nights → Photos → Patches → Detections
+
+Filesystem structure and data model for local projects
+
+Expected folder hierarchy when selecting the projects root:
+
+- projects/
+  - {project}/
+    - {site}/
+      - {deployment}/
+        - {night}/
+          - {photoBase}.jpg
+          - {photoBase}\_botdetection.json
+          - patches/
+            - {photoBase}_{index}_{model}.jpg
+
+Notes:
+
+- Each bot detection JSON includes a shapes array; each shape has a patch_path to its patch image under night/patches.
+- Example file: `project-1/site-1/deployment-1/night-1/fondoGorila_2025_01_28__04_59_06_HDR0_botdetection.json`.
+
+In-memory entity stores (nanostores):
+
+- projectsStore: key=id=name=project
+- sitesStore: key=id=`{project}/{site}`
+- deploymentsStore: key=id=`{project}/{site}/{deployment}`
+- nightsStore: key=id=`{project}/{site}/{deployment}/{night}`
+- photosStore: key=id=`{photoBase}.jpg`; links imageFile and botDetectionFile
+- patchesStore: key=id=`{patchFilename}`; links photoId and nightId
+- detectionsStore: key=id=`{patchFilename}`; parsed from JSON shapes; fields: label, score, direction, shapeType, points
+
+Parsing rules:
+
+- Normalize paths to `/`.
+- Extract patch filename from shapes[i].patch_path (basename).
+- Derive photo base from `*_botdetection.json` or `.jpg` filename.
+
+Selection & Actions
+
+- Selection is per-night. Selecting a patch from a different night resets selection.
+- State: `selectedPatchIdsStore: Set<string>`, `selectionNightIdStore: string | null` (src/stores/ui.ts)
+- Actions (floating bar + hotkeys):
+  - Identify (key: `d`)
+  - Accept (key: `a`)
+  - Uses `react-hotkeys-hook`; visual shortcuts via `Kbd`.
+
+Labeling Flow
+
+- Identify opens a cmdk dialog to type or pick a label. Free text is allowed; Enter submits.
+- On submit: `labelDetections({ detectionIds, label })` sets `label` and `detectedBy: 'user'`.
+- Accept: `acceptDetections({ detectionIds })` sets `detectedBy: 'user'` without changing `label`.
+
+Detections Fields
+
+- `DetectionEntity`: id, patchId, photoId, nightId, label?, score?, direction?, shapeType?, points?, detectedBy?: 'auto' | 'user'.
+- Ingest defaults `detectedBy` to 'auto'.
+
+Night View Composition
+
+- Left: Summary (counts + progress), Labels (auto-only), Identified (user-only).
+- Right: Patch grid with selectable items, floating action bar, identify dialog.
+
+Scrolling/Layout
+
+- Root layout is full-height with overflow hidden.
+- Night right pane uses `min-h-0` and `overflow-hidden`; grid uses `overflow-y-auto` to scroll internally.
+
+Key Files
+
+- Entities & ingest: `src/stores/entities.ts`
+- UI selection state: `src/stores/ui.ts`
+- Night route: `src/routes/night.tsx`
+- Grid & item: `src/ui/patch-grid.tsx`, `src/ui/patch-item.tsx`
+- Selection bar: `src/ui/selection-bar.tsx`
+- Identify dialog: `src/ui/identify-dialog.tsx`
+
+## Labeling Workflow & Buckets
+
+- Each night’s raw bot detection JSON and its patches form a todo list to be reviewed by a human.
+- Two buckets exist:
+  - Auto bucket: detections parsed from JSON (default `detectedBy: 'auto'`).
+  - Identified bucket: detections that a human confirmed or labeled (`detectedBy: 'user'`).
+- Actions:
+  - Identify: sets a custom `label` and marks `detectedBy: 'user'`, moving the item to Identified bucket.
+  - Accept: preserves the current `label` but marks `detectedBy: 'user'`, also moving the item to Identified bucket.
+- Bucket math:
+  - Auto bucket counts exclude any detection with `detectedBy === 'user'`.
+  - Identified bucket counts include only detections with `detectedBy === 'user'`.
+- Recent:
+  - When user identifies or accepts, `identifiedAt` is set. Home shows a grid of most recent identifications across nights.

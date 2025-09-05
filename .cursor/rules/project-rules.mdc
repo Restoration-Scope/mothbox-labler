@@ -1,0 +1,27 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+CSS
+
+- anything that's front end is always react and tailwind css.
+- Any tailwind spacing should be multiplied by 4 because I'm using 1:1 pixels sizes in tailwind . instead of a scale, it's the same amoutn of pixels. for me p-20 = padding: 20px
+
+Languages / Frameworks
+
+- I'm mostly working with typescript.
+- I use bun
+- When using next.js code don't get examples from the pages router. I'm using the app router.
+- when dealing with database it's likely I'll be useing drizzle. I never use prisma.
+
+Testing
+
+- most likely I will be using vitest
+  React Components
+
+- When creating a component I like to use a function. Destructure the props inside of the function not in the args.
+- **Prefer components over render functions**: Instead of `renderFoo()` functions, create proper `<Foo />` components with props. This follows React patterns and improves reusability.
+- **Component naming**: Use PascalCase for component names (e.g., `AirtableConnection`, not `renderAirtableConnection`)
+- **Move components outside**: Define components outside the main component, not as inner functions

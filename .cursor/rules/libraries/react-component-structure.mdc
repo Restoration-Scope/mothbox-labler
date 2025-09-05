@@ -1,0 +1,40 @@
+---
+description: React component structure, data-fetching, and co-location standards
+globs:
+alwaysApply: true
+---
+
+### Component Structure
+
+- Keep component bodies focused on rendering. Move non-trivial logic outside the main component function.
+- Use small, single-responsibility functions. Order functions top-to-bottom by call hierarchy (higher-level first, helpers last).
+- Prefer named React components. No default exports.
+- Use object parameters for functions with more than 2 params. Destructure on the next line.
+- Use early returns and optional chaining to avoid undefined access.
+
+### Co-location & File Size
+
+- If a logic block (hook, data preparation, transformation, or fetching) exceeds ~50 lines, move it into a colocated file next to the consumer.
+- Naming conventions:
+  - Hooks: `use-thing.ts`
+  - Server helpers: `thing.server.ts` (or inside `server-actions`)
+  - Client stores: `thing.store.ts`
+- Keep types that are only used by a function just above that function. Do not export them unless needed elsewhere.
+
+### Consistency & Quality
+
+- Avoid derived state when possible; compute values in render or memoize at the source.
+- Ensure reference stability for arrays/objects returned from hooks.
+- Do not introduce new global state without review. Prefer React patterns.
+- Follow existing logging style with concise, contextual messages (emoji prefixes allowed: 🏁, 🌀, 💾, ✅, 🚨, ❌/🗑️).
+
+### Small Helper Functions
+
+- Define small, pure helpers (e.g., URL builders, formatters) outside component bodies. Do not create them inline inside components.
+- Prefer colocating helpers in the same file below components or in dedicated `*-utils.ts` files if reused across modules.
+- Components should call helpers directly rather than receive them via props.
+
+### Testing Workflow
+
+- Before modifying logic that has tests, run tests first. After edits, run them again and ensure they pass.
+- When creating new utilities/hooks, add focused tests that cover edge cases and errors.

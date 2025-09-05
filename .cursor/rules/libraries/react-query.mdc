@@ -1,0 +1,14 @@
+---
+description:
+globs:
+alwaysApply: true
+---
+
+### Data Fetching (React Query)
+
+- All server fetching must be isolated from components and implemented using React Query (`useQuery`/`useMutation`).
+- Expose a pair: `useThingQuery(params)` for the hook and `fetchThing(params)` (or `actionThing(params)`) for the queryFn/mutationFn, both defined outside the component.
+- Never fetch inside component bodies or `useEffect` for server data. Always use React Query.
+- Use stable, descriptive `queryKey`s: `['thing', paramsSubset]`. Keep keys deterministic.
+- Co-locate server calls in dedicated files when appropriate (see Co-location). Prefer `*-server.ts` for server-only helpers and `server-actions` folders where used.
+- create functions as useThingQuery outside of component to separate fetching logic from ui
