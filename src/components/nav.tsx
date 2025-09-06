@@ -7,7 +7,8 @@ import { deploymentsStore, nightsStore, projectsStore, sitesStore } from '~/stor
 import { useOpenDirectoryMutation, useRestoreDirectoryQuery } from '~/features/folder-processing/files-queries'
 import { Loader } from '~/components/atomic/Loader'
 import { Button } from '~/components/ui/button'
-import { clearSelections } from '~/features/folder-processing/files'
+import { clearSelections } from '~/features/folder-processing/files.service'
+// removed isLoadingFoldersStore usage here; loading is derived in root layout
 
 export function Nav() {
   const projects = useStore(projectsStore)
@@ -30,15 +31,14 @@ export function Nav() {
 
         {breadcrumbs.length === 0 ? <FolderPicking /> : null}
 
+        <div className='justify-self-center relative top-4'>{breadcrumbs.length ? <Breadcrumbs breadcrumbs={breadcrumbs} /> : null}</div>
+
         {restoreQuery.isLoading || isOpening ? (
           <div className='flex items-center gap-8 px-12 py-8 text-12 text-neutral-600 '>
             <Loader size={14} className='inline-block' />
             <span>{restoreQuery.isLoading ? '🌀 Restoring previously picked folder…' : '🌀 Processing selected folder…'}</span>
           </div>
         ) : null}
-
-        <div className='justify-self-center relative top-4'>{breadcrumbs.length ? <Breadcrumbs breadcrumbs={breadcrumbs} /> : null}</div>
-        <div className='justify-self-end' />
       </div>
     </header>
   )

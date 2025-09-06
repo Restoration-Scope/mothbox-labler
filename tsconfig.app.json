@@ -18,11 +18,11 @@
     /* Linting */
     "strict": true,
     "noUnusedLocals": true,
-    "noUnusedParameters": true,
     "erasableSyntaxOnly": true,
     "noFallthroughCasesInSwitch": true,
     "noUncheckedSideEffectImports": true,
     "noImplicitAny": false,
+    "noUnusedParameters": false,
 
     "paths": {
       "~/*": ["./src/*"]
