@@ -27,6 +27,10 @@ export async function ingestFilesToStores(params: { files: IndexedFile[]; parseD
     const { project, site, deployment, night, isPatch, isPhotoJpg, isBotJson, fileName, baseName } = parts
     if (!project || !site || !deployment || !night) continue
 
+    // Ignore files that are not relevant media (avoids creating nights from exports like ID_HS_*)
+    const hasRelevantMedia = isPhotoJpg || isPatch || isBotJson
+    if (!hasRelevantMedia) continue
+
     const projectId = project
     const siteId = `${project}/${site}`
     const deploymentId = `${project}/${site}/${deployment}`
@@ -143,6 +147,15 @@ export async function ingestDetectionsForNight(params: { files: IndexedFile[]; n
   await ingestFilesToStores({ files, parseDetectionsForNightId: nightId })
 }
 
+function isLikelyNightFolderName(name: string) {
+  const n = (name ?? '').toLowerCase()
+  if (!n) return false
+  const isDate = /^\d{4}-\d{2}-\d{2}$/.test(n)
+  if (isDate) return true
+  if (n.startsWith('night')) return true
+  return false
+}
+
 function parsePathParts(params: { path: string }) {
   const { path } = params
   const normalized = (path ?? '').replaceAll('\\', '/').replace(/^\/+/, '')
@@ -159,6 +172,8 @@ function parsePathParts(params: { path: string }) {
     ;[project, deployment, night, ...rest] = segments
     site = deriveSiteFromDeploymentFolder(deployment)
   }
+  // Guard: only treat folder names that look like actual nights (e.g., YYYY-MM-DD or Night*)
+  if (!isLikelyNightFolderName(night)) return null
   const isPatchesFolder = rest[0] === 'patches'
   const fileName = isPatchesFolder ? rest[1] : rest[0]
   if (!fileName) return null
@@ -209,13 +224,27 @@ type BotDetectionJson = {
 function findPatchFileForPatchId(params: { files: IndexedFile[]; nightDiskPath: string; patchId: string }) {
   const { files, nightDiskPath, patchId } = params
   if (!files?.length || !nightDiskPath || !patchId) return undefined
+
   const normalizedNight = nightDiskPath.replaceAll('\\', '/').replace(/^\/+/, '').toLowerCase()
-  const expectedSuffix = `${normalizedNight}/patches/${patchId}`
+  const patchIdLower = patchId.toLowerCase()
+  const expectedSuffixLower = `${normalizedNight}/patches/${patchIdLower}`
   for (const f of files) {
-    const path = (f?.path ?? '').replaceAll('\\', '/').toLowerCase()
-    if (!path) continue
-    if (path.endsWith(expectedSuffix)) return f
+    const pathLower = (f?.path ?? '').replaceAll('\\', '/').toLowerCase()
+    if (!pathLower) continue
+    if (pathLower.endsWith(expectedSuffixLower)) return f
   }
+
+  // Fallback: match by just the trailing "/patches/<patchId>" without full night path (tolerates minor path drifts)
+  const trailingLower = `/patches/${patchIdLower}`
+  for (const f of files) {
+    const pathLower = (f?.path ?? '').replaceAll('\\', '/').toLowerCase()
+    if (!pathLower) continue
+    if (pathLower.endsWith(trailingLower)) {
+      console.log('💡 ingest: fallback matched patch file', { patchId, path: f.path })
+      return f
+    }
+  }
+
   return undefined
 }
 

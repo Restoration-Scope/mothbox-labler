@@ -87,6 +87,7 @@ export async function tryRestoreFromSavedDirectory() {
     })
     const tIngest = performance.now()
 
+    // Avoid triggering multiple concurrent restores by ensuring this call is awaited once per app start.
     await ingestFilesToStores({ files: items, parseDetectionsForNightId: null })
     console.log('✅ restoreDirectory: ingestion complete', { totalFiles: items.length, ingestMs: Math.round(performance.now() - tIngest) })
     pickerErrorStore.set(null)

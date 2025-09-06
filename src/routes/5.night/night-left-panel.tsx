@@ -3,6 +3,11 @@ import { cn } from '~/utils/cn'
 import { Progress } from '~/components/ui/progress'
 import { clearPatchSelection } from '~/stores/ui'
 
+type NightWarnings = {
+  jsonWithoutPhotoCount?: number
+  missingPatchImageCount?: number
+}
+
 export type NightLeftPanelProps = {
   labelCounts: Record<string, number>
   identifiedLabelCounts?: Record<string, number>
@@ -12,6 +17,7 @@ export type NightLeftPanelProps = {
   selectedLabel?: string
   selectedBucket?: 'auto' | 'user'
   onSelectLabel: (params: { label?: string; bucket: 'auto' | 'user' }) => void
+  warnings?: NightWarnings
   className?: string
 }
 
@@ -25,11 +31,13 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
     selectedLabel,
     selectedBucket,
     onSelectLabel,
+    warnings,
     className,
   } = props
 
   return (
     <Column className={cn('p-20 pt-12', className)}>
+      <WarningsBox warnings={warnings} className='mb-16' />
       <div className='mb-16'>
         <h3 className='mb-6 text-16 font-semibold'>Summary</h3>
         <div className='space-y-4 text-13 text-neutral-700'>
@@ -146,6 +154,36 @@ function CountsRow(props: CountsRowProps) {
     >
       <span className='text-13 font-medium'>{label}</span>
       <span className='text-13 text-neutral-700'>{count}</span>
+    </div>
+  )
+}
+
+type WarningsBoxProps = { warnings?: NightWarnings; className?: string }
+function WarningsBox(props: WarningsBoxProps) {
+  const { warnings, className } = props
+  const jsonWithoutPhoto = warnings?.jsonWithoutPhotoCount ?? 0
+  const missingPatchImages = warnings?.missingPatchImageCount ?? 0
+
+  const hasAny = jsonWithoutPhoto > 0 || missingPatchImages > 0
+  if (!hasAny) return null
+
+  return (
+    <div className={cn('rounded-md border border-amber-300 bg-amber-50 text-amber-900 p-12', className)}>
+      <div className='text-14 font-semibold mb-6'>⚠️ Data warnings</div>
+      <div className='space-y-4 text-13'>
+        {jsonWithoutPhoto > 0 ? (
+          <div className='flex items-center justify-between'>
+            <span>JSON files without a matching photo image</span>
+            <span className='font-medium'>{jsonWithoutPhoto}</span>
+          </div>
+        ) : null}
+        {missingPatchImages > 0 ? (
+          <div className='flex items-center justify-between'>
+            <span>Detections referencing missing patch images</span>
+            <span className='font-medium'>{missingPatchImages}</span>
+          </div>
+        ) : null}
+      </div>
     </div>
   )
 }
