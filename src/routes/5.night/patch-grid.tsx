@@ -6,23 +6,30 @@ import { PatchItem } from './patch-item'
 import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@nanostores/react'
 import { selectedPatchIdsStore, selectionNightIdStore, setSelection, togglePatchSelection } from '~/stores/ui'
+import { CenteredLoader } from '~/components/atomic/CenteredLoader'
+// noop
 
 export type PatchGridProps = {
   patches: PatchEntity[]
   nightId: string
   className?: string
+  onOpenPatchDetail: (id: string) => void
+  loading?: boolean
 }
 
 export function PatchGrid(props: PatchGridProps) {
-  const { patches, nightId, className } = props
+  const { patches, nightId, className, onOpenPatchDetail, loading } = props
   const containerRef = useRef<HTMLDivElement | null>(null)
   const selected = useStore(selectedPatchIdsStore)
   useStore(selectionNightIdStore)
+
+  // Loading is passed from parent (night-level). Avoid coupling to global folder restore here to prevent flicker.
 
   const [isDragging, setIsDragging] = useState(false)
   const [dragToggled, setDragToggled] = useState<Set<string>>(new Set())
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null)
   const [focusIndex, setFocusIndex] = useState<number>(0)
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
   const detections = useStore(detectionsStore)
   const orderedIds = useMemo(() => {
@@ -47,6 +54,7 @@ export function PatchGrid(props: PatchGridProps) {
 
   function handleItemMouseDown(e: React.MouseEvent, index: number, patchId: string) {
     e.preventDefault()
+    console.log('🖱️ grid: mousedown on item', { index, patchId })
     if (e.shiftKey) {
       const start = anchorIndex ?? index
       const [lo, hi] = start <= index ? [start, index] : [index, start]
@@ -90,15 +98,19 @@ export function PatchGrid(props: PatchGridProps) {
     handleItemMouseDown(e, index, id)
   }
 
-  function onMouseEnterContainer(e: React.MouseEvent) {
-    if (!isDragging) return
+  function onMouseMoveContainer(e: React.MouseEvent) {
     const target = e.target as HTMLElement
     const indexAttr = target?.closest('[data-index]')?.getAttribute('data-index')
-    if (indexAttr == null) return
-    const index = Number(indexAttr)
-    const id = orderedIds[index]
-    if (!id) return
-    handleItemMouseEnter(id)
+    if (indexAttr == null) {
+      setHoverIndex(null)
+    } else {
+      const index = Number(indexAttr)
+      setHoverIndex(Number.isFinite(index) ? index : null)
+      if (isDragging) {
+        const id = orderedIds[index]
+        if (id) handleItemMouseEnter(id)
+      }
+    }
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -113,6 +125,11 @@ export function PatchGrid(props: PatchGridProps) {
     }
     if (e.key === ' ') {
       e.preventDefault()
+      const hoveredId = hoverIndex != null ? orderedIds[hoverIndex] : undefined
+      if (hoveredId) {
+        onOpenPatchDetail(hoveredId)
+        return
+      }
       const id = orderedIds[focusIndex]
       if (id) togglePatchSelection({ patchId: id })
       return
@@ -124,6 +141,8 @@ export function PatchGrid(props: PatchGridProps) {
     el?.focus()
   }
 
+  if (loading) return <CenteredLoader>🌀 Loading patches</CenteredLoader>
+
   if (!patches?.length) return <p className='text-sm text-neutral-500'>No patches found</p>
 
   return (
@@ -132,7 +151,7 @@ export function PatchGrid(props: PatchGridProps) {
       className={className}
       onKeyDown={onKeyDown}
       onMouseDown={onMouseDownContainer}
-      onMouseMove={onMouseEnterContainer}
+      onMouseMove={onMouseMoveContainer}
     >
       {orderedIds.map((id, index) => (
         <PatchItem id={id} key={id} index={index} />

@@ -2,10 +2,13 @@ import { Link, useParams, useRouter } from '@tanstack/react-router'
 import { useStore } from '@nanostores/react'
 import { deploymentsStore } from '../stores/entities/3.deployments'
 import { nightsStore } from '../stores/entities/4.nights'
+import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
+import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 
 export function Nights() {
   const params = useParams({ from: '/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights' })
   const router = useRouter()
+  const isLoadingFolders = useIsLoadingFolders()
   useStore(deploymentsStore)
   const nights = useStore(nightsStore)
 
@@ -14,6 +17,8 @@ export function Nights() {
 
   const search = router.state.location.search as unknown as { nightId?: string }
   const activeNightId = search?.nightId
+
+  if (isLoadingFolders) return <CenteredLoader>🌀 Loading nights</CenteredLoader>
 
   if (!list.length) return <p className='text-sm text-neutral-500'>No nights found</p>
 

@@ -2,8 +2,6 @@ import { useStore } from '@nanostores/react'
 import { Link } from '@tanstack/react-router'
 import { useMemo } from 'react'
 import { Badge } from '~/components/ui/badge'
-import { Button } from '~/components/ui/button'
-import { formatRelativeTime } from '~/utils/time'
 import { projectsStore } from '~/stores/entities/1.projects'
 import { sitesStore, type SiteEntity } from '~/stores/entities/2.sites'
 import { deploymentsStore, type DeploymentEntity } from '~/stores/entities/3.deployments'
@@ -11,12 +9,13 @@ import { nightsStore, type NightEntity } from '~/stores/entities/4.nights'
 import { patchesStore } from '~/stores/entities/5.patches'
 import { type DetectionEntity } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
-import { clearSelections } from '~/features/folder-processing/files'
-import { useOpenDirectoryMutation } from '~/features/folder-processing/files-queries'
-import { Loader } from '~/components/atomic/Loader'
 import { pickerErrorStore } from '~/stores/ui'
+import { formatRelativeTime } from '~/utils/time'
+import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
+import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 
 export function Home() {
+  const isLoadingFolders = useIsLoadingFolders()
   const pickerError = useStore(pickerErrorStore)
   const projects = useStore(projectsStore)
   const sites = useStore(sitesStore)
@@ -30,7 +29,9 @@ export function Home() {
 
       <section>
         <h2 className='mb-2 text-lg font-semibold'>Projects</h2>
-        {Object.keys(projects ?? {}).length ? (
+        {isLoadingFolders ? (
+          <CenteredLoader>🌀 Loading</CenteredLoader>
+        ) : Object.keys(projects ?? {}).length ? (
           <ul className='space-y-2'>
             {Object.values(projects).map((p) => (
               <li key={p.id} className='rounded-md border bg-white p-3'>

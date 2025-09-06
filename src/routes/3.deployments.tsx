@@ -1,14 +1,18 @@
 import { useParams, Link } from '@tanstack/react-router'
 import { useStore } from '@nanostores/react'
 import { deploymentsStore } from '../stores/entities/3.deployments'
+import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
+import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 
 export function Deployments() {
   const params = useParams({ from: '/projects/$projectId/sites/$siteId/deployments' })
+  const isLoadingFolders = useIsLoadingFolders()
   const deployments = useStore(deploymentsStore)
   const list = Object.values(deployments).filter(
     (d) => d.projectId === params.projectId && d.siteId === `${params.projectId}/${params.siteId}`,
   )
 
+  if (isLoadingFolders) return <CenteredLoader>🌀 Loading</CenteredLoader>
   if (!list.length) return <p className='text-sm text-neutral-500'>No deployments found for this site</p>
 
   return (
