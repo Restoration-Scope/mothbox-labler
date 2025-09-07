@@ -30,7 +30,7 @@ export function Night() {
   const selected = useStore(selectedPatchIdsStore)
   const [selectedLabel, setSelectedLabel] = useState<string | undefined>(undefined)
   const [identifyOpen, setIdentifyOpen] = useState(false)
-  const [selectedBucket, setSelectedBucket] = useState<'auto' | 'user' | undefined>(undefined)
+  const [selectedBucket, setSelectedBucket] = useState<'auto' | 'user' | undefined>('auto')
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailPatchId, setDetailPatchId] = useState<string | null>(null)
   const [isNightIngesting, setIsNightIngesting] = useState(false)
@@ -179,7 +179,7 @@ export function Night() {
         selectedBucket={selectedBucket}
         onSelectLabel={({ label, bucket }) => {
           setSelectedLabel(label)
-          setSelectedBucket(label ? bucket : undefined)
+          setSelectedBucket(bucket)
         }}
         className='w-[300px] overflow-y-auto'
       />
@@ -223,6 +223,16 @@ type FilterPatchesByLabelParams = {
 function filterPatchesByLabel(params: FilterPatchesByLabelParams) {
   const { patches, detections, selectedLabel, selectedBucket } = params
 
+  // If a bucket is selected but no specific label, filter by bucket only
+  if (!selectedLabel && selectedBucket) {
+    const result = patches.filter((p) => {
+      const det = detections?.[p.id]
+      const detectedBy = det?.detectedBy === 'user' ? 'user' : 'auto'
+      return detectedBy === selectedBucket
+    })
+    return result
+  }
+
   if (!selectedLabel) return patches
 
   const result = patches.filter((p) => {
@@ -234,7 +244,8 @@ function filterPatchesByLabel(params: FilterPatchesByLabelParams) {
     if (!selectedBucket) return true
 
     const detectedBy = det?.detectedBy === 'user' ? 'user' : 'auto'
-    return detectedBy === selectedBucket
+    const matches = detectedBy === selectedBucket
+    return matches
   })
   return result
 }

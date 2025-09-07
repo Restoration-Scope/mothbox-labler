@@ -1,12 +1,15 @@
-import { memo, useMemo } from 'react'
+import { memo } from 'react'
 import { useStore } from '@nanostores/react'
 import { detectionStoreById } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { Badge } from '~/components/ui/badge'
 import { selectedPatchIdsStore, togglePatchSelection } from '~/stores/ui'
 import { cn } from '~/utils/cn'
+import { useObjectUrl } from '~/utils/use-object-url'
+import { Button } from '~/components/ui/button'
+import { ZoomInIcon } from 'lucide-react'
 
-export type PatchItemProps = { id: string; index?: number }
+export type PatchItemProps = { id: string; index?: number; onOpenDetail?: (id: string) => void }
 
 function PatchItemImpl(props: PatchItemProps) {
   const { id, index } = props
@@ -16,20 +19,37 @@ function PatchItemImpl(props: PatchItemProps) {
   const label = detection?.label || 'Unlabeled'
   const isSelected = selected?.has?.(id)
 
-  const url = useMemo(() => (patch?.imageFile ? URL.createObjectURL(patch.imageFile.file) : ''), [patch?.imageFile])
+  const url = useObjectUrl(patch?.imageFile?.file)
+
+  // useEffect(() => {
+  //   if (!id) return
+  //   const hasImage = !!patch?.imageFile
+  //   if (!hasImage) {
+  //     // console.log('🚨 patch: missing imageFile', { id, patchName: patch?.name, photoId: patch?.photoId })
+  //   } else {
+  //     // console.log('🖼️ patch: image available', {
+  //     //   id,
+  //     //   path: patch?.imageFile?.path,
+  //     //   size: patch?.imageFile?.size,
+  //     // })
+  //   }
+  // }, [id, patch?.imageFile, patch?.name, patch?.photoId])
 
   function onToggle() {
     if (!id) return
     togglePatchSelection({ patchId: id })
   }
 
+  function onClickZoom(e: React.MouseEvent) {
+    e.stopPropagation()
+    if (!id) return
+    const open = props?.onOpenDetail
+    if (open) open(id)
+  }
+
   return (
     <div
-      className={cn(
-        'w-full bg-neutral-100 border border-black/10 rounded-md cursor-pointer outline-none',
-        'hover:border-primary/40',
-        isSelected ? 'ring-2 ring-primary bg-brand/20' : '',
-      )}
+      className={cn('group w-full relative bg-neutral-100 rounded-md cursor-pointer outline-none')}
       tabIndex={0}
       data-index={index}
       data-id={id}
@@ -39,12 +59,25 @@ function PatchItemImpl(props: PatchItemProps) {
       role='button'
       aria-pressed={isSelected}
     >
+      <Button
+        icon={ZoomInIcon}
+        className='absolute top-8 right-8 opacity-0 group-hover:opacity-100'
+        onClick={onClickZoom}
+        aria-label='Open details'
+      />
+      <div
+        className={cn(
+          'absolute pointer-events-none inset-0 ring-inset rounded-md ring-1 ring-black/10',
+          'hover:ring-black/40 hover:ring-[1.5px]',
+          isSelected && 'ring-2 hover:ring-2 hover:ring-black ring-brand',
+        )}
+      />
       {url ? (
         <img
           src={url}
           alt={patch?.name ?? 'patch'}
           className='aspect-square w-full object-contain rounded-t-[5px]'
-          onLoad={() => URL.revokeObjectURL(url)}
+          onDragStart={(e) => e.preventDefault()}
         />
       ) : (
         <div className='aspect-square w-full ' />

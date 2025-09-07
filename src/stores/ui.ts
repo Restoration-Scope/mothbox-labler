@@ -1,5 +1,5 @@
 import { atom } from 'nanostores'
-import { patchesStore } from './entities'
+import { patchesStore } from './entities/5.patches'
 
 export const pickerErrorStore = atom<string | null>(null)
 
@@ -8,9 +8,12 @@ export const selectionNightIdStore = atom<string | null>(null)
 
 export function togglePatchSelection(params: { patchId: string }) {
   const { patchId } = params
+
   if (!patchId) return
+
   const patch = patchesStore.get()?.[patchId]
   const patchNightId = patch?.nightId ?? null
+
   if (!patchNightId) return
 
   const currentSelected = new Set(selectedPatchIdsStore.get() ?? new Set())
@@ -31,6 +34,7 @@ export function togglePatchSelection(params: { patchId: string }) {
 
   currentSelected.add(patchId)
   selectedPatchIdsStore.set(currentSelected)
+
   if (!currentNightId) selectionNightIdStore.set(patchNightId)
 }
 

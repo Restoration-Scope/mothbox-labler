@@ -13,6 +13,7 @@ export function Projects() {
   return (
     <div className='space-y-6'>
       <h2 className='text-lg font-semibold'>Projects</h2>
+
       <div className='space-y-4'>
         {dataset.projects.map((project) => (
           <div key={project.id} className='rounded-md border bg-white'>

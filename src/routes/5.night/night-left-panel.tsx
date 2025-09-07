@@ -107,11 +107,24 @@ function CountsListSection(props: CountsListSectionProps) {
   }
 
   const items = Object.entries(counts).sort((a, b) => b[1] - a[1])
+  const allCount = Object.values(counts).reduce((acc, n) => acc + (n || 0), 0)
+  const isAllSelected = !selectedLabel && selectedBucket === bucket
 
   return (
     <div className={className}>
       <h4 className='mb-6 text-14 font-semibold'>{title}</h4>
       <div>
+        {bucket === 'auto' ? (
+          <CountsRow
+            label='All unapproved'
+            count={allCount}
+            selected={isAllSelected}
+            onSelect={() => {
+              clearPatchSelection()
+              onSelectLabel({ label: undefined, bucket })
+            }}
+          />
+        ) : null}
         {items.map(([label, count]) => {
           const isSelected = label === selectedLabel
           return (

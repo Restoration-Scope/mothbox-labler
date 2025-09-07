@@ -29,7 +29,6 @@ export function PatchGrid(props: PatchGridProps) {
   const [dragToggled, setDragToggled] = useState<Set<string>>(new Set())
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null)
   const [focusIndex, setFocusIndex] = useState<number>(0)
-  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
   const detections = useStore(detectionsStore)
   const orderedIds = useMemo(() => {
@@ -101,15 +100,10 @@ export function PatchGrid(props: PatchGridProps) {
   function onMouseMoveContainer(e: React.MouseEvent) {
     const target = e.target as HTMLElement
     const indexAttr = target?.closest('[data-index]')?.getAttribute('data-index')
-    if (indexAttr == null) {
-      setHoverIndex(null)
-    } else {
+    if (indexAttr != null && isDragging) {
       const index = Number(indexAttr)
-      setHoverIndex(Number.isFinite(index) ? index : null)
-      if (isDragging) {
-        const id = orderedIds[index]
-        if (id) handleItemMouseEnter(id)
-      }
+      const id = orderedIds[index]
+      if (id) handleItemMouseEnter(id)
     }
   }
 
@@ -125,11 +119,6 @@ export function PatchGrid(props: PatchGridProps) {
     }
     if (e.key === ' ') {
       e.preventDefault()
-      const hoveredId = hoverIndex != null ? orderedIds[hoverIndex] : undefined
-      if (hoveredId) {
-        onOpenPatchDetail(hoveredId)
-        return
-      }
       const id = orderedIds[focusIndex]
       if (id) togglePatchSelection({ patchId: id })
       return
@@ -154,7 +143,7 @@ export function PatchGrid(props: PatchGridProps) {
       onMouseMove={onMouseMoveContainer}
     >
       {orderedIds.map((id, index) => (
-        <PatchItem id={id} key={id} index={index} />
+        <PatchItem id={id} key={id} index={index} onOpenDetail={onOpenPatchDetail} />
       ))}
     </GridContainer>
   )
