@@ -113,3 +113,41 @@ Never repeat the same type of ui element twice. that is, if a list of elements (
 - **No barrel exports**: Never create `index.ts` files for re-exporting. Use direct imports from specific files instead.
 - **IDE auto-import**: Rely on IDE/AI auto-import capabilities rather than manual import management through barrel files.
 - **Direct file imports**: Import directly from the source file: `import { Component } from './specific-file'` not `import { Component } from './folder'`
+
+### Vertical Spacing (Readability)
+
+- **One blank line between logical blocks**:
+  - After import groups, constant/variable declarations, permission/guard checks, loops/conditionals, I/O (FS/network/DB) calls, and before the final return.
+- **Early returns**: keep a blank line after each guard return before the “happy path”.
+- **Group related lines**: declarations together, transformations together, side-effects together; separate each group with one blank line.
+- **No extra vertical noise**:
+  - Never use more than one consecutive blank line.
+  - No blank line immediately after `{` or immediately before `}`.
+- **Small functions (<6 lines)**: blank lines are optional; prefer clarity over density.
+- **Function order**: higher-level first, helpers below; keep a blank line between function definitions.
+
+Example (preferred):
+
+```ts
+function saveFile(params: { path: string; content: string }) {
+  const { path, content } = params
+
+  if (!path) return
+  if (content == null) return
+
+  const dir = getDir(path)
+
+  const ok = ensureWritePermission(dir)
+  if (!ok) return
+
+  const handle = openFile(dir, basename(path))
+
+  write(handle, content)
+
+  return
+}
+```
+
+```
+
+```

@@ -1,4 +1,4 @@
-import { persistPickedDirectory } from './files.persistence'
+import { persistPickedDirectory, ensureReadWritePermission } from './files.persistence'
 
 type FileSystemFileHandleLike = {
   getFile: () => Promise<File>
@@ -54,6 +54,8 @@ export async function pickDirectoryFilesWithPaths(): Promise<Array<{ file: File;
   if (!dirHandle) return []
 
   await persistPickedDirectory(dirHandle)
+  // Try to proactively request RW so we can save later without prompting again
+  void ensureReadWritePermission(dirHandle as any)
 
   const items: Array<{ file: File; path: string; name: string; size: number }> = []
   await collectFilesWithPathsRecursively({ directoryHandle: dirHandle, pathParts: [], items })

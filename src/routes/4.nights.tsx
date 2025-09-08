@@ -4,6 +4,7 @@ import { deploymentsStore } from '../stores/entities/3.deployments'
 import { nightsStore } from '../stores/entities/4.nights'
 import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
+import { ViewContainer } from '~/styles'
 
 export function Nights() {
   const params = useParams({ from: '/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights' })
@@ -23,7 +24,7 @@ export function Nights() {
   if (!list.length) return <p className='text-sm text-neutral-500'>No nights found</p>
 
   return (
-    <div className='space-y-6'>
+    <ViewContainer tabIndex={0} className='space-y-6'>
       <h2 className='text-lg font-semibold'>Nights in {params.deploymentId}</h2>
       <ul className='space-y-3'>
         {list.map((night) => (
@@ -44,6 +45,6 @@ export function Nights() {
           </li>
         ))}
       </ul>
-    </div>
+    </ViewContainer>
   )
 }

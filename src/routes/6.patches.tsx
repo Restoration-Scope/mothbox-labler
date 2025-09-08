@@ -3,6 +3,7 @@ import { useStore } from '@nanostores/react'
 import { datasetStore } from '../stores/dataset'
 import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
+import { ViewContainer } from '~/styles'
 
 export function Patches() {
   const isLoadingFolders = useIsLoadingFolders()
@@ -22,7 +23,7 @@ export function Patches() {
   const patches = photos.flatMap((p) => p.patches)
 
   return (
-    <div className='space-y-4'>
+    <ViewContainer tabIndex={0} className='space-y-4'>
       <h2 className='text-lg font-semibold'>Patches for {night.name}</h2>
       {patches.length === 0 ? (
         <p className='text-sm text-neutral-500'>No patches found</p>
@@ -36,7 +37,7 @@ export function Patches() {
           ))}
         </ul>
       )}
-    </div>
+    </ViewContainer>
   )
 }
 

@@ -5,6 +5,7 @@ import { directoryFilesStore, indexedFilesStore, selectedFilesStore } from './fi
 import { collectFilesWithPathsRecursively, pickDirectoryFilesWithPaths } from './files.fs'
 import { validateProjectRootSelection } from './files.validation'
 import { ensureReadPermission, forgetSavedDirectory, loadSavedDirectory } from './files.persistence'
+import { ingestSpeciesListsFromFiles, loadProjectSpeciesSelection } from '~/stores/species-lists'
 
 export async function openDirectory() {
   console.log('🏁 openDirectory: start picking projects folder')
@@ -26,6 +27,10 @@ export async function openDirectory() {
 
   directoryFilesStore.set(indexed.map((i) => i.file))
   indexedFilesStore.set(indexed)
+
+  // Species lists ingestion (non-blocking)
+  void ingestSpeciesListsFromFiles({ files: indexed })
+  void loadProjectSpeciesSelection()
 
   const tDatasetStart = performance.now()
   updateDatasetFromFiles({ files: indexed })
@@ -76,6 +81,9 @@ export async function tryRestoreFromSavedDirectory() {
 
     directoryFilesStore.set(items.map((i) => i.file))
     indexedFilesStore.set(items)
+    // Species lists ingestion (non-blocking)
+    void ingestSpeciesListsFromFiles({ files: items })
+    void loadProjectSpeciesSelection()
     const tDataset = performance.now()
     updateDatasetFromFiles({ files: items })
 

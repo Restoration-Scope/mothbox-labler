@@ -3,6 +3,7 @@ import { Nav } from '~/components/nav'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { useRestoreDirectoryQuery } from '~/features/folder-processing/files-queries'
 import { useIsMutating } from '@tanstack/react-query'
+import { Toaster } from 'sonner'
 
 export function RootLayout() {
   const restoreQuery = useRestoreDirectoryQuery()
@@ -15,6 +16,7 @@ export function RootLayout() {
       <main className='flex flex-col flex-1 w-full h-full overflow-hidden'>
         {isLoading ? <CenteredLoader>🌀 Loading projects folder</CenteredLoader> : <Outlet />}
       </main>
+      <Toaster />
     </div>
   )
 }

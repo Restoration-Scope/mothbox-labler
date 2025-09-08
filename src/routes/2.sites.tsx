@@ -3,6 +3,7 @@ import { useStore } from '@nanostores/react'
 import { sitesStore } from '../stores/entities/2.sites'
 import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
+import { ViewContainer } from '~/styles'
 
 export function Sites() {
   const params = useParams({ from: '/projects/$projectId/sites' })
@@ -14,7 +15,7 @@ export function Sites() {
   if (!list.length) return <p className='text-sm text-neutral-500'>No sites found for this project</p>
 
   return (
-    <div className='space-y-4'>
+    <ViewContainer className='space-y-4'>
       <h2 className='text-lg font-semibold'>Sites in {params.projectId}</h2>
       <ul className='space-y-3'>
         {list.map((site) => (
@@ -30,6 +31,6 @@ export function Sites() {
           </li>
         ))}
       </ul>
-    </div>
+    </ViewContainer>
   )
 }

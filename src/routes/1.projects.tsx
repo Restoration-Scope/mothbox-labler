@@ -3,6 +3,7 @@ import { useStore } from '@nanostores/react'
 import { datasetStore } from '../stores/dataset'
 import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
+import { ViewContainer } from '~/styles'
 
 export function Projects() {
   const isLoadingFolders = useIsLoadingFolders()
@@ -14,7 +15,7 @@ export function Projects() {
     <div className='space-y-6'>
       <h2 className='text-lg font-semibold'>Projects</h2>
 
-      <div className='space-y-4'>
+      <ViewContainer className='space-y-4'>
         {dataset.projects.map((project) => (
           <div key={project.id} className='rounded-md border bg-white'>
             <div className='border-b px-3 py-2 font-medium'>{project.name}</div>
@@ -45,7 +46,7 @@ export function Projects() {
             </ul>
           </div>
         ))}
-      </div>
+      </ViewContainer>
     </div>
   )
 }

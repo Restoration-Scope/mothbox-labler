@@ -12,6 +12,7 @@ export type PhotoEntity = {
   nightId: string
   imageFile?: IndexedFile
   botDetectionFile?: IndexedFile
+  userDetectionFile?: IndexedFile
 }
 
 export const photosStore = atom<Record<string, PhotoEntity>>({})

@@ -71,6 +71,26 @@ export async function ensureReadPermission(handle: FileSystemDirectoryHandleLike
   }
 }
 
+export async function ensureReadWritePermission(handle: FileSystemDirectoryHandleLike): Promise<boolean> {
+  try {
+    const query = (await (
+      handle as unknown as { queryPermission?: (o: { mode: 'readwrite' }) => Promise<string> | string }
+    ).queryPermission?.({
+      mode: 'readwrite',
+    })) as 'granted' | 'denied' | 'prompt' | undefined
+    if (query === 'granted') return true
+    const req = (await (
+      handle as unknown as { requestPermission?: (o: { mode: 'readwrite' }) => Promise<string> | string }
+    ).requestPermission?.({
+      mode: 'readwrite',
+    })) as 'granted' | 'denied' | 'prompt' | undefined
+    if (req === 'granted') return true
+    return false
+  } catch {
+    return false
+  }
+}
+
 export const persistenceConstants = {
   LOCAL_FLAG_KEY,
   LOCAL_NAME_KEY,

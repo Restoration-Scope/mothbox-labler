@@ -7,6 +7,7 @@ import type { PatchEntity } from '~/stores/entities/5.patches'
 import { patchesStore } from '~/stores/entities/5.patches'
 import type { DetectionEntity } from '~/stores/entities/detections'
 import { acceptDetections, detectionsStore, labelDetections } from '~/stores/entities/detections'
+import { projectSpeciesSelectionStore } from '~/stores/species-lists'
 import { ingestDetectionsForNight } from '~/stores/entities/ingest'
 import { clearPatchSelection, selectedPatchIdsStore, setSelection } from '~/stores/ui'
 import { Row } from '~/styles'
@@ -28,6 +29,7 @@ export function Night() {
   const isLoadingFolders = useIsLoadingFolders()
   const indexedFiles = useStore(indexedFilesStore)
   const selected = useStore(selectedPatchIdsStore)
+  useStore(projectSpeciesSelectionStore)
   const [selectedLabel, setSelectedLabel] = useState<string | undefined>(undefined)
   const [identifyOpen, setIdentifyOpen] = useState(false)
   const [selectedBucket, setSelectedBucket] = useState<'auto' | 'user' | undefined>('auto')
@@ -135,10 +137,10 @@ export function Night() {
     clearPatchSelection()
   }
 
-  function onSubmitLabel(label: string) {
+  function onSubmitLabel(label: string, taxon?: any) {
     if (!label) return
     if (selectedDetectionIds.length === 0) return
-    labelDetections({ detectionIds: selectedDetectionIds, label })
+    labelDetections({ detectionIds: selectedDetectionIds, label, taxon })
     clearPatchSelection()
   }
 
@@ -193,7 +195,7 @@ export function Night() {
           onSelectAll={onSelectAll}
         />
       </div>
-      <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onSubmitLabel} />
+      <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onSubmitLabel} projectId={params.projectId} />
       <PatchDetailDialog open={detailOpen} onOpenChange={setDetailOpen} patchId={detailPatchId} />
     </Row>
   )

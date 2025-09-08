@@ -3,6 +3,7 @@ import { useStore } from '@nanostores/react'
 import { deploymentsStore } from '../stores/entities/3.deployments'
 import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
+import { ViewContainer } from '~/styles'
 
 export function Deployments() {
   const params = useParams({ from: '/projects/$projectId/sites/$siteId/deployments' })
@@ -16,7 +17,7 @@ export function Deployments() {
   if (!list.length) return <p className='text-sm text-neutral-500'>No deployments found for this site</p>
 
   return (
-    <div className='space-y-4'>
+    <ViewContainer className='space-y-4'>
       <h2 className='text-lg font-semibold'>Deployments in {params.siteId}</h2>
       <ul className='space-y-3'>
         {list.map((dep) => (
@@ -32,6 +33,6 @@ export function Deployments() {
           </li>
         ))}
       </ul>
-    </div>
+    </ViewContainer>
   )
 }

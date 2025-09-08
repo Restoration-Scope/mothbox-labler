@@ -1,0 +1,276 @@
+import { detectionsStore, type DetectionEntity } from '~/stores/entities/detections'
+import { photosStore, type PhotoEntity } from '~/stores/entities/photos'
+import { patchesStore, type PatchEntity } from '~/stores/entities/5.patches'
+import { idbGet } from '~/utils/index-db'
+import { objectsToCSV } from '~/utils/csv'
+import { fsaaWriteText, type FileSystemDirectoryHandleLike } from '~/utils/fsaa'
+import { ensureReadWritePermission, persistenceConstants } from '~/features/folder-processing/files.persistence'
+
+// FSAA types moved to utils/fsaa.ts
+
+const SOFTWARE_NAME = 'Mothbeam v2'
+
+const DARWIN_COLUMNS = [
+  'basisOfRecord',
+  'datasetID',
+  'parentEventID',
+  'eventID',
+  'occurrenceID',
+  'verbatimEventDate',
+  'eventDate',
+  'eventTime',
+  'UTCOFFSET',
+  'detectionBy',
+  'detection_confidence',
+  'identifiedBy',
+  'ID_confidence',
+  'kingdom',
+  'phylum',
+  'class',
+  'order',
+  'family',
+  'genus',
+  'species',
+  'taxonID',
+  'commonName',
+  'scientificName',
+  'filepath',
+  'mothbox',
+  'software',
+  'sheet',
+  'country',
+  'area',
+  'point',
+  'latitude',
+  'longitude',
+  'ground_height',
+  'deployment_name',
+  'deployment_date',
+  'collect_date',
+  'data_storage_location',
+  'crew',
+  'notes',
+  'schedule',
+  'habitat',
+  'image_id',
+  'label',
+  'bbox',
+  'segmentation',
+  'attractor',
+  'attractor_location',
+] as const
+
+type DarwinColumn = (typeof DARWIN_COLUMNS)[number]
+type DarwinRow = Record<DarwinColumn, string>
+
+export async function exportNightDarwinCSV(params: { nightId: string }) {
+  const { nightId } = params
+  if (!nightId) return
+  console.log('🏁 exportNightDarwinCSV: start', { nightId })
+
+  const root = (await idbGet(
+    persistenceConstants.IDB_NAME,
+    persistenceConstants.IDB_STORE,
+    'projectsRoot',
+  )) as FileSystemDirectoryHandleLike | null
+  if (!root) return
+
+  const granted = await ensureReadWritePermission(root as any)
+  if (!granted) return
+
+  const allDetections = detectionsStore.get() || {}
+  const allPhotos = photosStore.get() || {}
+  const allPatches = patchesStore.get() || {}
+
+  const detections = Object.values(allDetections).filter((d) => (d as any)?.nightId === nightId)
+
+  const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
+  if (!photos.length) return
+
+  const nightDiskPath = getNightDiskPathFromAnyPhoto({ photos })
+  if (!nightDiskPath) return
+
+  const rowObjs: DarwinRow[] = []
+  for (const d of detections) {
+    const patch = allPatches[d.patchId]
+    const photo = allPhotos[d.photoId]
+    const rowObj = buildDarwinRowObject({ detection: d, patch, photo, nightId, nightDiskPath })
+    rowObjs.push(rowObj)
+  }
+
+  const csv = objectsToCSV({ objects: rowObjs as any[], headers: [...(DARWIN_COLUMNS as readonly string[])] as string[] })
+  const pathParts = [...nightDiskPath.split('/').filter(Boolean), 'darwin_export.csv']
+  await fsaaWriteText(root, pathParts, csv)
+  console.log('✅ exportNightDarwinCSV: written file', { path: pathParts.join('/') })
+}
+
+function buildDarwinRowObject(params: {
+  detection: DetectionEntity
+  patch?: PatchEntity
+  photo?: PhotoEntity
+  nightId: string
+  nightDiskPath: string
+}): DarwinRow {
+  const { detection, patch, photo, nightId, nightDiskPath } = params
+  const baseName = getPhotoBaseFromPhotoId(photo?.id || '')
+  const verbatimEventDate = extractVerbatimEventDateFromPhotoBase({ baseName })
+  const { eventDate, eventTime, utcOffset } = deriveEventDateTime({ verbatimEventDate })
+  const filepath = patch?.imageFile?.path || ''
+  const image_id = patch?.id || ''
+  const label = detection?.taxon?.scientificName || detection?.label || ''
+  const scientificName = label
+  const kingdom = 'Animalia'
+  const phylum = 'Arthropoda'
+  const klass = 'Insecta'
+  const order = detection?.taxon?.order || ''
+  const family = detection?.taxon?.family || ''
+  const genus = detection?.taxon?.genus || ''
+  const species = ''
+  const taxonID = String((detection as any)?.taxon?.taxonID || '')
+  const commonName = detection?.taxon?.vernacularName || ''
+
+  const datasetID = nightId.replaceAll('/', '_')
+  const parentEventID = datasetID
+  const eventID = photo?.id || ''
+  const occurrenceID = patch?.id || ''
+
+  const mothbox = extractMothboxFromNightDiskPath({ nightDiskPath })
+  const software = SOFTWARE_NAME
+  const detectionBy = extractDetectionByFromPatchId({ patchId: patch?.id || '', photoBase: baseName })
+  const detection_confidence = detection?.score != null ? String(detection.score) : ''
+  const identifiedBy = detection?.detectedBy === 'user' ? 'user' : ''
+  const ID_confidence = ''
+
+  const row: DarwinRow = {
+    basisOfRecord: 'MachineObservation',
+    datasetID,
+    parentEventID,
+    eventID,
+    occurrenceID,
+    verbatimEventDate,
+    eventDate,
+    eventTime,
+    UTCOFFSET: utcOffset,
+    detectionBy,
+    detection_confidence,
+    identifiedBy,
+    ID_confidence,
+    kingdom,
+    phylum,
+    class: klass,
+    order,
+    family,
+    genus,
+    species,
+    taxonID,
+    commonName,
+    scientificName,
+    filepath,
+    mothbox,
+    software,
+    sheet: '',
+    country: '',
+    area: '',
+    point: '',
+    latitude: '',
+    longitude: '',
+    ground_height: '',
+    deployment_name: '',
+    deployment_date: '',
+    collect_date: '',
+    data_storage_location: '',
+    crew: '',
+    notes: '',
+    schedule: '',
+    habitat: '',
+    image_id,
+    label,
+    bbox: '',
+    segmentation: '',
+    attractor: '',
+    attractor_location: '',
+  }
+  return row
+}
+
+// FSAA writer moved to utils/fsaa.ts
+
+function getNightDiskPathFromAnyPhoto(params: { photos: PhotoEntity[] }): string {
+  const { photos } = params
+  for (const p of photos) {
+    const path = (p as any)?.imageFile?.path || (p as any)?.botDetectionFile?.path
+    if (!path) continue
+    const norm = String(path).replaceAll('\\', '/').replace(/^\/+/, '')
+    const segments = norm.split('/').filter(Boolean)
+    if (segments.length < 2) continue
+    const withoutFile = segments.slice(0, -1)
+    const joined = withoutFile.join('/')
+    return joined
+  }
+  return ''
+}
+
+function getPhotoBaseFromPhotoId(photoId: string): string {
+  const id = photoId || ''
+  if (!id.toLowerCase().endsWith('.jpg')) return id
+  const base = id.slice(0, -'.jpg'.length)
+  return base
+}
+
+function extractVerbatimEventDateFromPhotoBase(params: { baseName?: string }) {
+  const base = (params?.baseName ?? '').trim()
+  if (!base) return ''
+
+  const match = base.match(/(\d{4}_\d{2}_\d{2}__\d{2}_\d{2}_\d{2})/)
+  const verbatim = match?.[1] || ''
+  return verbatim
+}
+
+function deriveEventDateTime(params: { verbatimEventDate: string }): { eventDate: string; eventTime: string; utcOffset: string } {
+  const { verbatimEventDate } = params
+
+  if (!verbatimEventDate) return { eventDate: '', eventTime: '', utcOffset: '' }
+  const m = verbatimEventDate.match(/(\d{4})_(\d{2})_(\d{2})__([0-9]{2})_([0-9]{2})_([0-9]{2})/)
+  if (!m) return { eventDate: '', eventTime: '', utcOffset: '' }
+  const yyyy = m[1]
+  const MM = m[2]
+  const dd = m[3]
+  const hh = m[4]
+  const mm = m[5]
+  const ss = m[6]
+  const eventDate = `${yyyy}-${MM}-${dd}`
+  const eventTime = `${hh}:${mm}:${ss}`
+  const utcOffset = ''
+  return { eventDate, eventTime, utcOffset }
+}
+
+function extractMothboxFromNightDiskPath(params: { nightDiskPath: string }): string {
+  const { nightDiskPath } = params
+
+  const norm = String(nightDiskPath || '')
+    .replaceAll('\\', '/')
+    .replace(/^\/+/, '')
+  const parts = norm.split('/').filter(Boolean)
+
+  if (parts.length < 2) return ''
+
+  const deploymentFolder = parts[parts.length - 2]
+  const m = deploymentFolder.match(/^(.*)_(\d{4}-\d{2}-\d{2})$/)
+  const beforeDate = m ? m[1] : deploymentFolder
+  const segs = beforeDate.split('_').filter(Boolean)
+  const device = segs[segs.length - 1] || ''
+  return device
+}
+
+function extractDetectionByFromPatchId(params: { patchId: string; photoBase: string }): string {
+  const { patchId, photoBase } = params
+
+  let name = (patchId || '').replace(/\.jpg$/i, '')
+  const prefix = `${photoBase}_`
+
+  if (photoBase && name.startsWith(prefix)) name = name.slice(prefix.length)
+  const idx = name.indexOf('_')
+
+  if (idx >= 0) name = name.slice(idx + 1)
+  return name
+}

@@ -21,14 +21,15 @@ export async function ingestFilesToStores(params: { files: IndexedFile[]; parseD
   let photoJpgCount = 0
   let patchFileCount = 0
   let botJsonCount = 0
+  let userJsonCount = 0
   for (const f of files) {
     const parts = parsePathParts({ path: f.path })
     if (!parts) continue
-    const { project, site, deployment, night, isPatch, isPhotoJpg, isBotJson, fileName, baseName } = parts
+    const { project, site, deployment, night, isPatch, isPhotoJpg, isBotJson, isUserJson, fileName, baseName } = parts
     if (!project || !site || !deployment || !night) continue
 
     // Ignore files that are not relevant media (avoids creating nights from exports like ID_HS_*)
-    const hasRelevantMedia = isPhotoJpg || isPatch || isBotJson
+    const hasRelevantMedia = isPhotoJpg || isPatch || isBotJson || isUserJson
     if (!hasRelevantMedia) continue
 
     const projectId = project
@@ -66,6 +67,14 @@ export async function ingestFilesToStores(params: { files: IndexedFile[]; parseD
       const existing = photos[photoId] ?? { id: photoId, name: photoId, nightId }
       photos[photoId] = { ...existing, botDetectionFile: f }
       botJsonCount++
+      continue
+    }
+
+    if (isUserJson && shouldIncludeMedia) {
+      const photoId = `${baseName}.jpg`
+      const existing = photos[photoId] ?? { id: photoId, name: photoId, nightId }
+      photos[photoId] = { ...existing, userDetectionFile: f }
+      userJsonCount++
       continue
     }
   }
@@ -108,6 +117,39 @@ export async function ingestFilesToStores(params: { files: IndexedFile[]; parseD
           detectedBy: 'auto',
         }
         detectionsParsed++
+      }
+    }
+  }
+
+  // Overlay user detections (if any) from *_detection.json files
+  if (parseDetectionsForNightId !== null) {
+    for (const photo of Object.values(photos)) {
+      if (parseDetectionsForNightId && photo.nightId !== parseDetectionsForNightId) continue
+
+      const userJson = (photo as any)?.userDetectionFile as IndexedFile | undefined
+
+      if (!userJson) continue
+      const parsed = await parseUserDetectionJsonSafely({ file: userJson })
+
+      if (!parsed) continue
+      for (const entry of parsed.detections) {
+        const detectionId = entry?.patchId || entry?.id
+        if (!detectionId) continue
+        const existing = detections[detectionId]
+        const next: DetectionEntity = {
+          id: detectionId,
+          patchId: detectionId,
+          photoId: existing?.photoId || `${parsed.photoBase || ''}.jpg`,
+          nightId: photo.nightId,
+          label: safeLabel(entry?.label) ?? existing?.label,
+          score: existing?.score,
+          direction: existing?.direction,
+          shapeType: existing?.shapeType,
+          points: existing?.points,
+          detectedBy: entry?.detectedBy === 'user' ? 'user' : existing?.detectedBy || 'auto',
+          identifiedAt: typeof entry?.identifiedAt === 'number' ? entry.identifiedAt : existing?.identifiedAt,
+        }
+        detections[detectionId] = next
       }
     }
   }
@@ -181,12 +223,15 @@ function parsePathParts(params: { path: string }) {
   const isPatch = isPatchesFolder && lower.endsWith('.jpg')
   const isPhotoJpg = !isPatchesFolder && lower.endsWith('.jpg')
   const isBotJson = lower.endsWith('_botdetection.json')
+  const isUserJson = lower.endsWith('_detection.json')
   const baseName = isBotJson
     ? fileName.slice(0, -'_botdetection.json'.length)
+    : isUserJson
+    ? fileName.slice(0, -'_detection.json'.length)
     : fileName.endsWith('.jpg')
     ? fileName.slice(0, -'.jpg'.length)
     : fileName
-  return { project, site, deployment, night, isPatch, isPhotoJpg, isBotJson, fileName, baseName }
+  return { project, site, deployment, night, isPatch, isPhotoJpg, isBotJson, isUserJson, fileName, baseName }
 }
 
 async function parseBotDetectionJsonSafely(params: { file: IndexedFile }): Promise<BotDetectionJson | null> {
@@ -219,6 +264,29 @@ type BotDetectionJson = {
     points?: number[][]
     patch_path?: string
   }>
+}
+
+type UserDetectionJson = {
+  version?: string
+  photoBase?: string
+  detections: Array<{
+    id?: string
+    patchId?: string
+    label?: unknown
+    detectedBy?: 'auto' | 'user'
+    identifiedAt?: number
+  }>
+}
+
+async function parseUserDetectionJsonSafely(params: { file: IndexedFile }): Promise<UserDetectionJson | null> {
+  try {
+    const text = await params.file.file.text()
+    const json = JSON.parse(text) as UserDetectionJson
+    if (!json || !Array.isArray(json.detections)) return null
+    return json
+  } catch {
+    return null
+  }
 }
 
 function findPatchFileForPatchId(params: { files: IndexedFile[]; nightDiskPath: string; patchId: string }) {

@@ -2,6 +2,12 @@ import { Column } from '~/styles'
 import { cn } from '~/utils/cn'
 import { Progress } from '~/components/ui/progress'
 import { clearPatchSelection } from '~/stores/ui'
+import { Button } from '~/components/ui/button'
+import { useParams } from '@tanstack/react-router'
+import { useStore } from '@nanostores/react'
+import { detectionsStore } from '~/stores/entities/detections'
+import { exportNightDarwinCSV } from '~/features/export/darwin-csv'
+import { toast } from 'sonner'
 
 type NightWarnings = {
   jsonWithoutPhotoCount?: number
@@ -34,6 +40,15 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
     warnings,
     className,
   } = props
+
+  const params = useParams({ from: '/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId' })
+  const nightId = `${params.projectId}/${params.siteId}/${params.deploymentId}/${params.nightId}`
+  const detections = useStore(detectionsStore)
+  const totalForNight = Object.values(detections ?? {}).filter((d) => (d as any)?.nightId === nightId).length
+  const totalIdentifiedForNight = Object.values(detections ?? {}).filter(
+    (d) => (d as any)?.nightId === nightId && (d as any)?.detectedBy === 'user',
+  ).length
+  const canExport = totalForNight > 0 && totalIdentifiedForNight === totalForNight
 
   return (
     <Column className={cn('p-20 pt-12', className)}>
@@ -79,6 +94,23 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
         onSelectLabel={onSelectLabel}
         emptyText='No identified labels yet'
       />
+
+      <div className='mt-auto pt-16'>
+        <Button
+          disabled={!canExport}
+          className='w-full'
+          onClick={() => {
+            const p = exportNightDarwinCSV({ nightId })
+            toast.promise(p, {
+              loading: '💾 Exporting Darwin CSV…',
+              success: '✅ Darwin CSV exported',
+              error: '🚨 Failed to export Darwin CSV',
+            })
+          }}
+        >
+          Export Darwin CSV
+        </Button>
+      </div>
     </Column>
   )
 }

@@ -8,6 +8,9 @@ import { useOpenDirectoryMutation, useRestoreDirectoryQuery } from '~/features/f
 import { Loader } from '~/components/atomic/Loader'
 import { Button } from '~/components/ui/button'
 import { clearSelections } from '~/features/folder-processing/files.service'
+import { useMemo, useState } from 'react'
+import { projectSpeciesSelectionStore, speciesListsStore } from '~/stores/species-lists'
+import { SpeciesPicker } from '~/components/species-picker'
 // removed isLoadingFoldersStore usage here; loading is derived in root layout
 
 export function Nav() {
@@ -17,6 +20,14 @@ export function Nav() {
   const nights = useStore(nightsStore)
   const { pathname } = useRouterState({ select: (s) => s.location })
   const breadcrumbs = getBreadcrumbs({ pathname, projects, sites, deployments, nights })
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const selection = useStore(projectSpeciesSelectionStore)
+  const speciesLists = useStore(speciesListsStore)
+  const activeProjectId = useMemo(() => (pathname.startsWith('/projects/') ? pathname.split('/')[2] : ''), [pathname])
+  const activeSpeciesName = useMemo(() => {
+    const listId = selection?.[activeProjectId]
+    return listId ? speciesLists?.[listId]?.name : undefined
+  }, [selection, activeProjectId, speciesLists])
 
   const restoreQuery = useRestoreDirectoryQuery()
 
@@ -26,12 +37,19 @@ export function Nav() {
     <header className='border-b bg-white'>
       <div className='flex flex-row items-center gap-4 px-20 py-3'>
         <Link to='/' className='text-xl font-semibold hover:opacity-80 mr-40'>
-          <Logo size={32} />
+          <Logo size={30} />
         </Link>
 
         {breadcrumbs.length === 0 ? <FolderPicking /> : null}
 
-        <div className='justify-self-center relative top-4'>{breadcrumbs.length ? <Breadcrumbs breadcrumbs={breadcrumbs} /> : null}</div>
+        <div className='justify-self-center relative top-4 flex items-center gap-12'>
+          {breadcrumbs.length ? <Breadcrumbs breadcrumbs={breadcrumbs} /> : null}
+          {activeProjectId ? (
+            <button className='text-12 px-8 py-4 rounded border hover:bg-neutral-50' onClick={() => setPickerOpen(true)}>
+              Species: {activeSpeciesName ?? 'Select…'}
+            </button>
+          ) : null}
+        </div>
 
         {restoreQuery.isLoading || isOpening ? (
           <div className='flex items-center gap-8 px-12 py-8 text-12 text-neutral-600 '>
@@ -39,6 +57,7 @@ export function Nav() {
             <span>{restoreQuery.isLoading ? '🌀 Restoring previously picked folder…' : '🌀 Processing selected folder…'}</span>
           </div>
         ) : null}
+        <SpeciesPicker open={pickerOpen} onOpenChange={setPickerOpen} projectId={activeProjectId} />
       </div>
     </header>
   )
