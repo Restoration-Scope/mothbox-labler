@@ -14,14 +14,14 @@ import { nightSummariesStore, type NightSummaryEntity } from '~/stores/entities/
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { pickerErrorStore } from '~/stores/ui'
 import { formatRelativeTime } from '~/utils/time'
-import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
+import { useAppLoading } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { exportNightDarwinCSV } from '~/features/export/darwin-csv'
 import { exportNightSummaryRS } from '~/features/export/rs-summary'
 import { toast } from 'sonner'
 
 export function Home() {
-  const isLoadingFolders = useIsLoadingFolders()
+  const { isLoading: isLoadingFolders } = useAppLoading()
   const pickerError = useStore(pickerErrorStore)
   const projects = useStore(projectsStore)
   const sites = useStore(sitesStore)
@@ -43,7 +43,7 @@ export function Home() {
           detections={detections}
         />
       </div>
-      <div className='min-h-0 flex-1 overflow-hidden'>
+      <div className='min-h-0 flex-1 overflow-y-auto'>
         {pickerError ? (
           <div className='mb-12 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'>{pickerError}</div>
         ) : null}

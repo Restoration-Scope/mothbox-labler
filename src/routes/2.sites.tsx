@@ -1,13 +1,13 @@
 import { useParams, Link } from '@tanstack/react-router'
 import { useStore } from '@nanostores/react'
 import { sitesStore } from '../stores/entities/2.sites'
-import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
+import { useAppLoading } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { ViewContainer } from '~/styles'
 
 export function Sites() {
   const params = useParams({ from: '/projects/$projectId/sites' })
-  const isLoadingFolders = useIsLoadingFolders()
+  const { isLoading: isLoadingFolders } = useAppLoading()
   const sites = useStore(sitesStore)
   const list = Object.values(sites).filter((s) => s.projectId === params.projectId)
 

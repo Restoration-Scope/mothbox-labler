@@ -1,12 +1,12 @@
 import { useParams } from '@tanstack/react-router'
 import { useStore } from '@nanostores/react'
 import { datasetStore } from '../stores/dataset'
-import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
+import { useAppLoading } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { ViewContainer } from '~/styles'
 
 export function Patches() {
-  const isLoadingFolders = useIsLoadingFolders()
+  const { isLoading: isLoadingFolders } = useAppLoading()
   const dataset = useStore(datasetStore)
   const params = useParams({ from: '/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId' })
 

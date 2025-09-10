@@ -1,12 +1,12 @@
 import { Link } from '@tanstack/react-router'
 import { useStore } from '@nanostores/react'
 import { datasetStore } from '../stores/dataset'
-import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
+import { useAppLoading } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { ViewContainer } from '~/styles'
 
 export function Projects() {
-  const isLoadingFolders = useIsLoadingFolders()
+  const { isLoading: isLoadingFolders } = useAppLoading()
   const dataset = useStore(datasetStore)
   if (isLoadingFolders) return <CenteredLoader>🌀 Loading</CenteredLoader>
   if (!dataset) return <p className='text-sm text-neutral-500'>Load a directory to see projects</p>

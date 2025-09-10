@@ -7,7 +7,7 @@ import type { PatchEntity } from '~/stores/entities/5.patches'
 import { patchesStore } from '~/stores/entities/5.patches'
 import type { DetectionEntity } from '~/stores/entities/detections'
 import { acceptDetections, detectionsStore, labelDetections } from '~/stores/entities/detections'
-import { projectSpeciesSelectionStore } from '~/stores/species-lists'
+import { projectSpeciesSelectionStore, speciesListsStore } from '~/stores/species-lists'
 import { ingestDetectionsForNight } from '~/stores/entities/ingest'
 import { clearPatchSelection, selectedPatchIdsStore, setSelection } from '~/stores/ui'
 import { Row } from '~/styles'
@@ -17,8 +17,9 @@ import { NightLeftPanel } from './night-left-panel'
 import { PatchGrid } from './patch-grid'
 import { SelectionBar } from './selection-bar'
 import { photosStore } from '~/stores/entities/photos'
-import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
+import { useAppLoading } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
+import { SpeciesPicker } from '~/components/species-picker'
 
 type TaxonSelection = { rank: 'order' | 'family' | 'genus' | 'species'; name: string } | undefined
 
@@ -35,7 +36,7 @@ export function Night() {
   const patches = useStore(patchesStore)
   const detections = useStore(detectionsStore)
   const photos = useStore(photosStore)
-  const isLoadingFolders = useIsLoadingFolders()
+  const { isLoading: isLoadingFolders } = useAppLoading()
   const indexedFiles = useStore(indexedFilesStore)
   const selected = useStore(selectedPatchIdsStore)
   useStore(projectSpeciesSelectionStore)
@@ -46,6 +47,8 @@ export function Night() {
   const [detailPatchId, setDetailPatchId] = useState<string | null>(null)
   const [isNightIngesting, setIsNightIngesting] = useState(false)
   const ingestRunRef = useRef(0)
+  const [speciesPickerOpen, setSpeciesPickerOpen] = useState(false)
+  const [identifyPending, setIdentifyPending] = useState(false)
 
   const nightId = `${params.projectId}/${params.siteId}/${params.deploymentId}/${params.nightId}`
   const night = nights[nightId]
@@ -137,7 +140,20 @@ export function Night() {
 
   function onIdentify() {
     if (selectedCount === 0) return
+
+    setIdentifyPending(true)
+
+    const selectionByProject = projectSpeciesSelectionStore.get() || {}
+    const hasSelection = !!selectionByProject?.[params.projectId]
+    const anySpeciesLists = Object.keys(speciesListsStore.get() || {}).length > 0
+
+    if (!hasSelection && anySpeciesLists) {
+      setSpeciesPickerOpen(true)
+      return
+    }
+
     setIdentifyOpen(true)
+    setIdentifyPending(false)
   }
 
   function onAccept() {
@@ -172,7 +188,7 @@ export function Night() {
   const isNightLoading = isLoadingFolders || isNightIngesting
 
   if (isNightLoading) {
-    return <CenteredLoader>🌀 Loading night patches…</CenteredLoader>
+    return <CenteredLoader>🌀 Loading night patche</CenteredLoader>
   }
 
   if (!night) return <p className='text-sm text-neutral-500'>Night not found</p>
@@ -204,6 +220,19 @@ export function Night() {
           onSelectAll={onSelectAll}
         />
       </div>
+      <SpeciesPicker
+        open={speciesPickerOpen}
+        onOpenChange={(open) => {
+          setSpeciesPickerOpen(open)
+          if (!open && identifyPending) {
+            const selectionByProject = projectSpeciesSelectionStore.get() || {}
+            const hasSelection = !!selectionByProject?.[params.projectId]
+            if (hasSelection) setIdentifyOpen(true)
+            setIdentifyPending(false)
+          }
+        }}
+        projectId={params.projectId}
+      />
       <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onSubmitLabel} projectId={params.projectId} />
       <PatchDetailDialog open={detailOpen} onOpenChange={setDetailOpen} patchId={detailPatchId} />
     </Row>
