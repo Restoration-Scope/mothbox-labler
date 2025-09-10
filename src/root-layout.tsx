@@ -4,6 +4,7 @@ import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { useRestoreDirectoryQuery } from '~/features/folder-processing/files-queries'
 import { useIsMutating } from '@tanstack/react-query'
 import { Toaster } from 'sonner'
+import { UserInitialsDialog } from '~/components/user-initials-dialog'
 
 export function RootLayout() {
   const restoreQuery = useRestoreDirectoryQuery()
@@ -17,6 +18,8 @@ export function RootLayout() {
         {isLoading ? <CenteredLoader>🌀 Loading projects folder</CenteredLoader> : <Outlet />}
       </main>
       <Toaster />
+
+      <UserInitialsDialog />
     </div>
   )
 }

@@ -1,10 +1,12 @@
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@nanostores/react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '~/components/ui/dialog'
 import { Button } from '~/components/ui/button'
-import { detectionStoreById } from '~/stores/entities/detections'
+import { detectionStoreById, labelDetections } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { photosStore } from '~/stores/entities/photos'
+import { IdentifyDialog } from './identify-dialog'
+import type { TaxonRecord } from '~/stores/species-lists'
 
 export type PatchDetailDialogProps = {
   open: boolean
@@ -23,6 +25,9 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
   const patchUrl = useMemo(() => (patch?.imageFile ? URL.createObjectURL(patch.imageFile.file) : ''), [patch?.imageFile])
   const photoUrl = useMemo(() => (photo?.imageFile ? URL.createObjectURL(photo.imageFile.file) : ''), [photo?.imageFile])
 
+  const [identifyOpen, setIdentifyOpen] = useState(false)
+  const projectId = useMemo(() => getProjectIdFromNightId(patch?.nightId), [patch?.nightId])
+
   useEffect(() => {
     return () => {
       if (patchUrl) URL.revokeObjectURL(patchUrl)
@@ -34,6 +39,14 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
     const value = (text ?? '').trim()
     if (!value) return
     void navigator?.clipboard?.writeText?.(value)
+  }
+
+  function onIdentifySubmit(label: string, taxon?: TaxonRecord) {
+    const detectionId = patch?.id
+    const trimmed = (label ?? '').trim()
+    if (!detectionId || !trimmed) return
+
+    labelDetections({ detectionIds: [detectionId], label: trimmed, taxon })
   }
 
   return (
@@ -59,22 +72,22 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
             <div className='flex flex-wrap gap-8'>
               {patchUrl ? (
                 <a href={patchUrl} target='_blank' rel='noreferrer'>
-                  <Button size='sm' variant='outline'>
+                  <Button size='xsm' variant='outline'>
                     Open patch
                   </Button>
                 </a>
               ) : null}
-              <Button size='sm' variant='outline' onClick={() => onCopy(patch?.imageFile?.path)}>
+              <Button size='xsm' variant='outline' onClick={() => onCopy(patch?.imageFile?.path)}>
                 Copy patch path
               </Button>
             </div>
+
             <div className='text-12 text-neutral-700 break-all'>
-              <div>
-                <span className='font-medium'>Patch ID:</span> {patch?.id}
-              </div>
-              <div>
-                <span className='font-medium'>File path:</span> {patch?.imageFile?.path ?? '—'}
-              </div>
+              <span className='font-medium'>File path:</span> {patch?.imageFile?.path ?? '—'}
+            </div>
+
+            <div className='text-12 text-neutral-700 break-all mt-12'>
+              <span className='font-medium'>Patch ID:</span> {patch?.id}
             </div>
           </div>
 
@@ -92,12 +105,12 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
             <div className='flex flex-wrap gap-8'>
               {photoUrl ? (
                 <a href={photoUrl} target='_blank' rel='noreferrer'>
-                  <Button size='sm' variant='outline'>
+                  <Button size='xsm' variant='outline'>
                     Open photo
                   </Button>
                 </a>
               ) : null}
-              <Button size='sm' variant='outline' onClick={() => onCopy(photo?.imageFile?.path)}>
+              <Button size='xsm' variant='outline' onClick={() => onCopy(photo?.imageFile?.path)}>
                 Copy photo path
               </Button>
             </div>
@@ -130,6 +143,42 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
             <div>
               <span className='font-medium'>Points:</span> {Array.isArray(detection?.points) ? detection!.points!.length : 0}
             </div>
+            <div className='pt-8'>
+              <Button size='sm' onClick={() => setIdentifyOpen(true)}>
+                Identify
+              </Button>
+            </div>
+
+            <div className='pt-8 space-y-2'>
+              <h5 className='text-13 font-semibold text-neutral-800'>Taxonomy</h5>
+              <div>
+                <span className='font-medium'>Scientific name:</span> {detection?.taxon?.scientificName ?? '—'}
+              </div>
+              <div>
+                <span className='font-medium'>Rank:</span> {detection?.taxon?.taxonRank ?? '—'}
+              </div>
+              <div>
+                <span className='font-medium'>Kingdom:</span> {detection?.taxon?.kingdom ?? '—'}
+              </div>
+              <div>
+                <span className='font-medium'>Phylum:</span> {detection?.taxon?.phylum ?? '—'}
+              </div>
+              <div>
+                <span className='font-medium'>Class:</span> {detection?.taxon?.class ?? '—'}
+              </div>
+              <div>
+                <span className='font-medium'>Order:</span> {detection?.taxon?.order ?? '—'}
+              </div>
+              <div>
+                <span className='font-medium'>Family:</span> {detection?.taxon?.family ?? '—'}
+              </div>
+              <div>
+                <span className='font-medium'>Genus:</span> {detection?.taxon?.genus ?? '—'}
+              </div>
+              <div>
+                <span className='font-medium'>Species:</span> {detection?.taxon?.species ?? '—'}
+              </div>
+            </div>
           </div>
           <div className='space-y-4'>
             <h4 className='text-14 font-semibold text-neutral-800'>Links</h4>
@@ -144,7 +193,17 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
             </div>
           </div>
         </div>
+        <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onIdentifySubmit} projectId={projectId} />
       </DialogContent>
     </Dialog>
   )
+}
+
+function getProjectIdFromNightId(nightId?: string | null) {
+  const id = (nightId ?? '').trim()
+  if (!id) return undefined
+  const parts = id.split('/').filter(Boolean)
+  if (!parts.length) return undefined
+  const projectId = parts[0]
+  return projectId
 }

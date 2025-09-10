@@ -11,6 +11,9 @@ import { clearSelections } from '~/features/folder-processing/files.service'
 import { useMemo, useState } from 'react'
 import { projectSpeciesSelectionStore, speciesListsStore } from '~/stores/species-lists'
 import { SpeciesPicker } from '~/components/species-picker'
+import { userSessionStore, clearUserSession } from '~/stores/ui'
+import { Avatar, AvatarFallback } from '~/components/ui/avatar'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
 // removed isLoadingFoldersStore usage here; loading is derived in root layout
 
 export function Nav() {
@@ -23,6 +26,7 @@ export function Nav() {
   const [pickerOpen, setPickerOpen] = useState(false)
   const selection = useStore(projectSpeciesSelectionStore)
   const speciesLists = useStore(speciesListsStore)
+  const session = useStore(userSessionStore)
   const activeProjectId = useMemo(() => (pathname.startsWith('/projects/') ? pathname.split('/')[2] : ''), [pathname])
   const activeSpeciesName = useMemo(() => {
     const listId = selection?.[activeProjectId]
@@ -58,6 +62,21 @@ export function Nav() {
           </div>
         ) : null}
         <SpeciesPicker open={pickerOpen} onOpenChange={setPickerOpen} projectId={activeProjectId} />
+
+        <div className='ml-auto'>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button className='rounded-full border hover:bg-neutral-50 p-2'>
+                <Avatar>
+                  <AvatarFallback>{(session?.initials || '?').toUpperCase()}</AvatarFallback>
+                </Avatar>
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align='end'>
+              <DropdownMenuItem onClick={() => void clearUserSession()}>Change user name…</DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </header>
   )

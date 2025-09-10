@@ -78,6 +78,19 @@ export async function exportNightDarwinCSV(params: { nightId: string }) {
   const granted = await ensureReadWritePermission(root as any)
   if (!granted) return
 
+  const generated = await generateNightDarwinCSVString({ nightId })
+  if (!generated) return
+  const { csv, nightDiskPath } = generated
+
+  const pathParts = [...nightDiskPath.split('/').filter(Boolean), 'darwin_export.csv']
+  await fsaaWriteText(root, pathParts, csv)
+  console.log('✅ exportNightDarwinCSV: written file', { path: pathParts.join('/') })
+}
+
+export async function generateNightDarwinCSVString(params: { nightId: string }): Promise<{ csv: string; nightDiskPath: string } | null> {
+  const { nightId } = params
+  if (!nightId) return null
+
   const allDetections = detectionsStore.get() || {}
   const allPhotos = photosStore.get() || {}
   const allPatches = patchesStore.get() || {}
@@ -85,10 +98,10 @@ export async function exportNightDarwinCSV(params: { nightId: string }) {
   const detections = Object.values(allDetections).filter((d) => (d as any)?.nightId === nightId)
 
   const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
-  if (!photos.length) return
+  if (!photos.length) return null
 
   const nightDiskPath = getNightDiskPathFromAnyPhoto({ photos })
-  if (!nightDiskPath) return
+  if (!nightDiskPath) return null
 
   const rowObjs: DarwinRow[] = []
   for (const d of detections) {
@@ -99,9 +112,7 @@ export async function exportNightDarwinCSV(params: { nightId: string }) {
   }
 
   const csv = objectsToCSV({ objects: rowObjs as any[], headers: [...(DARWIN_COLUMNS as readonly string[])] as string[] })
-  const pathParts = [...nightDiskPath.split('/').filter(Boolean), 'darwin_export.csv']
-  await fsaaWriteText(root, pathParts, csv)
-  console.log('✅ exportNightDarwinCSV: written file', { path: pathParts.join('/') })
+  return { csv, nightDiskPath }
 }
 
 function buildDarwinRowObject(params: {
