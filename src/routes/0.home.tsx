@@ -19,6 +19,8 @@ import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { exportNightDarwinCSV } from '~/features/export/darwin-csv'
 import { exportNightSummaryRS } from '~/features/export/rs-summary'
 import { toast } from 'sonner'
+import { cn } from '~/utils/cn'
+import { Row } from '~/styles'
 
 export function Home() {
   const { isLoading: isLoadingFolders } = useAppLoading()
@@ -32,18 +34,17 @@ export function Home() {
   const nightSummaries = useStore(nightSummariesStore)
 
   return (
-    <div className='p-20 pt-12 h-full min-h-0 flex gap-16'>
-      <div className='w-[240px] shrink-0'>
-        <HomeSummaryPanel
-          projects={projects}
-          sites={sites}
-          deployments={deployments}
-          nights={nights}
-          patches={patches}
-          detections={detections}
-        />
-      </div>
-      <div className='min-h-0 flex-1 overflow-y-auto'>
+    <Row className='p-20 pt-12 h-full min-h-0 items-start gap-16 overflow-y-auto'>
+      <HomeSummaryPanel
+        className='w-[240px] sticky top-0 '
+        projects={projects}
+        sites={sites}
+        deployments={deployments}
+        nights={nights}
+        patches={patches}
+        detections={detections}
+      />
+      <div className='min-h-0 flex-1'>
         {pickerError ? (
           <div className='mb-12 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'>{pickerError}</div>
         ) : null}
@@ -57,7 +58,7 @@ export function Home() {
           nightSummaries={nightSummaries}
         />
       </div>
-    </div>
+    </Row>
   )
 }
 
@@ -395,15 +396,16 @@ type HomeSummaryPanelProps = {
   nights: Record<string, NightEntity>
   patches: Record<string, unknown>
   detections: Record<string, DetectionEntity>
+  className?: string
 }
 function HomeSummaryPanel(props: HomeSummaryPanelProps) {
-  const { projects, sites, deployments, nights, patches, detections } = props
+  const { projects, sites, deployments, nights, patches, detections, className } = props
   const totalDetections = Object.keys(detections ?? {}).length
   const totalIdentified = Object.values(detections ?? {}).filter((d) => (d as any)?.detectedBy === 'user').length
   const totalPatches = Object.keys(patches ?? {}).length
 
   return (
-    <div className='p-12 rounded-md border bg-white'>
+    <div className={cn('p-12 rounded-md border bg-white', className)}>
       <h3 className='mb-6 text-16 font-semibold'>Summary</h3>
       <div className='space-y-4 text-13 text-neutral-700'>
         <div className='flex items-center justify-between'>
