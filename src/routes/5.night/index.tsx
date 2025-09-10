@@ -20,6 +20,15 @@ import { photosStore } from '~/stores/entities/photos'
 import { useIsLoadingFolders } from '~/features/folder-processing/files-queries'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 
+type TaxonSelection = { rank: 'order' | 'family' | 'genus' | 'species'; name: string } | undefined
+
+type TaxonomyNode = {
+  rank: 'order' | 'family' | 'genus' | 'species'
+  name: string
+  count: number
+  children?: TaxonomyNode[]
+}
+
 export function Night() {
   const params = useParams({ from: '/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId' })
   const nights = useStore(nightsStore)
@@ -30,7 +39,7 @@ export function Night() {
   const indexedFiles = useStore(indexedFilesStore)
   const selected = useStore(selectedPatchIdsStore)
   useStore(projectSpeciesSelectionStore)
-  const [selectedLabel, setSelectedLabel] = useState<string | undefined>(undefined)
+  const [selectedTaxon, setSelectedTaxon] = useState<TaxonSelection>(undefined)
   const [identifyOpen, setIdentifyOpen] = useState(false)
   const [selectedBucket, setSelectedBucket] = useState<'auto' | 'user' | undefined>('auto')
   const [detailOpen, setDetailOpen] = useState(false)
@@ -87,16 +96,16 @@ export function Night() {
   // Breadcrumbs now rendered by RootLayout
 
   const list = useMemo(() => Object.values(patches).filter((patch) => patch.nightId === nightId), [patches, nightId])
-  const labelCounts = useMemo(() => getLabelCountsForNight({ detections, nightId }), [detections, nightId])
-  const identifiedLabelCounts = useMemo(() => getIdentifiedLabelCountsForNight({ detections, nightId }), [detections, nightId])
+  const taxonomyAuto = useMemo(() => buildTaxonomyTreeForNight({ detections, nightId, bucket: 'auto' }), [detections, nightId])
+  const taxonomyUser = useMemo(() => buildTaxonomyTreeForNight({ detections, nightId, bucket: 'user' }), [detections, nightId])
   const totalDetections = useMemo(() => Object.values(detections ?? {}).filter((d) => d.nightId === nightId).length, [detections, nightId])
   const totalIdentified = useMemo(
     () => Object.values(detections ?? {}).filter((d) => d.nightId === nightId && (d as any)?.detectedBy === 'user').length,
     [detections, nightId],
   )
   const filtered = useMemo(
-    () => filterPatchesByLabel({ patches: list, detections, selectedLabel, selectedBucket }),
-    [list, detections, selectedLabel, selectedBucket],
+    () => filterPatchesByTaxon({ patches: list, detections, selectedTaxon, selectedBucket }),
+    [list, detections, selectedTaxon, selectedBucket],
   )
   const sorted = useMemo(() => sortPatchesByDimensions({ patches: filtered, detections }), [filtered, detections])
   const selectedCount = useMemo(() => Array.from(selected ?? []).filter((id) => !!id).length, [selected])
@@ -171,16 +180,16 @@ export function Night() {
   return (
     <Row className='w-full h-full overflow-hidden gap-x-4'>
       <NightLeftPanel
-        labelCounts={labelCounts}
-        identifiedLabelCounts={identifiedLabelCounts}
+        taxonomyAuto={taxonomyAuto}
+        taxonomyUser={taxonomyUser}
         totalPatches={list.length}
         totalDetections={totalDetections}
         totalIdentified={totalIdentified}
         warnings={nightWarnings}
-        selectedLabel={selectedLabel}
+        selectedTaxon={selectedTaxon}
         selectedBucket={selectedBucket}
-        onSelectLabel={({ label, bucket }) => {
-          setSelectedLabel(label)
+        onSelectTaxon={({ taxon, bucket }) => {
+          setSelectedTaxon(taxon)
           setSelectedBucket(bucket)
         }}
         className='w-[300px] overflow-y-auto'
@@ -201,32 +210,68 @@ export function Night() {
   )
 }
 
-function getLabelCountsForNight(params: { detections: Record<string, any>; nightId: string }) {
-  const { detections, nightId } = params
-  const counts: Record<string, number> = {}
+function buildTaxonomyTreeForNight(params: { detections: Record<string, any>; nightId: string; bucket: 'auto' | 'user' }) {
+  const { detections, nightId, bucket } = params
+  const onlyUser = bucket === 'user'
+
+  const roots: TaxonomyNode[] = []
+
+  function ensureChild(nodes: TaxonomyNode[], rank: TaxonomyNode['rank'], name: string): TaxonomyNode {
+    let node = nodes.find((n) => n.rank === rank && n.name === name)
+    if (!node) {
+      node = { rank, name, count: 0, children: [] }
+      nodes.push(node)
+    }
+    node.count++
+    return node
+  }
 
   for (const d of Object.values(detections ?? {})) {
     if ((d as any)?.nightId !== nightId) continue
-    if ((d as any)?.detectedBy === 'user') continue
-    const label = (d as any)?.label || 'Unlabeled'
-    counts[label] = (counts[label] ?? 0) + 1
+    const detectedBy = (d as any)?.detectedBy === 'user' ? 'user' : 'auto'
+    if ((onlyUser && detectedBy !== 'user') || (!onlyUser && detectedBy !== 'auto')) continue
+
+    const order = (d as any)?.taxon?.order
+    const family = (d as any)?.taxon?.family
+    const genus = (d as any)?.taxon?.genus
+    const species = (d as any)?.taxon?.species
+
+    const path: Array<{ rank: TaxonomyNode['rank']; name: string }> = []
+    if (order) path.push({ rank: 'order', name: order })
+    if (family) path.push({ rank: 'family', name: family })
+    if (genus) path.push({ rank: 'genus', name: genus })
+    if (species) path.push({ rank: 'species', name: species })
+
+    if (path.length === 0) continue
+
+    let currentLevel = roots
+    for (const seg of path) {
+      const node = ensureChild(currentLevel, seg.rank, seg.name)
+      if (!node.children) node.children = []
+      currentLevel = node.children
+    }
   }
 
-  return counts
+  function sortTree(nodes: TaxonomyNode[]) {
+    nodes.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    for (const n of nodes) sortTree(n.children || [])
+  }
+  sortTree(roots)
+
+  return roots
 }
 
-type FilterPatchesByLabelParams = {
+type FilterPatchesByTaxonParams = {
   patches: PatchEntity[]
   detections: Record<string, DetectionEntity>
-  selectedLabel?: string
+  selectedTaxon: TaxonSelection
   selectedBucket?: 'auto' | 'user'
 }
 
-function filterPatchesByLabel(params: FilterPatchesByLabelParams) {
-  const { patches, detections, selectedLabel, selectedBucket } = params
+function filterPatchesByTaxon(params: FilterPatchesByTaxonParams) {
+  const { patches, detections, selectedTaxon, selectedBucket } = params
 
-  // If a bucket is selected but no specific label, filter by bucket only
-  if (!selectedLabel && selectedBucket) {
+  if (!selectedTaxon && selectedBucket) {
     const result = patches.filter((p) => {
       const det = detections?.[p.id]
       const detectedBy = det?.detectedBy === 'user' ? 'user' : 'auto'
@@ -235,34 +280,36 @@ function filterPatchesByLabel(params: FilterPatchesByLabelParams) {
     return result
   }
 
-  if (!selectedLabel) return patches
+  if (!selectedTaxon) return patches
 
   const result = patches.filter((p) => {
     const det = detections?.[p.id]
-    const label = det?.label || 'Unlabeled'
-    const inLabel = label === selectedLabel
+    const tax = det?.taxon
+    let matches = false
+    if (selectedTaxon?.rank === 'order') matches = tax?.order === selectedTaxon?.name
+    else if (selectedTaxon?.rank === 'family') matches = tax?.family === selectedTaxon?.name
+    else if (selectedTaxon?.rank === 'genus') matches = tax?.genus === selectedTaxon?.name
+    else if (selectedTaxon?.rank === 'species') matches = tax?.species === selectedTaxon?.name
 
-    if (!inLabel) return false
+    if (!matches) return false
     if (!selectedBucket) return true
 
     const detectedBy = det?.detectedBy === 'user' ? 'user' : 'auto'
-    const matches = detectedBy === selectedBucket
-    return matches
+    return detectedBy === selectedBucket
   })
   return result
 }
 
+// legacy label counters retained for reference; no longer used
 function getIdentifiedLabelCountsForNight(params: { detections: Record<string, any>; nightId: string }) {
   const { detections, nightId } = params
   const counts: Record<string, number> = {}
-
   for (const d of Object.values(detections ?? {})) {
     if ((d as any)?.nightId !== nightId) continue
     if ((d as any)?.detectedBy !== 'user') continue
     const label = (d as any)?.label || 'Unlabeled'
     counts[label] = (counts[label] ?? 0) + 1
   }
-
   return counts
 }
 

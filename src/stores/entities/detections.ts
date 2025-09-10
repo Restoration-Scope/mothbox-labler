@@ -15,6 +15,7 @@ export type DetectionEntity = {
   points?: number[][]
   detectedBy?: 'auto' | 'user'
   identifiedAt?: number
+  isError?: boolean
 }
 
 export const detectionsStore = atom<Record<string, DetectionEntity>>({})
@@ -37,10 +38,39 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
     const existing = current?.[id]
     if (!existing) continue
     const identifiedAt = Date.now()
-    // NOTE: When a user creates their own free-text label (no taxon), we only set a species-level text for now.
-    // Future: allow structuring user-provided taxonomy across ranks.
-    const next: DetectionEntity = { ...existing, label: finalLabel, detectedBy: 'user', identifiedAt }
-    if (hasTaxon) next.taxon = taxon
+    // Special-case: explicit ERROR selection (case-insensitive) marks detection as error and clears taxonomy
+    const isError = !hasTaxon && trimmed.toUpperCase() === 'ERROR'
+
+    // If user provides a custom text (no explicit taxon) and is not ERROR, treat it as a morphospecies (species level)
+    // and inherit existing higher taxonomy (order/family/genus) from the detection, when present.
+    let nextTaxon: TaxonRecord | undefined = existing?.taxon
+    if (hasTaxon) {
+      nextTaxon = taxon
+    } else if (!isError && trimmed) {
+      const prev = existing?.taxon ?? {}
+      nextTaxon = {
+        scientificName: trimmed,
+        taxonRank: 'species',
+        kingdom: prev?.kingdom,
+        phylum: prev?.phylum,
+        class: prev?.class,
+        order: prev?.order,
+        family: prev?.family,
+        genus: prev?.genus,
+        species: trimmed,
+      }
+    } else if (isError) {
+      nextTaxon = undefined
+    }
+
+    const next: DetectionEntity = {
+      ...existing,
+      label: isError ? 'ERROR' : finalLabel,
+      detectedBy: 'user',
+      identifiedAt,
+      taxon: nextTaxon,
+      isError,
+    }
     updated[id] = next
   }
   detectionsStore.set(updated)

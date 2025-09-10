@@ -104,12 +104,14 @@ export async function ingestFilesToStores(params: { files: IndexedFile[]; parseD
             findPatchFileForPatchId({ files, patchId, nightDiskPath: extractNightDiskPathFromIndexedPath((jsonFile as any)?.path ?? '') }),
         }
         const detectionId = patchId
+        const taxon = deriveTaxonFromShape(shape)
         detections[detectionId] = {
           id: detectionId,
           patchId,
           photoId: photo.id,
           nightId: photo.nightId,
-          label: safeLabel(shape?.label),
+          label: taxon?.scientificName || safeLabel(shape?.label),
+          taxon,
           score: safeNumber(shape?.score),
           direction: safeNumber(shape?.direction),
           shapeType: safeLabel(shape?.shape_type),
@@ -121,7 +123,7 @@ export async function ingestFilesToStores(params: { files: IndexedFile[]; parseD
     }
   }
 
-  // Overlay user detections (if any) from *_detection.json files
+  // Overlay user detections (if any) from *_identified.json files
   if (parseDetectionsForNightId !== null) {
     for (const photo of Object.values(photos)) {
       if (parseDetectionsForNightId && photo.nightId !== parseDetectionsForNightId) continue
@@ -129,27 +131,35 @@ export async function ingestFilesToStores(params: { files: IndexedFile[]; parseD
       const userJson = (photo as any)?.userDetectionFile as IndexedFile | undefined
 
       if (!userJson) continue
-      const parsed = await parseUserDetectionJsonSafely({ file: userJson })
+      const parsedUser = await parseUserDetectionJsonSafely({ file: userJson })
+      if (!parsedUser) continue
 
-      if (!parsed) continue
-      for (const entry of parsed.detections) {
-        const detectionId = entry?.patchId || entry?.id
-        if (!detectionId) continue
-        const existing = detections[detectionId]
-        const next: DetectionEntity = {
-          id: detectionId,
-          patchId: detectionId,
-          photoId: existing?.photoId || `${parsed.photoBase || ''}.jpg`,
-          nightId: photo.nightId,
-          label: safeLabel(entry?.label) ?? existing?.label,
-          score: existing?.score,
-          direction: existing?.direction,
-          shapeType: existing?.shapeType,
-          points: existing?.points,
-          detectedBy: entry?.detectedBy === 'user' ? 'user' : existing?.detectedBy || 'auto',
-          identifiedAt: typeof entry?.identifiedAt === 'number' ? entry.identifiedAt : existing?.identifiedAt,
+      // shapes-based identified file (same structure as botdetection, with optional human fields)
+      if (Array.isArray(parsedUser.shapes)) {
+        for (const shape of parsedUser.shapes) {
+          const patchFileName = extractPatchFilename({ patchPath: shape.patch_path ?? '' })
+          if (!patchFileName) continue
+          const detectionId = patchFileName
+          const existing = detections[detectionId]
+          const taxon = deriveTaxonFromShape(shape)
+          const identifiedAt =
+            typeof (shape as any)?.human_identified_at === 'number' ? (shape as any).human_identified_at : existing?.identifiedAt
+          const next: DetectionEntity = {
+            id: detectionId,
+            patchId: detectionId,
+            photoId: existing?.photoId || photo.id,
+            nightId: photo.nightId,
+            label: taxon?.scientificName || safeLabel(shape?.label) || existing?.label,
+            taxon: taxon ?? existing?.taxon,
+            score: safeNumber(shape?.score) ?? existing?.score,
+            direction: safeNumber(shape?.direction) ?? existing?.direction,
+            shapeType: safeLabel(shape?.shape_type) ?? existing?.shapeType,
+            points: Array.isArray(shape?.points) ? shape.points : existing?.points,
+            detectedBy: 'user',
+            identifiedAt,
+          }
+          detections[detectionId] = next
         }
-        detections[detectionId] = next
       }
     }
   }
@@ -223,11 +233,11 @@ function parsePathParts(params: { path: string }) {
   const isPatch = isPatchesFolder && lower.endsWith('.jpg')
   const isPhotoJpg = !isPatchesFolder && lower.endsWith('.jpg')
   const isBotJson = lower.endsWith('_botdetection.json')
-  const isUserJson = lower.endsWith('_detection.json')
+  const isUserJson = lower.endsWith('_identified.json')
   const baseName = isBotJson
     ? fileName.slice(0, -'_botdetection.json'.length)
-    : isUserJson
-    ? fileName.slice(0, -'_detection.json'.length)
+    : lower.endsWith('_identified.json')
+    ? fileName.slice(0, -'_identified.json'.length)
     : fileName.endsWith('.jpg')
     ? fileName.slice(0, -'.jpg'.length)
     : fileName
@@ -263,26 +273,33 @@ type BotDetectionJson = {
     shape_type?: unknown
     points?: number[][]
     patch_path?: string
+    // Optional classification ranks provided by detectors or human identifiers
+    kingdom?: unknown
+    phylum?: unknown
+    class?: unknown
+    order?: unknown
+    family?: unknown
+    genus?: unknown
+    species?: unknown
+    // Optional human annotation fields for identified files
+    human_identifier?: unknown
+    human_identified_at?: unknown
   }>
 }
 
 type UserDetectionJson = {
   version?: string
   photoBase?: string
-  detections: Array<{
-    id?: string
-    patchId?: string
-    label?: unknown
-    detectedBy?: 'auto' | 'user'
-    identifiedAt?: number
-  }>
+  // New identified format: shapes array mirroring botdetection.json
+  shapes?: BotDetectionJson['shapes']
 }
 
 async function parseUserDetectionJsonSafely(params: { file: IndexedFile }): Promise<UserDetectionJson | null> {
   try {
     const text = await params.file.file.text()
     const json = JSON.parse(text) as UserDetectionJson
-    if (!json || !Array.isArray(json.detections)) return null
+    if (!json) return null
+    if (!Array.isArray((json as any).shapes)) return null
     return json
   } catch {
     return null
@@ -338,6 +355,60 @@ function safeLabel(value: unknown) {
 }
 function safeNumber(value: unknown) {
   return typeof value === 'number' ? value : undefined
+}
+
+function deriveTaxonFromShape(shape: any) {
+  const kingdom = safeLabel(shape?.kingdom)
+  const phylum = safeLabel(shape?.phylum)
+  const klass = safeLabel(shape?.class)
+  const order = safeLabel(shape?.order)
+  const family = safeLabel(shape?.family)
+  const genus = safeLabel(shape?.genus)
+  const species = safeLabel(shape?.species)
+
+  // Determine best available scientificName and rank
+  let scientificName: string | undefined
+  let taxonRank: string | undefined
+  if (species) {
+    scientificName = species
+    taxonRank = 'species'
+  } else if (genus) {
+    scientificName = genus
+    taxonRank = 'genus'
+  } else if (family) {
+    scientificName = family
+    taxonRank = 'family'
+  } else if (order) {
+    scientificName = order
+    taxonRank = 'order'
+  } else if (klass) {
+    scientificName = klass
+    taxonRank = 'class'
+  } else if (phylum) {
+    scientificName = phylum
+    taxonRank = 'phylum'
+  } else if (kingdom) {
+    scientificName = kingdom
+    taxonRank = 'kingdom'
+  } else {
+    scientificName = undefined
+    taxonRank = undefined
+  }
+
+  if (!scientificName && !kingdom && !phylum && !klass && !order && !family && !genus && !species) return undefined
+
+  const taxon = {
+    scientificName: scientificName || '',
+    taxonRank,
+    kingdom,
+    phylum,
+    class: klass,
+    order,
+    family,
+    genus,
+    species,
+  } as any
+  return taxon
 }
 
 export function resetAllEntityStores() {
