@@ -1,0 +1,119 @@
+{
+    "version": "Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt",
+    "flags": {},
+    "imagePath": "f:\\Deployments\\Indonesia\\Indonesia_Les_BeachPalm_grupoKite_2025-06-23\\2025-06-22\\grupoKite_2025_06_23__04_56_19_HDR0.jpg",
+    "imageHeight": 6944,
+    "imageWidth": 9248,
+    "description": "",
+    "imageData": null,
+    "shapes": [
+        {
+            "kie_linking": [],
+            "direction": 8.445844650268555,
+            "label": "ORDER_Hemiptera",
+            "score": 0.9963599443435669,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    3682.0849609375,
+                    2731.364990234375
+                ],
+                [
+                    3970.72314453125,
+                    2774.118896484375
+                ],
+                [
+                    4019.5,
+                    2444.817138671875
+                ],
+                [
+                    3730.86181640625,
+                    2402.063232421875
+                ]
+            ],
+            "patch_path": "patches/grupoKite_2025_06_23__04_56_19_HDR0_0_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": -1
+        },
+        {
+            "kie_linking": [],
+            "direction": 15.068489074707031,
+            "label": "ORDER_Diptera",
+            "score": 0.9101563096046448,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    5184.8349609375,
+                    3375.614990234375
+                ],
+                [
+                    5262.2900390625,
+                    3396.393798828125
+                ],
+                [
+                    5290.2841796875,
+                    3292.043701171875
+                ],
+                [
+                    5212.8291015625,
+                    3271.264892578125
+                ]
+            ],
+            "patch_path": "patches/grupoKite_2025_06_23__04_56_19_HDR0_1_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Diptera",
+            "clusterID": -1
+        },
+        {
+            "kie_linking": [],
+            "direction": 6.4415998458862305,
+            "label": "ORDER_Thysanoptera",
+            "score": 0.6268918514251709,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    7462.1474609375,
+                    2249.143310546875
+                ],
+                [
+                    7523.546875,
+                    2256.379638671875
+                ],
+                [
+                    7533.046875,
+                    2175.775146484375
+                ],
+                [
+                    7471.6474609375,
+                    2168.538818359375
+                ]
+            ],
+            "patch_path": "patches/grupoKite_2025_06_23__04_56_19_HDR0_2_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Thysanoptera",
+            "clusterID": -1
+        }
+    ]
+}
