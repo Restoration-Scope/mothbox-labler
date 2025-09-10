@@ -8,35 +8,43 @@ import { useStore } from '@nanostores/react'
 import { detectionsStore } from '~/stores/entities/detections'
 import { exportNightDarwinCSV } from '~/features/export/darwin-csv'
 import { toast } from 'sonner'
+import { exportNightSummaryRS } from '~/features/export/rs-summary'
 
 type NightWarnings = {
   jsonWithoutPhotoCount?: number
   missingPatchImageCount?: number
 }
 
+type TaxonomyNode = {
+  rank: 'order' | 'family' | 'genus' | 'species'
+  name: string
+  count: number
+  children?: TaxonomyNode[]
+}
+
 export type NightLeftPanelProps = {
-  labelCounts: Record<string, number>
-  identifiedLabelCounts?: Record<string, number>
+  taxonomyAuto?: TaxonomyNode[]
+  taxonomyUser?: TaxonomyNode[]
   totalPatches: number
   totalDetections: number
   totalIdentified?: number
-  selectedLabel?: string
+  selectedTaxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }
   selectedBucket?: 'auto' | 'user'
-  onSelectLabel: (params: { label?: string; bucket: 'auto' | 'user' }) => void
+  onSelectTaxon: (params: { taxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }; bucket: 'auto' | 'user' }) => void
   warnings?: NightWarnings
   className?: string
 }
 
 export function NightLeftPanel(props: NightLeftPanelProps) {
   const {
-    labelCounts,
-    identifiedLabelCounts,
+    taxonomyAuto,
+    taxonomyUser,
     totalPatches,
     totalDetections,
     totalIdentified = 0,
-    selectedLabel,
+    selectedTaxon,
     selectedBucket,
-    onSelectLabel,
+    onSelectTaxon,
     warnings,
     className,
   } = props
@@ -74,25 +82,25 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
         </div>
       </div>
 
-      <CountsListSection
-        title='Labels'
-        counts={labelCounts}
+      <TaxonomySection
+        title='Auto'
+        nodes={taxonomyAuto}
         bucket='auto'
-        selectedLabel={selectedLabel}
+        selectedTaxon={selectedTaxon}
         selectedBucket={selectedBucket}
-        onSelectLabel={onSelectLabel}
-        emptyText='No labels'
+        onSelectTaxon={onSelectTaxon}
+        emptyText='No detections'
       />
 
-      <CountsListSection
+      <TaxonomySection
         className='mt-16'
         title='Identified'
-        counts={identifiedLabelCounts}
+        nodes={taxonomyUser}
         bucket='user'
-        selectedLabel={selectedLabel}
+        selectedTaxon={selectedTaxon}
         selectedBucket={selectedBucket}
-        onSelectLabel={onSelectLabel}
-        emptyText='No identified labels yet'
+        onSelectTaxon={onSelectTaxon}
+        emptyText='No identifications yet'
       />
 
       <div className='mt-auto pt-16'>
@@ -110,26 +118,41 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
         >
           Export Darwin CSV
         </Button>
+
+        <Button
+          disabled={!canExport}
+          className='w-full mt-8'
+          onClick={() => {
+            const p = exportNightSummaryRS({ nightId })
+            toast.promise(p, {
+              loading: '💾 Exporting RS summary…',
+              success: '✅ RS summary exported',
+              error: '🚨 Failed to export RS summary',
+            })
+          }}
+        >
+          Export summary to RS
+        </Button>
       </div>
     </Column>
   )
 }
 
-type CountsListSectionProps = {
+type TaxonomySectionProps = {
   title: string
-  counts?: Record<string, number>
+  nodes?: TaxonomyNode[]
   bucket: 'auto' | 'user'
-  selectedLabel?: string
+  selectedTaxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }
   selectedBucket?: 'auto' | 'user'
-  onSelectLabel: (params: { label?: string; bucket: 'auto' | 'user' }) => void
+  onSelectTaxon: (params: { taxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }; bucket: 'auto' | 'user' }) => void
   emptyText: string
   className?: string
 }
 
-function CountsListSection(props: CountsListSectionProps) {
-  const { title, counts, bucket, selectedLabel, selectedBucket, onSelectLabel, emptyText, className } = props
+function TaxonomySection(props: TaxonomySectionProps) {
+  const { title, nodes, bucket, selectedTaxon, selectedBucket, onSelectTaxon, emptyText, className } = props
 
-  if (!counts || Object.keys(counts).length === 0) {
+  if (!nodes || nodes.length === 0) {
     return (
       <div className={className}>
         <h4 className='mb-6 text-14 font-semibold'>{title}</h4>
@@ -138,9 +161,8 @@ function CountsListSection(props: CountsListSectionProps) {
     )
   }
 
-  const items = Object.entries(counts).sort((a, b) => b[1] - a[1])
-  const allCount = Object.values(counts).reduce((acc, n) => acc + (n || 0), 0)
-  const isAllSelected = !selectedLabel && selectedBucket === bucket
+  const allCount = nodes.reduce((acc, n) => acc + (n?.count || 0), 0)
+  const isAllSelected = !selectedTaxon && selectedBucket === bucket
 
   return (
     <div className={className}>
@@ -153,25 +175,92 @@ function CountsListSection(props: CountsListSectionProps) {
             selected={isAllSelected}
             onSelect={() => {
               clearPatchSelection()
-              onSelectLabel({ label: undefined, bucket })
+              onSelectTaxon({ taxon: undefined, bucket })
             }}
           />
         ) : null}
-        {items.map(([label, count]) => {
-          const isSelected = label === selectedLabel
-          return (
-            <CountsRow
-              key={`${title}-${label}`}
-              label={label}
-              count={count}
-              selected={isSelected && selectedBucket === bucket}
+
+        {nodes.map((orderNode) => (
+          <div key={`order-${orderNode.name}`}>
+            <TaxonomyRow
+              rank='order'
+              name={orderNode.name}
+              count={orderNode.count}
+              selected={selectedBucket === bucket && selectedTaxon?.rank === 'order' && selectedTaxon?.name === orderNode.name}
               onSelect={() => {
                 clearPatchSelection()
-                onSelectLabel({ label: isSelected && selectedBucket === bucket ? undefined : label, bucket })
+                onSelectTaxon({ taxon: { rank: 'order', name: orderNode.name }, bucket })
               }}
             />
-          )
-        })}
+
+            {orderNode.children && orderNode.children.length ? (
+              <div className='ml-8 pl-16 border-l border-inka-150'>
+                {orderNode.children.map((familyNode) => (
+                  <div key={`family-${orderNode.name}-${familyNode.name}`} className='relative'>
+                    <TaxonomyRow
+                      rank='family'
+                      name={familyNode.name}
+                      count={familyNode.count}
+                      selected={selectedBucket === bucket && selectedTaxon?.rank === 'family' && selectedTaxon?.name === familyNode.name}
+                      onSelect={() => {
+                        clearPatchSelection()
+                        onSelectTaxon({ taxon: { rank: 'family', name: familyNode.name }, bucket })
+                      }}
+                      withConnector
+                    />
+                    {familyNode.children && familyNode.children.length ? (
+                      <div className='ml-8 pl-16 border-l border-inka-150'>
+                        {familyNode.children.map((genusNode) => (
+                          <div key={`genus-${orderNode.name}-${familyNode.name}-${genusNode.name}`} className='relative'>
+                            <TaxonomyRow
+                              rank='genus'
+                              name={genusNode.name}
+                              count={genusNode.count}
+                              selected={
+                                selectedBucket === bucket && selectedTaxon?.rank === 'genus' && selectedTaxon?.name === genusNode.name
+                              }
+                              onSelect={() => {
+                                clearPatchSelection()
+                                onSelectTaxon({ taxon: { rank: 'genus', name: genusNode.name }, bucket })
+                              }}
+                              withConnector
+                            />
+                            {genusNode.children && genusNode.children.length ? (
+                              <div className='ml-8 pl-16 border-l border-inka-150'>
+                                {genusNode.children.map((speciesNode) => (
+                                  <div
+                                    key={`species-${orderNode.name}-${familyNode.name}-${genusNode.name}-${speciesNode.name}`}
+                                    className='relative'
+                                  >
+                                    <TaxonomyRow
+                                      rank='species'
+                                      name={speciesNode.name}
+                                      count={speciesNode.count}
+                                      selected={
+                                        selectedBucket === bucket &&
+                                        selectedTaxon?.rank === 'species' &&
+                                        selectedTaxon?.name === speciesNode.name
+                                      }
+                                      onSelect={() => {
+                                        clearPatchSelection()
+                                        onSelectTaxon({ taxon: { rank: 'species', name: speciesNode.name }, bucket })
+                                      }}
+                                      withConnector
+                                    />
+                                  </div>
+                                ))}
+                              </div>
+                            ) : null}
+                          </div>
+                        ))}
+                      </div>
+                    ) : null}
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </div>
+        ))}
       </div>
     </div>
   )
@@ -199,6 +288,38 @@ function CountsRow(props: CountsRowProps) {
     >
       <span className='text-13 font-medium'>{label}</span>
       <span className='text-13 text-neutral-700'>{count}</span>
+    </div>
+  )
+}
+
+type TaxonomyRowProps = {
+  rank: 'order' | 'family' | 'genus' | 'species'
+  name: string
+  count: number
+  selected?: boolean
+  onSelect: () => void
+}
+
+function TaxonomyRow(props: TaxonomyRowProps & { withConnector?: boolean }) {
+  const { rank, name, count, selected, onSelect, withConnector } = props
+  const prefix = rank === 'order' ? 'O' : rank === 'family' ? 'F' : rank === 'genus' ? 'G' : 'S'
+
+  return (
+    <div className='relative'>
+      {withConnector ? <span className='absolute left-0 top-1/2 w-16 -translate-y-1/2 border-t border-inka-150'></span> : null}
+      <div
+        className={cn(
+          'flex items-center justify-between first:rounded-t-md last:rounded-b-md hover:z-2 relative -mt-1 px-8 py-6 cursor-pointer',
+          selected ? 'z-2 bg-brand/15 text-brand hover:bg-brand/20' : 'bg-background text-ink-primary hover:bg-neutral-100',
+        )}
+        onClick={onSelect}
+      >
+        <span className='text-13 font-medium'>
+          <span className='mr-6 text-11 text-neutral-500'>{prefix}</span>
+          {name}
+        </span>
+        <span className='text-13 text-neutral-700'>{count}</span>
+      </div>
     </div>
   )
 }
