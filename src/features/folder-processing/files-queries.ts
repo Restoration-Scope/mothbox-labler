@@ -1,4 +1,6 @@
 import { useIsMutating, useMutation, useQuery } from '@tanstack/react-query'
+import { useStore } from '@nanostores/react'
+import { appReadyStore, userSessionLoadedStore } from '~/stores/ui'
 import { openDirectory, tryRestoreFromSavedDirectory } from './files.service'
 
 export function useRestoreDirectoryQuery() {
@@ -36,5 +38,19 @@ export function useOpenDirectoryMutation() {
 export function useIsLoadingFolders() {
   const restoreQuery = useRestoreDirectoryQuery()
   const isOpening = useIsMutating({ mutationKey: ['fs', 'open'] }) > 0
-  return restoreQuery.isLoading || isOpening
+  const sessionLoaded = useStore(userSessionLoadedStore)
+  return !sessionLoaded || restoreQuery.isLoading || isOpening
+}
+
+export function useAppLoading() {
+  const restoreQuery = useRestoreDirectoryQuery()
+  const isOpening = useIsMutating({ mutationKey: ['fs', 'open'] }) > 0
+  const sessionLoaded = useStore(userSessionLoadedStore)
+  const isLoading = !sessionLoaded || restoreQuery.isLoading || isOpening
+  return { isLoading, sessionLoaded, isOpening, restoring: restoreQuery.isLoading }
+}
+
+export function useAppReady() {
+  const ready = useStore(appReadyStore)
+  return !!ready
 }

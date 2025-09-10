@@ -1,4 +1,4 @@
-import { atom } from 'nanostores'
+import { atom, computed } from 'nanostores'
 import { patchesStore } from './entities/5.patches'
 import { idbGet, idbPut } from '~/utils/index-db'
 
@@ -56,6 +56,8 @@ export function setSelection(params: { nightId: string; patchIds: string[] }) {
 // User session (initials)
 export type UserSession = { initials?: string }
 export const userSessionStore = atom<UserSession>({})
+export const userSessionLoadedStore = atom<boolean>(false)
+export const appReadyStore = computed(userSessionLoadedStore, (loaded) => !!loaded)
 
 export async function loadUserSession() {
   try {
@@ -63,6 +65,8 @@ export async function loadUserSession() {
     if (saved && typeof saved === 'object') userSessionStore.set(saved)
   } catch {
     return null
+  } finally {
+    userSessionLoadedStore.set(true)
   }
 }
 export async function saveUserSession(params: UserSession) {
