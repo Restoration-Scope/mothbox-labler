@@ -1,7 +1,9 @@
 import { detectionsStore, type DetectionEntity } from '~/stores/entities/detections'
 import { photosStore, type PhotoEntity } from '~/stores/entities/photos'
 import { idbGet } from '~/utils/index-db'
+import { nightSummariesStore, type NightSummaryEntity } from '~/stores/entities/night-summaries'
 import { ensureReadWritePermission, persistenceConstants } from './files.persistence'
+import { userSessionStore } from '~/stores/ui'
 
 type FileSystemDirectoryHandleLike = {
   getDirectoryHandle?: (name: string, options?: { create?: boolean }) => Promise<FileSystemDirectoryHandleLike>
@@ -74,27 +76,56 @@ export async function exportUserDetectionsForNight(params: { nightId: string }) 
     const nightDiskPath = nightDiskPathByPhotoId[photoId]
     if (!nightDiskPath) continue
 
-    const fileName = `${baseName}_detection.json`
+    const fileName = `${baseName}_identified.json`
     const pathParts = nightDiskPath.split('/').filter(Boolean)
-    tasks.push(writeJson(root, [...pathParts, fileName], buildUserDetectionJson({ baseName, detections: items })))
+    tasks.push(writeJson(root, [...pathParts, fileName], buildUserIdentifiedJson({ baseName, detections: items })))
   }
 
   await Promise.all(tasks)
+
+  // Update + persist night summary
+  const totalDetections = detectionsForNight.length
+  const totalIdentified = detectionsForNight.filter((d) => (d as any)?.detectedBy === 'user').length
+  const summary: NightSummaryEntity = { nightId, totalDetections, totalIdentified, updatedAt: Date.now() }
+  const currentSummaries = nightSummariesStore.get() || {}
+  nightSummariesStore.set({ ...currentSummaries, [nightId]: summary })
+
+  const anyPhoto = photosForNight[0]
+  if (anyPhoto) {
+    const nightDiskPath = getNightDiskPathFromPhoto(anyPhoto)
+    if (nightDiskPath) {
+      const pathParts = nightDiskPath.split('/').filter(Boolean)
+      await writeJson(root, [...pathParts, 'night_summary.json'], summary)
+    }
+  }
 }
 
-function buildUserDetectionJson(params: { baseName: string; detections: DetectionEntity[] }) {
+function buildUserIdentifiedJson(params: { baseName: string; detections: DetectionEntity[] }) {
   const { baseName, detections } = params
-  const json = {
-    version: '1',
-    photoBase: baseName,
-    detections: detections.map((d) => ({
-      id: d.id,
-      patchId: d.patchId,
+  const user = userSessionStore.get()
+  const human = (user?.initials || 'user').trim()
+  const shapes = detections.map((d) => {
+    const shape: any = {
+      patch_path: `patches/${d.patchId}`,
       label: d.label,
-      detectedBy: 'user' as const,
-      identifiedAt: d.identifiedAt ?? Date.now(),
-    })),
-  }
+      score: d.score,
+      direction: d.direction,
+      shape_type: d.shapeType,
+      points: d.points,
+      kingdom: (d as any)?.isError ? null : (d as any)?.taxon?.kingdom,
+      phylum: (d as any)?.isError ? null : (d as any)?.taxon?.phylum,
+      class: (d as any)?.isError ? null : (d as any)?.taxon?.class,
+      order: (d as any)?.isError ? null : (d as any)?.taxon?.order,
+      family: (d as any)?.isError ? null : (d as any)?.taxon?.family,
+      genus: (d as any)?.isError ? null : (d as any)?.taxon?.genus,
+      species: (d as any)?.isError ? null : (d as any)?.taxon?.species,
+      is_error: (d as any)?.isError ? true : undefined,
+      human_identifier: d?.detectedBy === 'user' ? human : undefined,
+      human_identified_at: d?.identifiedAt ?? Date.now(),
+    }
+    return shape
+  })
+  const json = { version: '1', photoBase: baseName, shapes }
   return json
 }
 

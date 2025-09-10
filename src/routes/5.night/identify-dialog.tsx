@@ -95,6 +95,16 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
         ></CommandInput>
         <CommandList>
           <CommandEmpty>No matches. Press Enter to use your text.</CommandEmpty>
+          {query.trim().toUpperCase() === 'ERROR' ? (
+            <CommandGroup heading='Actions'>
+              <CommandItem onSelect={() => handleSelect('ERROR')}>
+                <div className='flex items-center justify-between w-full'>
+                  <span className='text-13 text-red-700'>ERROR</span>
+                  <span className='text-11 text-neutral-500'>Mark as error</span>
+                </div>
+              </CommandItem>
+            </CommandGroup>
+          ) : null}
           {recentOptions.length && (!query.trim() || speciesOptions.length === 0) ? (
             <CommandGroup heading='Recent'>
               {recentOptions.map((r) => (
