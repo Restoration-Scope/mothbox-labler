@@ -44,13 +44,15 @@ In-memory entity stores (nanostores):
 - nightsStore: key=id=`{project}/{site}/{deployment}/{night}`
 - photosStore: key=id=`{photoBase}.jpg`; links imageFile and botDetectionFile
 - patchesStore: key=id=`{patchFilename}`; links photoId and nightId
-- detectionsStore: key=id=`{patchFilename}`; parsed from JSON shapes; fields: label, score, direction, shapeType, points
+- detectionsStore: key=id=`{patchFilename}`; parsed from JSON shapes; fields: taxon?, label? (legacy/display), score, direction, shapeType, points, detectedBy, identifiedAt?, isError?
 
 Parsing rules:
 
 - Normalize paths to `/`.
 - Extract patch filename from shapes[i].patch_path (basename).
 - Derive photo base from `*_botdetection.json` or `.jpg` filename.
+- Parse taxonomy from each shape (kingdom, phylum, class, order, family, genus, species) into a Darwin Core-style `taxon` object.
+- UI assumes Class = Insecta and displays Order and below (Order → Family → Genus → Species).
 
 Selection & Actions
 
@@ -63,18 +65,20 @@ Selection & Actions
 
 Labeling Flow
 
-- Identify opens a cmdk dialog to type or pick a label. Free text is allowed; Enter submits.
-- On submit: `labelDetections({ detectionIds, label })` sets `label` and `detectedBy: 'user'`.
-- Accept: `acceptDetections({ detectionIds })` sets `detectedBy: 'user'` without changing `label`.
+- Identify opens a cmdk dialog to choose a taxon or type free text.
+- Free text is treated as a morphospecies (species-level) and inherits existing higher ranks (order/family/genus) if present.
+- Typing "ERROR" marks the detection as error (`isError: true`), clears taxonomy, and stores label = 'ERROR'.
+- Submitting an identification sets `detectedBy: 'user'` and `identifiedAt`.
+- Accept sets `detectedBy: 'user'` without changing taxonomy/label.
 
 Detections Fields
 
-- `DetectionEntity`: id, patchId, photoId, nightId, label?, score?, direction?, shapeType?, points?, detectedBy?: 'auto' | 'user'.
+- `DetectionEntity`: id, patchId, photoId, nightId, taxon?, label?, score?, direction?, shapeType?, points?, detectedBy?: 'auto' | 'user', identifiedAt?, isError?
 - Ingest defaults `detectedBy` to 'auto'.
 
 Night View Composition
 
-- Left: Summary (counts + progress), Labels (auto-only), Identified (user-only).
+- Left: Summary (counts + progress), Taxonomy (auto), Taxonomy (identified). Each taxonomy list is hierarchical (Order → Family → Genus → Species) and only renders known levels (no placeholders). Auto includes an "All unapproved" aggregate.
 - Right: Patch grid with selectable items, floating action bar, identify dialog.
 
 Scrolling/Layout
@@ -84,12 +88,12 @@ Scrolling/Layout
 
 Key Files
 
-- Entities & ingest: `src/stores/entities.ts`
+- Entities & ingest: `src/stores/entities/*` (e.g., `ingest.ts`, `detections.ts`)
 - UI selection state: `src/stores/ui.ts`
-- Night route: `src/routes/night.tsx`
-- Grid & item: `src/ui/patch-grid.tsx`, `src/ui/patch-item.tsx`
-- Selection bar: `src/ui/selection-bar.tsx`
-- Identify dialog: `src/ui/identify-dialog.tsx`
+- Night route: `src/routes/5.night/index.tsx`
+- Grid & item: `src/routes/5.night/patch-grid.tsx`, `src/routes/5.night/patch-item.tsx`
+- Selection bar: `src/routes/5.night/selection-bar.tsx`
+- Identify dialog: `src/routes/5.night/identify-dialog.tsx`
 
 ## Labeling Workflow & Buckets
 
@@ -98,10 +102,10 @@ Key Files
   - Auto bucket: detections parsed from JSON (default `detectedBy: 'auto'`).
   - Identified bucket: detections that a human confirmed or labeled (`detectedBy: 'user'`).
 - Actions:
-  - Identify: sets a custom `label` and marks `detectedBy: 'user'`, moving the item to Identified bucket.
-  - Accept: preserves the current `label` but marks `detectedBy: 'user'`, also moving the item to Identified bucket.
+  - Identify: picks/creates taxonomy (or marks ERROR), sets `detectedBy: 'user'` and moves the item to Identified bucket.
+  - Accept: preserves current taxonomy/label but marks `detectedBy: 'user'`.
 - Bucket math:
-  - Auto bucket counts exclude any detection with `detectedBy === 'user'`.
-  - Identified bucket counts include only detections with `detectedBy === 'user'`.
+  - Auto/Identified sections show hierarchical taxonomy counts (O/F/G/S) for their respective bucket.
+  - Error items appear under identified with label 'ERROR' and no taxonomy.
 - Recent:
   - When user identifies or accepts, `identifiedAt` is set. Home shows a grid of most recent identifications across nights.
