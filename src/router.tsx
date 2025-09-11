@@ -1,11 +1,11 @@
 import { createRootRoute, createRoute, createRouter } from '@tanstack/react-router'
-import { Home } from './routes/0.home'
 import { Projects } from './routes/1.projects'
 import { Sites } from './routes/2.sites'
 import { Deployments } from './routes/3.deployments'
 import { Nights } from './routes/4.nights'
 import { Night } from './routes/5.night'
 import { RootLayout } from '~/root-layout'
+import { Home } from '~/routes/0.home'
 
 export const rootRoute = createRootRoute({
   component: RootLayout,

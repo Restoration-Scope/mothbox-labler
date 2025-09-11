@@ -86,3 +86,51 @@ export async function clearUserSession() {
     return null
   }
 }
+
+// Night ingest progress (processed patches count per night)
+export const nightIngestProgressStore = atom<{ nightId?: string; processed: number; total: number }>({ processed: 0, total: 0 })
+
+export function resetNightIngestProgress(params?: { nightId?: string }) {
+  const { nightId } = params || {}
+  console.log('🏁 progress: reset', { nightId })
+  nightIngestProgressStore.set({ nightId, processed: 0, total: 0 })
+}
+
+export function setNightIngestTotal(params: { nightId: string; total: number }) {
+  const { nightId, total } = params
+  const current = nightIngestProgressStore.get() || { processed: 0, total: 0 }
+  console.log('🎯 progress: set total', {
+    nightId,
+    total,
+    prev: { nightId: current.nightId, processed: current.processed, total: current.total },
+  })
+  nightIngestProgressStore.set({ nightId, processed: current.processed, total })
+}
+
+export function incrementNightIngestProcessed(params: { nightId: string; by?: number }) {
+  const { nightId, by = 1 } = params
+  const current = nightIngestProgressStore.get() || { processed: 0, total: 0 }
+  const processed = (current.nightId === nightId ? current.processed : 0) + by
+  const total = current.nightId === nightId ? current.total : 0
+  console.log('➕ progress: increment processed', {
+    nightId,
+    by,
+    prev: { nightId: current.nightId, processed: current.processed, total: current.total },
+    next: { processed, total },
+  })
+  nightIngestProgressStore.set({ nightId, processed, total })
+}
+
+export function addNightIngestTotal(params: { nightId: string; by: number }) {
+  const { nightId, by } = params
+  const current = nightIngestProgressStore.get() || { processed: 0, total: 0 }
+  const total = (current.nightId === nightId ? current.total : 0) + (by || 0)
+  const processed = current.nightId === nightId ? current.processed : 0
+  console.log('➕ progress: add to total', {
+    nightId,
+    by,
+    prev: { nightId: current.nightId, processed: current.processed, total: current.total },
+    next: { processed, total },
+  })
+  nightIngestProgressStore.set({ nightId, processed, total })
+}

@@ -7,6 +7,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@nanostores/react'
 import { selectedPatchIdsStore, selectionNightIdStore, setSelection, togglePatchSelection } from '~/stores/ui'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
+import { useVirtualizer } from '@tanstack/react-virtual'
 // noop
 
 export type PatchGridProps = {
@@ -15,10 +16,11 @@ export type PatchGridProps = {
   className?: string
   onOpenPatchDetail: (id: string) => void
   loading?: boolean
+  onImageProgress?: (loaded: number, total: number) => void
 }
 
 export function PatchGrid(props: PatchGridProps) {
-  const { patches, nightId, className, onOpenPatchDetail, loading } = props
+  const { patches, nightId, className, onOpenPatchDetail, loading, onImageProgress } = props
   const containerRef = useRef<HTMLDivElement | null>(null)
   const selected = useStore(selectedPatchIdsStore)
   useStore(selectionNightIdStore)
@@ -41,6 +43,58 @@ export function PatchGrid(props: PatchGridProps) {
     const ids = withArea.map((x) => x.id)
     return ids
   }, [patches, detections])
+
+  // Measure container width to determine dynamic column count and item sizing
+  const [containerWidth, setContainerWidth] = useState<number>(0)
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    const ro = new ResizeObserver(() => {
+      const width = el.clientWidth
+      const padding = getHorizontalPadding(el)
+      const available = Math.max(0, width - padding)
+      setContainerWidth(available)
+    })
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const columns = useMemo(() => computeColumnCount({ containerWidth }), [containerWidth])
+  const itemWidth = useMemo(() => computeItemWidth({ containerWidth, columns, gap: 8 }), [containerWidth, columns])
+  const rowHeight = useMemo(() => {
+    // Item height approximates square image + footer (h-28 = 28px) + vertical gap between rows (8px)
+    const height = Math.max(0, itemWidth) + 28 + 8
+    return height
+  }, [itemWidth])
+
+  const rowCount = useMemo(() => {
+    if (!orderedIds.length) return 0
+    const count = Math.ceil(orderedIds.length / Math.max(1, columns))
+    return count
+  }, [orderedIds, columns])
+
+  const rowVirtualizer = useVirtualizer({
+    count: rowCount,
+    getScrollElement: () => containerRef.current,
+    estimateSize: () => rowHeight,
+    overscan: 5,
+  })
+
+  // Track image load progress
+  const [loadedCount, setLoadedCount] = useState<number>(0)
+  const totalCount = patches?.length || 0
+  useEffect(() => {
+    setLoadedCount(0)
+  }, [nightId, patches])
+  useEffect(() => {
+    onImageProgress?.(loadedCount, totalCount)
+  }, [loadedCount, totalCount, onImageProgress])
+  function handleImageLoad() {
+    setLoadedCount((c) => c + 1)
+  }
+  function handleImageError() {
+    setLoadedCount((c) => c + 1)
+  }
 
   useEffect(() => {
     function onMouseUp() {
@@ -126,8 +180,13 @@ export function PatchGrid(props: PatchGridProps) {
   }
 
   function focusItem(index: number) {
-    const el = containerRef.current?.querySelector(`[data-index="${index}"]`) as HTMLElement | null
-    el?.focus()
+    const colCount = Math.max(1, columns)
+    const rowIndex = Math.floor(index / colCount)
+    rowVirtualizer.scrollToIndex(rowIndex, { align: 'center' })
+    requestAnimationFrame(() => {
+      const el = containerRef.current?.querySelector(`[data-index="${index}"]`) as HTMLElement | null
+      el?.focus()
+    })
   }
 
   if (loading) return <CenteredLoader>🌀 Loading patches</CenteredLoader>
@@ -142,9 +201,42 @@ export function PatchGrid(props: PatchGridProps) {
       onMouseDown={onMouseDownContainer}
       onMouseMove={onMouseMoveContainer}
     >
-      {orderedIds.map((id, index) => (
-        <PatchItem id={id} key={id} index={index} onOpenDetail={onOpenPatchDetail} />
-      ))}
+      <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
+        {rowVirtualizer.getVirtualItems().map((virtualRow) => {
+          const start = virtualRow.index * Math.max(1, columns)
+          const end = Math.min(start + Math.max(1, columns), orderedIds.length)
+          const items = orderedIds.slice(start, end)
+          return (
+            <div
+              key={virtualRow.key}
+              data-row-index={virtualRow.index}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                transform: `translateY(${virtualRow.start}px)`,
+              }}
+            >
+              <div className='grid gap-8' style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(0, 1fr))` }}>
+                {items.map((id, i) => {
+                  const index = start + i
+                  return (
+                    <PatchItem
+                      id={id}
+                      key={id}
+                      index={index}
+                      onOpenDetail={onOpenPatchDetail}
+                      onImageLoad={handleImageLoad}
+                      onImageError={handleImageError}
+                    />
+                  )
+                })}
+              </div>
+            </div>
+          )
+        })}
+      </div>
     </GridContainer>
   )
 }
@@ -166,11 +258,7 @@ const GridContainer = React.forwardRef<HTMLDivElement, GridContainerProps>(funct
       onKeyDown={onKeyDown}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
-      className={cn(
-        'grid overflow-y-auto p-8 grid-cols-2 gap-8 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 outline-none',
-        'items-start content-start auto-rows-min',
-        className,
-      )}
+      className={cn('relative overflow-y-auto p-8 outline-none', className)}
     >
       {children}
     </div>
@@ -199,4 +287,34 @@ function computeDetectionArea(params: ComputeDetectionAreaParams) {
   const height = Math.max(0, maxY - minY)
   const area = width * height
   return area
+}
+
+function computeColumnCount(params: { containerWidth: number }) {
+  const { containerWidth } = params
+  const minColumns = 2
+  const maxColumns = 5
+  const minItemWidth = 240 // px
+  const gap = 8 // px
+  if (!containerWidth || containerWidth <= 0) return minColumns
+  const raw = Math.floor((containerWidth + gap) / (minItemWidth + gap))
+  const cols = Math.min(maxColumns, Math.max(minColumns, raw))
+  return cols
+}
+
+function computeItemWidth(params: { containerWidth: number; columns: number; gap: number }) {
+  const { containerWidth, columns, gap } = params
+  if (!containerWidth || containerWidth <= 0 || !columns) return 0
+  const totalGaps = Math.max(0, columns - 1) * gap
+  const width = Math.max(0, containerWidth - totalGaps)
+  const colWidth = Math.floor(width / Math.max(1, columns))
+  return colWidth
+}
+
+function getHorizontalPadding(el: HTMLElement) {
+  if (!el) return 0
+  const styles = getComputedStyle(el)
+  const left = parseFloat(styles?.paddingLeft || '0')
+  const right = parseFloat(styles?.paddingRight || '0')
+  const total = (isFinite(left) ? left : 0) + (isFinite(right) ? right : 0)
+  return total
 }

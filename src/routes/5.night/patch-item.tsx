@@ -9,7 +9,13 @@ import { useObjectUrl } from '~/utils/use-object-url'
 import { Button } from '~/components/ui/button'
 import { ZoomInIcon } from 'lucide-react'
 
-export type PatchItemProps = { id: string; index?: number; onOpenDetail?: (id: string) => void }
+export type PatchItemProps = {
+  id: string
+  index?: number
+  onOpenDetail?: (id: string) => void
+  onImageLoad?: (id: string) => void
+  onImageError?: (id: string) => void
+}
 
 function PatchItemImpl(props: PatchItemProps) {
   const { id, index } = props
@@ -78,6 +84,16 @@ function PatchItemImpl(props: PatchItemProps) {
           alt={patch?.name ?? 'patch'}
           className='aspect-square w-full object-contain rounded-t-[5px]'
           onDragStart={(e) => e.preventDefault()}
+          decoding='async'
+          loading='lazy'
+          onLoad={() => {
+            if (!id) return
+            props?.onImageLoad?.(id)
+          }}
+          onError={() => {
+            if (!id) return
+            props?.onImageError?.(id)
+          }}
         />
       ) : (
         <div className='aspect-square w-full ' />
