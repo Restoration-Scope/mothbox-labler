@@ -15,6 +15,7 @@ export type PatchItemProps = {
   onOpenDetail?: (id: string) => void
   onImageLoad?: (id: string) => void
   onImageError?: (id: string) => void
+  compact?: boolean
 }
 
 function PatchItemImpl(props: PatchItemProps) {
@@ -65,12 +66,17 @@ function PatchItemImpl(props: PatchItemProps) {
       role='button'
       aria-pressed={isSelected}
     >
-      <Button
-        icon={ZoomInIcon}
-        className='absolute top-8 right-8 opacity-0 group-hover:opacity-100'
-        onClick={onClickZoom}
-        aria-label='Open details'
-      />
+      {props?.compact ? null : (
+        <Button
+          icon={ZoomInIcon}
+          className='absolute top-8 z-5 right-8 opacity-0 group-hover:opacity-100'
+          onMouseDown={(e) => {
+            e.stopPropagation()
+          }}
+          onClick={onClickZoom}
+          aria-label='Open details'
+        />
+      )}
       <div
         className={cn(
           'absolute pointer-events-none inset-0 ring-inset rounded-md ring-1 ring-black/10',
@@ -98,9 +104,11 @@ function PatchItemImpl(props: PatchItemProps) {
       ) : (
         <div className='aspect-square w-full ' />
       )}
-      <div className='h-28 w-full px-6 flex items-center justify-between'>
-        <Badge size='sm'>{label}</Badge>
-      </div>
+      {props?.compact ? null : (
+        <div className='h-28 w-full px-6 flex items-center justify-between'>
+          <Badge size='sm'>{label}</Badge>
+        </div>
+      )}
     </div>
   )
 }

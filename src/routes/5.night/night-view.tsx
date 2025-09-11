@@ -14,6 +14,7 @@ import { PatchGrid } from './patch-grid'
 import { SelectionBar } from './selection-bar'
 import { SpeciesPicker } from '~/components/species-picker'
 import { IdentifyDialog } from './identify-dialog'
+import { PatchDetailDialog } from './patch-detail-dialog'
 
 type TaxonSelection = { rank: 'order' | 'family' | 'genus' | 'species'; name: string } | undefined
 
@@ -31,10 +32,11 @@ export function NightView(props: { nightId: string }) {
   const [selectedBucket, setSelectedBucket] = useState<'auto' | 'user' | undefined>('auto')
   const [speciesPickerOpen, setSpeciesPickerOpen] = useState(false)
   const [identifyPending, setIdentifyPending] = useState(false)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailPatchId, setDetailPatchId] = useState<string | null>(null)
   const selected = useStore(selectedPatchIdsStore)
 
   const night = nights[nightId]
-  if (!night) return <p className='text-sm text-neutral-500'>Night not found</p>
 
   const list = useMemo(() => Object.values(patches).filter((patch) => patch.nightId === nightId), [patches, nightId])
   const taxonomyAuto = useMemo(() => buildTaxonomyTreeForNight({ detections, nightId, bucket: 'auto' }), [detections, nightId])
@@ -48,7 +50,7 @@ export function NightView(props: { nightId: string }) {
     () => filterPatchesByTaxon({ patches: list, detections, selectedTaxon, selectedBucket }),
     [list, detections, selectedTaxon, selectedBucket],
   )
-  const sorted = useMemo(() => sortPatchesByDimensions({ patches: filtered, detections }), [filtered, detections])
+  const sorted = useMemo(() => sortPatchesByClusterThenArea({ patches: filtered, detections }), [filtered, detections])
   const totalPatches = list.length
   const selectedCount = useMemo(() => Array.from(selected ?? []).filter((id) => !!id).length, [selected])
   const selectedDetectionIds = useMemo(() => Array.from(selected ?? []), [selected])
@@ -111,8 +113,11 @@ export function NightView(props: { nightId: string }) {
 
   function onOpenPatchDetail(id: string) {
     if (!id) return
-    // The detail dialog is already accessible via PatchGrid's props in the index; keeping UI consistent here
+    setDetailPatchId(id)
+    setDetailOpen(true)
   }
+
+  if (!night) return <p className='text-sm text-neutral-500'>Night not found</p>
 
   return (
     <Row className='w-full h-full overflow-hidden gap-x-4'>
@@ -156,6 +161,7 @@ export function NightView(props: { nightId: string }) {
         projectId={(night as any)?.projectId}
       />
       <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onSubmitLabel} projectId={(night as any)?.projectId} />
+      <PatchDetailDialog open={detailOpen} onOpenChange={setDetailOpen} patchId={detailPatchId} />
     </Row>
   )
 }
@@ -241,16 +247,26 @@ function filterPatchesByTaxon(params: {
   return result
 }
 
-function sortPatchesByDimensions(params: { patches: PatchEntity[]; detections: Record<string, DetectionEntity> }) {
+function sortPatchesByClusterThenArea(params: { patches: PatchEntity[]; detections: Record<string, DetectionEntity> }) {
   const { patches, detections } = params
   if (!Array.isArray(patches) || patches.length === 0) return patches
-  const withArea = patches.map((p) => ({ patch: p, area: computeDetectionArea({ detection: detections?.[p.id] }) }))
-  withArea.sort((a, b) => {
+  const withKeys = patches.map((p) => {
+    const det = detections?.[p.id]
+    const clusterId = typeof (det as any)?.clusterId === 'number' ? (det as any)?.clusterId : undefined
+    const area = computeDetectionArea({ detection: det })
+    return { patch: p, clusterId, area }
+  })
+  withKeys.sort((a, b) => {
+    const aHas = typeof a.clusterId === 'number'
+    const bHas = typeof b.clusterId === 'number'
+    if (aHas && bHas && (a.clusterId as any) !== (b.clusterId as any)) return (a.clusterId as any) - (b.clusterId as any)
+    if (aHas && !bHas) return -1
+    if (!aHas && bHas) return 1
     if (b.area !== a.area) return b.area - a.area
     const byName = (a.patch?.name || '').localeCompare(b.patch?.name || '')
     return byName
   })
-  const result = withArea.map((x) => x.patch)
+  const result = withKeys.map((x) => x.patch)
   return result
 }
 

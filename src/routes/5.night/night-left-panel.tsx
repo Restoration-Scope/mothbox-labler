@@ -9,6 +9,7 @@ import { detectionsStore } from '~/stores/entities/detections'
 import { exportNightDarwinCSV } from '~/features/export/darwin-csv'
 import { toast } from 'sonner'
 import { exportNightSummaryRS } from '~/features/export/rs-summary'
+import { PatchSizeControl } from '~/components/atomic/patch-size-control'
 
 type NightWarnings = {
   jsonWithoutPhotoCount?: number
@@ -81,6 +82,8 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
           </div>
         </div>
       </div>
+
+      <PatchSizeControl className='mb-16' />
 
       <TaxonomySection
         title='Auto'
