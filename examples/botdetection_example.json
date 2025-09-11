@@ -1,7 +1,7 @@
 {
     "version": "Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt",
     "flags": {},
-    "imagePath": "f:\\Deployments\\Indonesia\\Indonesia_Les_BeachPalm_grupoKite_2025-06-23\\2025-06-22\\grupoKite_2025_06_23__04_56_19_HDR0.jpg",
+    "imagePath": "D:\\MothboxData_Hubert\\data\\Panama\\OriaNursery_Nursery_prizecrab_2025-02-05\\2025-02-05\\prizeCrab_2025_02_06__02_51_30_HDR0.jpg",
     "imageHeight": 6944,
     "imageWidth": 9248,
     "description": "",
@@ -9,9 +9,9 @@
     "shapes": [
         {
             "kie_linking": [],
-            "direction": 8.445844650268555,
+            "direction": 38.89891052246094,
             "label": "ORDER_Hemiptera",
-            "score": 0.9963599443435669,
+            "score": 0.993385374546051,
             "group_id": null,
             "description": "ID_BioCLIP",
             "difficult": "false",
@@ -20,34 +20,34 @@
             "attributes": {},
             "points": [
                 [
-                    3682.0849609375,
-                    2731.364990234375
+                    3011.877685546875,
+                    2075.02392578125
                 ],
                 [
-                    3970.72314453125,
-                    2774.118896484375
+                    3299.096923828125,
+                    1718.4417724609375
                 ],
                 [
-                    4019.5,
-                    2444.817138671875
+                    2833.074951171875,
+                    1343.0709228515625
                 ],
                 [
-                    3730.86181640625,
-                    2402.063232421875
+                    2545.855712890625,
+                    1699.6529541015625
                 ]
             ],
-            "patch_path": "patches/grupoKite_2025_06_23__04_56_19_HDR0_0_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_0_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
             "kingdom": "Animalia",
             "phylum": "Arthropoda",
             "class": "Insecta",
             "order": "Hemiptera",
-            "clusterID": -1
+            "clusterID": 117.4
         },
         {
             "kie_linking": [],
-            "direction": 15.068489074707031,
-            "label": "ORDER_Diptera",
-            "score": 0.9101563096046448,
+            "direction": 4.002226829528809,
+            "label": "ORDER_Lepidoptera",
+            "score": 0.9341694712638855,
             "group_id": null,
             "description": "ID_BioCLIP",
             "difficult": "false",
@@ -56,34 +56,178 @@
             "attributes": {},
             "points": [
                 [
-                    5184.8349609375,
-                    3375.614990234375
+                    2043.9873046875,
+                    2084.236572265625
                 ],
                 [
-                    5262.2900390625,
-                    3396.393798828125
+                    2084.8759765625,
+                    1498.33544921875
                 ],
                 [
-                    5290.2841796875,
-                    3292.043701171875
+                    1634.09619140625,
+                    1466.87646484375
                 ],
                 [
-                    5212.8291015625,
-                    3271.264892578125
+                    1593.20751953125,
+                    2052.777587890625
                 ]
             ],
-            "patch_path": "patches/grupoKite_2025_06_23__04_56_19_HDR0_1_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_1_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Lepidoptera",
+            "clusterID": 25.1
+        },
+        {
+            "kie_linking": [],
+            "direction": 20.79411506652832,
+            "label": "ORDER_Psocodea",
+            "score": 0.49896201491355896,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    3549.457763671875,
+                    3887.1748046875
+                ],
+                [
+                    3609.662353515625,
+                    3729.5810546875
+                ],
+                [
+                    3491.862060546875,
+                    3684.57861328125
+                ],
+                [
+                    3431.657470703125,
+                    3842.17236328125
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_2_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Psocodea",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 1.539838194847107,
+            "label": "ORDER_Hemiptera",
+            "score": 0.7228050231933594,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    4792.33349609375,
+                    3407.176025390625
+                ],
+                [
+                    4797.45458984375,
+                    3221.514404296875
+                ],
+                [
+                    4651.66259765625,
+                    3217.492919921875
+                ],
+                [
+                    4646.54150390625,
+                    3403.154541015625
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_3_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": 97.8
+        },
+        {
+            "kie_linking": [],
+            "direction": 15.662105560302734,
+            "label": "ORDER_Hemiptera",
+            "score": 0.4660912752151489,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    5051.806640625,
+                    3563.144775390625
+                ],
+                [
+                    5074.3046875,
+                    3481.945556640625
+                ],
+                [
+                    4966.8408203125,
+                    3452.170654296875
+                ],
+                [
+                    4944.3427734375,
+                    3533.369873046875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_4_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": 1008.2
+        },
+        {
+            "kie_linking": [],
+            "direction": 8.443191528320312,
+            "label": "ORDER_Diptera",
+            "score": 0.49879881739616394,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    3218.817138671875,
+                    4103.70263671875
+                ],
+                [
+                    3237.846435546875,
+                    3975.4287109375
+                ],
+                [
+                    3110.633544921875,
+                    3956.556640625
+                ],
+                [
+                    3091.604248046875,
+                    4084.83056640625
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_5_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
             "kingdom": "Animalia",
             "phylum": "Arthropoda",
             "class": "Insecta",
             "order": "Diptera",
-            "clusterID": -1
+            "clusterID": 983.2
         },
         {
             "kie_linking": [],
-            "direction": 6.4415998458862305,
-            "label": "ORDER_Thysanoptera",
-            "score": 0.6268918514251709,
+            "direction": 6.823462963104248,
+            "label": "ORDER_Psocodea",
+            "score": 0.5747993588447571,
             "group_id": null,
             "description": "ID_BioCLIP",
             "difficult": "false",
@@ -92,28 +236,928 @@
             "attributes": {},
             "points": [
                 [
-                    7462.1474609375,
-                    2249.143310546875
+                    5508.748046875,
+                    3087.449951171875
                 ],
                 [
-                    7523.546875,
-                    2256.379638671875
+                    5520.5927734375,
+                    2985.089599609375
                 ],
                 [
-                    7533.046875,
-                    2175.775146484375
+                    5403.9228515625,
+                    2971.589111328125
                 ],
                 [
-                    7471.6474609375,
-                    2168.538818359375
+                    5392.078125,
+                    3073.949462890625
                 ]
             ],
-            "patch_path": "patches/grupoKite_2025_06_23__04_56_19_HDR0_2_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_6_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
             "kingdom": "Animalia",
             "phylum": "Arthropoda",
             "class": "Insecta",
-            "order": "Thysanoptera",
-            "clusterID": -1
+            "order": "Psocodea",
+            "clusterID": 215.5
+        },
+        {
+            "kie_linking": [],
+            "direction": 2.9814612865448,
+            "label": "ORDER_Hemiptera",
+            "score": 0.5862504243850708,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    5408.08447265625,
+                    1562.7557373046875
+                ],
+                [
+                    5412.53173828125,
+                    1467.2401123046875
+                ],
+                [
+                    5299.08935546875,
+                    1461.9576416015625
+                ],
+                [
+                    5294.64208984375,
+                    1557.4732666015625
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_7_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 3.6913859844207764,
+            "label": "ORDER_Coleoptera",
+            "score": 0.377418577671051,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    5911.3017578125,
+                    6292.65380859375
+                ],
+                [
+                    5919.3271484375,
+                    6171.33740234375
+                ],
+                [
+                    5764.6708984375,
+                    6161.10693359375
+                ],
+                [
+                    5756.6455078125,
+                    6282.42333984375
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_8_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Coleoptera",
+            "clusterID": 482.63
+        },
+        {
+            "kie_linking": [],
+            "direction": 13.600543022155762,
+            "label": "ORDER_Lepidoptera",
+            "score": 0.8744686245918274,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    5985.84765625,
+                    1777.0308837890625
+                ],
+                [
+                    6011.140625,
+                    1671.0611572265625
+                ],
+                [
+                    5887.8828125,
+                    1641.6414794921875
+                ],
+                [
+                    5862.58984375,
+                    1747.6112060546875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_9_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Lepidoptera",
+            "clusterID": 619.3
+        },
+        {
+            "kie_linking": [],
+            "direction": 7.219020843505859,
+            "label": "ORDER_Trichoptera",
+            "score": 0.25130197405815125,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    2641.72021484375,
+                    4029.301025390625
+                ],
+                [
+                    2660.55615234375,
+                    3879.849853515625
+                ],
+                [
+                    2557.1669921875,
+                    3866.819091796875
+                ],
+                [
+                    2538.3310546875,
+                    4016.270263671875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_10_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Trichoptera",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 89.77619171142578,
+            "label": "ORDER_Coleoptera",
+            "score": 0.6179338097572327,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    3792.2734375,
+                    4402.224609375
+                ],
+                [
+                    4023.9111328125,
+                    4401.78125
+                ],
+                [
+                    4023.42138671875,
+                    4146.1796875
+                ],
+                [
+                    3791.78369140625,
+                    4146.623046875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_11_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Coleoptera",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 88.87670135498047,
+            "label": "ORDER_Diptera",
+            "score": 0.5065738558769226,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    4350.66748046875,
+                    3702.270751953125
+                ],
+                [
+                    4451.92919921875,
+                    3699.626220703125
+                ],
+                [
+                    4449.22412109375,
+                    3596.045654296875
+                ],
+                [
+                    4347.96240234375,
+                    3598.690185546875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_12_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Diptera",
+            "clusterID": 1004.2
+        },
+        {
+            "kie_linking": [],
+            "direction": 2.290609836578369,
+            "label": "ORDER_Hemiptera",
+            "score": 0.611785352230072,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    2844.19873046875,
+                    3818.007568359375
+                ],
+                [
+                    2847.0986328125,
+                    3743.383544921875
+                ],
+                [
+                    2778.65771484375,
+                    3740.723876953125
+                ],
+                [
+                    2775.7578125,
+                    3815.347900390625
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_13_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": 1407.3
+        },
+        {
+            "kie_linking": [],
+            "direction": 5.128190994262695,
+            "label": "ORDER_Coleoptera",
+            "score": 0.6152558922767639,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    2890.782958984375,
+                    2666.86865234375
+                ],
+                [
+                    2897.920654296875,
+                    2588.8662109375
+                ],
+                [
+                    2824.153076171875,
+                    2582.1162109375
+                ],
+                [
+                    2817.015380859375,
+                    2660.11865234375
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_14_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Coleoptera",
+            "clusterID": 1438.105
+        },
+        {
+            "kie_linking": [],
+            "direction": 86.2786865234375,
+            "label": "ORDER_Diptera",
+            "score": 0.7072016596794128,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    3469.060302734375,
+                    4157.98095703125
+                ],
+                [
+                    3559.268798828125,
+                    4152.54248046875
+                ],
+                [
+                    3551.823486328125,
+                    4029.0546875
+                ],
+                [
+                    3461.614990234375,
+                    4034.49365234375
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_15_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Diptera",
+            "clusterID": 649.3
+        },
+        {
+            "kie_linking": [],
+            "direction": 4.4846062660217285,
+            "label": "ORDER_Hemiptera",
+            "score": 0.9525941610336304,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    5507.99365234375,
+                    2863.4970703125
+                ],
+                [
+                    5514.63525390625,
+                    2776.1904296875
+                ],
+                [
+                    5412.34814453125,
+                    2768.40966796875
+                ],
+                [
+                    5405.70654296875,
+                    2855.71630859375
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_16_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": 1266.4
+        },
+        {
+            "kie_linking": [],
+            "direction": 34.2868766784668,
+            "label": "ORDER_Hemiptera",
+            "score": 0.4804524779319763,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    5287.09375,
+                    4044.438720703125
+                ],
+                [
+                    5377.2763671875,
+                    3912.943603515625
+                ],
+                [
+                    5273.7265625,
+                    3841.927001953125
+                ],
+                [
+                    5183.5439453125,
+                    3973.422119140625
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_17_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 20.98489761352539,
+            "label": "ORDER_Diptera",
+            "score": 0.5630528330802917,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    5255.7041015625,
+                    2688.29833984375
+                ],
+                [
+                    5289.5615234375,
+                    2599.970703125
+                ],
+                [
+                    5216.8330078125,
+                    2572.0927734375
+                ],
+                [
+                    5182.9755859375,
+                    2660.42041015625
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_18_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Diptera",
+            "clusterID": 436.4
+        },
+        {
+            "kie_linking": [],
+            "direction": 13.091893196105957,
+            "label": "ORDER_Diptera",
+            "score": 0.9493977427482605,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    3448.361083984375,
+                    4332.40673828125
+                ],
+                [
+                    3471.197509765625,
+                    4235.84130859375
+                ],
+                [
+                    3385.984619140625,
+                    4215.68994140625
+                ],
+                [
+                    3363.148193359375,
+                    4312.25537109375
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_19_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Diptera",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 6.881723403930664,
+            "label": "ORDER_Coleoptera",
+            "score": 0.8420282602310181,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    3882.788818359375,
+                    4534.70361328125
+                ],
+                [
+                    3889.831787109375,
+                    4476.29150390625
+                ],
+                [
+                    3839.979736328125,
+                    4470.28076171875
+                ],
+                [
+                    3832.936767578125,
+                    4528.69287109375
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_20_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Coleoptera",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 6.115502834320068,
+            "label": "ORDER_Coleoptera",
+            "score": 0.9251806735992432,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    1696.2978515625,
+                    4424.08349609375
+                ],
+                [
+                    1705.661376953125,
+                    4340.42626953125
+                ],
+                [
+                    1635.492919921875,
+                    4332.57275390625
+                ],
+                [
+                    1626.12939453125,
+                    4416.22998046875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_21_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Coleoptera",
+            "clusterID": 1343.9
+        },
+        {
+            "kie_linking": [],
+            "direction": 8.572999000549316,
+            "label": "ORDER_Diptera",
+            "score": 0.42367804050445557,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    7594.0966796875,
+                    3489.126220703125
+                ],
+                [
+                    7620.423828125,
+                    3314.644775390625
+                ],
+                [
+                    7421.8525390625,
+                    3284.682373046875
+                ],
+                [
+                    7395.525390625,
+                    3459.163818359375
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_22_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Diptera",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 88.9583740234375,
+            "label": "ORDER_Hemiptera",
+            "score": 0.28172534704208374,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    7187.38671875,
+                    5007.20849609375
+                ],
+                [
+                    7297.4580078125,
+                    5005.36767578125
+                ],
+                [
+                    7295.62109375,
+                    4895.55908203125
+                ],
+                [
+                    7185.5498046875,
+                    4897.39990234375
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_23_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 81.6070785522461,
+            "label": "ORDER_Hemiptera",
+            "score": 0.6977940201759338,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    7102.18603515625,
+                    2867.35302734375
+                ],
+                [
+                    7195.35986328125,
+                    2854.03173828125
+                ],
+                [
+                    7177.92822265625,
+                    2732.10888671875
+                ],
+                [
+                    7084.75439453125,
+                    2745.43017578125
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_24_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": 1196.6
+        },
+        {
+            "kie_linking": [],
+            "direction": 2.5261168479919434,
+            "label": "ORDER_Coleoptera",
+            "score": 0.8502786755561829,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    3776.620849609375,
+                    3582.226318359375
+                ],
+                [
+                    3779.028076171875,
+                    3514.222412109375
+                ],
+                [
+                    3714.535888671875,
+                    3511.939697265625
+                ],
+                [
+                    3712.128662109375,
+                    3579.943603515625
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_25_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Coleoptera",
+            "clusterID": 1420.3
+        },
+        {
+            "kie_linking": [],
+            "direction": 7.044868469238281,
+            "label": "ORDER_Coleoptera",
+            "score": 0.42017459869384766,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    7083.52294921875,
+                    6186.3896484375
+                ],
+                [
+                    7165.76611328125,
+                    5517.310546875
+                ],
+                [
+                    6461.51220703125,
+                    5430.744140625
+                ],
+                [
+                    6379.26904296875,
+                    6099.8232421875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_26_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Coleoptera",
+            "clusterID": 4.9
+        },
+        {
+            "kie_linking": [],
+            "direction": 4.899092197418213,
+            "label": "ORDER_Diptera",
+            "score": 0.373401403427124,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    6786.3740234375,
+                    2700.072265625
+                ],
+                [
+                    6793.515625,
+                    2611.779296875
+                ],
+                [
+                    6689.0712890625,
+                    2603.33154296875
+                ],
+                [
+                    6681.9296875,
+                    2691.62451171875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_27_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Diptera",
+            "clusterID": 258.7
+        },
+        {
+            "kie_linking": [],
+            "direction": 2.5261170864105225,
+            "label": "ORDER_Coleoptera",
+            "score": 0.6625946760177612,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    6999.30517578125,
+                    2579.465087890625
+                ],
+                [
+                    7002.58251953125,
+                    2511.941650390625
+                ],
+                [
+                    6926.90966796875,
+                    2508.268798828125
+                ],
+                [
+                    6923.63232421875,
+                    2575.792236328125
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_28_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Coleoptera",
+            "clusterID": 1399.6
+        },
+        {
+            "kie_linking": [],
+            "direction": 84.54244995117188,
+            "label": "ORDER_Diptera",
+            "score": 0.6790244579315186,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    2465.26904296875,
+                    5702.58349609375
+                ],
+                [
+                    2573.08642578125,
+                    5692.16845703125
+                ],
+                [
+                    2557.9501953125,
+                    5535.47314453125
+                ],
+                [
+                    2450.1328125,
+                    5545.88818359375
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_29_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Diptera",
+            "clusterID": 66.5
+        },
+        {
+            "kie_linking": [],
+            "direction": 10.451634407043457,
+            "label": "ORDER_Hemiptera",
+            "score": 0.3036629855632782,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    2341.717041015625,
+                    4699.193359375
+                ],
+                [
+                    2360.800048828125,
+                    4596.171875
+                ],
+                [
+                    2280.535888671875,
+                    4581.3046875
+                ],
+                [
+                    2261.452880859375,
+                    4684.326171875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_30_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hemiptera",
+            "clusterID": -1.0
+        },
+        {
+            "kie_linking": [],
+            "direction": 8.498558044433594,
+            "label": "ORDER_Hymenoptera",
+            "score": 0.7514868378639221,
+            "group_id": null,
+            "description": "ID_BioCLIP",
+            "difficult": "false",
+            "shape_type": "rotation",
+            "flags": {},
+            "attributes": {},
+            "points": [
+                [
+                    7875.5458984375,
+                    1695.5108642578125
+                ],
+                [
+                    7886.4052734375,
+                    1623.8585205078125
+                ],
+                [
+                    7799.3115234375,
+                    1610.6590576171875
+                ],
+                [
+                    7788.4521484375,
+                    1682.3114013671875
+                ]
+            ],
+            "patch_path": "patches/prizeCrab_2025_02_06__02_51_30_HDR0_31_Mothbot_yolo11m_4500_imgsz1600_b1_2024-01-18.pt.jpg",
+            "kingdom": "Animalia",
+            "phylum": "Arthropoda",
+            "class": "Insecta",
+            "order": "Hymenoptera",
+            "clusterID": -1.0
         }
     ]
 }
