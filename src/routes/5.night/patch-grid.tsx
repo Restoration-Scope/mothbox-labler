@@ -1,14 +1,20 @@
 import { cn } from '~/utils/cn'
 import type { PatchEntity } from '~/stores/entities/5.patches'
+import { useStore } from '@nanostores/react'
 import type { DetectionEntity } from '~/stores/entities/detections'
 import { detectionsStore } from '~/stores/entities/detections'
 import { PatchItem } from './patch-item'
-import React, { useEffect, useMemo, useRef, useState } from 'react'
-import { useStore } from '@nanostores/react'
+import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react'
+import { patchSizeStore } from '~/components/atomic/patch-size-control'
 import { selectedPatchIdsStore, selectionNightIdStore, setSelection, togglePatchSelection } from '~/stores/ui'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { useVirtualizer } from '@tanstack/react-virtual'
 // noop
+
+const DEFAULT_MIN_ITEM_WIDTH = 240
+const GRID_GAP = 8
+const FOOTER_HEIGHT = 28
+const FOOTER_HIDE_THRESHOLD = 64 // hide footer when base size smaller than this
 
 export type PatchGridProps = {
   patches: PatchEntity[]
@@ -22,6 +28,7 @@ export type PatchGridProps = {
 export function PatchGrid(props: PatchGridProps) {
   const { patches, nightId, className, onOpenPatchDetail, loading, onImageProgress } = props
   const containerRef = useRef<HTMLDivElement | null>(null)
+  const patchSize = useStore(patchSizeStore)
   const selected = useStore(selectedPatchIdsStore)
   useStore(selectionNightIdStore)
 
@@ -35,41 +42,65 @@ export function PatchGrid(props: PatchGridProps) {
   const detections = useStore(detectionsStore)
   const orderedIds = useMemo(() => {
     if (!Array.isArray(patches) || patches.length === 0) return [] as string[]
-    const withArea = patches.map((p) => ({ id: p.id, name: p.name, area: computeDetectionArea({ detection: detections?.[p.id] }) }))
-    withArea.sort((a, b) => {
+    const withSortKey = patches.map((p) => {
+      const det = detections?.[p.id]
+      const clusterId = typeof (det as any)?.clusterId === 'number' ? (det as any)?.clusterId : undefined
+      const area = computeDetectionArea({ detection: det })
+      return { id: p.id, name: p.name, clusterId, area }
+    })
+    withSortKey.sort((a, b) => {
+      const aHas = typeof a.clusterId === 'number'
+      const bHas = typeof b.clusterId === 'number'
+      if (aHas && bHas && (a.clusterId as any) !== (b.clusterId as any)) return (a.clusterId as any) - (b.clusterId as any)
+      if (aHas && !bHas) return -1
+      if (!aHas && bHas) return 1
       if (b.area !== a.area) return b.area - a.area
       return (a?.name || '').localeCompare(b?.name || '')
     })
-    const ids = withArea.map((x) => x.id)
+    const ids = withSortKey.map((x) => x.id)
     return ids
   }, [patches, detections])
 
+  // Reset scroll and focus when the visible item count changes (filters)
+  const prevCountRef = useRef<number>(0)
+
   // Measure container width to determine dynamic column count and item sizing
   const [containerWidth, setContainerWidth] = useState<number>(0)
-  useEffect(() => {
+  useLayoutEffect(() => {
     const el = containerRef.current
     if (!el) return
-    const ro = new ResizeObserver(() => {
+    const measure = () => {
       const width = el.clientWidth
       const padding = getHorizontalPadding(el)
       const available = Math.max(0, width - padding)
       setContainerWidth(available)
-    })
+      console.log('📐 grid: measure container', { width, padding, available })
+    }
+    // Measure immediately to avoid an initial 0-width pass that collapses rows
+    measure()
+    const ro = new ResizeObserver(measure)
     ro.observe(el)
     return () => ro.disconnect()
   }, [])
 
-  const columns = useMemo(() => computeColumnCount({ containerWidth }), [containerWidth])
-  const itemWidth = useMemo(() => computeItemWidth({ containerWidth, columns, gap: 8 }), [containerWidth, columns])
+  const minItemWidth = patchSize || DEFAULT_MIN_ITEM_WIDTH
+
+  const columns = useMemo(() => computeColumnCount({ containerWidth, minItemWidth }), [containerWidth, minItemWidth])
+  const itemWidth = useMemo(() => computeItemWidth({ containerWidth, columns, gap: GRID_GAP }), [containerWidth, columns])
   const rowHeight = useMemo(() => {
-    // Item height approximates square image + footer (h-28 = 28px) + vertical gap between rows (8px)
-    const height = Math.max(0, itemWidth) + 28 + 8
+    // Item height approximates square image + footer + vertical gap between rows
+    // Fallback to MIN_ITEM_WIDTH before the container is measured to prevent ultra-short rows
+    const baseWidth = itemWidth || minItemWidth
+    const footer = (patchSize || minItemWidth) < FOOTER_HIDE_THRESHOLD ? 0 : FOOTER_HEIGHT
+    const height = Math.max(0, baseWidth) + footer + GRID_GAP
+    console.log('📏 grid: sizing', { containerWidth, minItemWidth, columns, itemWidth, footer, rowHeight: height })
     return height
-  }, [itemWidth])
+  }, [itemWidth, minItemWidth, patchSize, containerWidth, columns])
 
   const rowCount = useMemo(() => {
     if (!orderedIds.length) return 0
     const count = Math.ceil(orderedIds.length / Math.max(1, columns))
+    console.log('🔢 grid: rows', { items: orderedIds.length, columns, rowCount: count })
     return count
   }, [orderedIds, columns])
 
@@ -78,7 +109,51 @@ export function PatchGrid(props: PatchGridProps) {
     getScrollElement: () => containerRef.current,
     estimateSize: () => rowHeight,
     overscan: 5,
+    measureElement: (el) => {
+      const r = (el as HTMLElement)?.getBoundingClientRect?.()
+      const h = Math.ceil(r?.height || rowHeight)
+      return h
+    },
   })
+
+  // When the number of visible items changes (filters), reset scroll/focus to avoid stale positions
+  useEffect(() => {
+    const count = orderedIds.length
+    if (count === prevCountRef.current) return
+
+    setIsDragging(false)
+    setDragToggled(new Set())
+    setAnchorIndex(null)
+    setFocusIndex(0)
+
+    const el = containerRef.current
+    if (el) el.scrollTo({ top: 0 })
+
+    rowVirtualizer.scrollToIndex(0, { align: 'start' })
+    rowVirtualizer.scrollToOffset(0)
+    const totalSize = rowVirtualizer.getTotalSize()
+    console.log('🔄 grid: filter change reset', { prev: prevCountRef.current, next: count, columns, rowHeight, totalSize })
+    prevCountRef.current = count
+  }, [orderedIds.length, rowVirtualizer, columns, rowHeight])
+
+  // Also reset scroll when item base size changes to prevent stale virtualization window
+  useEffect(() => {
+    const el = containerRef.current
+    if (el) el.scrollTo({ top: 0 })
+    rowVirtualizer.scrollToIndex(0, { align: 'start' })
+    rowVirtualizer.scrollToOffset(0)
+    const totalSize = rowVirtualizer.getTotalSize()
+    console.log('🔄 grid: size change reset', { patchSize, columns, rowHeight, totalSize })
+  }, [patchSize, rowVirtualizer, columns, rowHeight])
+
+  // Proactively re-measure after layout-affecting changes (prevents short stacked rows after 0-items view)
+  useEffect(() => {
+    const id = requestAnimationFrame(() => {
+      rowVirtualizer.measure()
+      console.log('📣 grid: virtualizer measure', { columns, rowHeight, items: orderedIds.length, containerWidth })
+    })
+    return () => cancelAnimationFrame(id)
+  }, [rowHeight, columns, containerWidth, orderedIds.length, rowVirtualizer])
 
   // Track image load progress
   const [loadedCount, setLoadedCount] = useState<number>(0)
@@ -191,7 +266,7 @@ export function PatchGrid(props: PatchGridProps) {
 
   if (loading) return <CenteredLoader>🌀 Loading patches</CenteredLoader>
 
-  if (!patches?.length) return <p className='text-sm text-neutral-500'>No patches found</p>
+  // Keep container mounted even when there are no items to avoid losing measurements
 
   return (
     <GridContainer
@@ -202,6 +277,7 @@ export function PatchGrid(props: PatchGridProps) {
       onMouseMove={onMouseMoveContainer}
     >
       <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
+        {!orderedIds.length ? <div className='p-8 text-sm text-neutral-500'>No patches found</div> : null}
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const start = virtualRow.index * Math.max(1, columns)
           const end = Math.min(start + Math.max(1, columns), orderedIds.length)
@@ -226,6 +302,7 @@ export function PatchGrid(props: PatchGridProps) {
                       id={id}
                       key={id}
                       index={index}
+                      compact={(patchSize || minItemWidth) < FOOTER_HIDE_THRESHOLD}
                       onOpenDetail={onOpenPatchDetail}
                       onImageLoad={handleImageLoad}
                       onImageError={handleImageError}
@@ -289,15 +366,13 @@ function computeDetectionArea(params: ComputeDetectionAreaParams) {
   return area
 }
 
-function computeColumnCount(params: { containerWidth: number }) {
-  const { containerWidth } = params
-  const minColumns = 2
-  const maxColumns = 5
-  const minItemWidth = 240 // px
-  const gap = 8 // px
+function computeColumnCount(params: { containerWidth: number; minItemWidth: number }) {
+  const { containerWidth, minItemWidth } = params
+  const minColumns = 1
   if (!containerWidth || containerWidth <= 0) return minColumns
-  const raw = Math.floor((containerWidth + gap) / (minItemWidth + gap))
-  const cols = Math.min(maxColumns, Math.max(minColumns, raw))
+  const clampedMin = Math.max(30, Math.min(800, minItemWidth))
+  const raw = Math.floor((containerWidth + GRID_GAP) / (clampedMin + GRID_GAP))
+  const cols = Math.max(minColumns, raw)
   return cols
 }
 
