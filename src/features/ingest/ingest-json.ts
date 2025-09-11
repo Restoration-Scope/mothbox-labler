@@ -3,21 +3,38 @@ import type { IndexedFile } from '~/stores/entities/photos'
 export type BotDetectionJson = {
   version?: string
   shapes: Array<{
+    patch_path: string
+
+    confidence_detection: number
+    confidence_ID: number
+
+    identifier_bot: string
+    identifier_human: string
+
+    timestamp_detection: string
+    timestamp_ID_bot: string
+    timestamp_ID_human: string
+
+    detector_bot: string
+
+    species_list: string // DOI string
+
+    kingdom: string
+    phylum: string
+    class: string
+    order: string
+
+    clusterID: number
+
+    // Optionally, keep other fields for backward compatibility or extensibility
     label?: unknown
     score?: unknown
     direction?: unknown
     shape_type?: unknown
     points?: number[][]
-    patch_path?: string
-    kingdom?: unknown
-    phylum?: unknown
-    class?: unknown
-    order?: unknown
     family?: unknown
     genus?: unknown
     species?: unknown
-    human_identifier?: unknown
-    human_identified_at?: unknown
   }>
 }
 

@@ -112,6 +112,7 @@ function buildUserIdentifiedJson(params: { baseName: string; detections: Detecti
       direction: d.direction,
       shape_type: d.shapeType,
       points: d.points,
+      clusterID: typeof (d as any)?.clusterId === 'number' ? (d as any)?.clusterId : undefined,
       kingdom: (d as any)?.isError ? null : (d as any)?.taxon?.kingdom,
       phylum: (d as any)?.isError ? null : (d as any)?.taxon?.phylum,
       class: (d as any)?.isError ? null : (d as any)?.taxon?.class,
@@ -120,8 +121,47 @@ function buildUserIdentifiedJson(params: { baseName: string; detections: Detecti
       genus: (d as any)?.isError ? null : (d as any)?.taxon?.genus,
       species: (d as any)?.isError ? null : (d as any)?.taxon?.species,
       is_error: (d as any)?.isError ? true : undefined,
-      human_identifier: d?.detectedBy === 'user' ? human : undefined,
-      human_identified_at: d?.identifiedAt ?? Date.now(),
+      identifier_human: d?.detectedBy === 'user' ? human : undefined,
+      timestamp_ID_human: d?.identifiedAt ?? Date.now(),
+      // TODO we should still have the bot stuff in here
+      // timestamp_ID_bot
+
+      /**
+   patch_path: string
+
+    confidence_detection: number
+    confidence_ID: number
+
+    identifier_bot: string
+    identifier_human: string
+
+    timestamp_detection: string
+    timestamp_ID_bot: string
+    timestamp_ID_human: string
+
+    detector_bot: string
+
+    species_list: string // DOI string
+
+    kingdom: string
+    phylum: string
+    class: string
+    order: string
+
+    clusterID: number
+
+    // Optionally, keep other fields for backward compatibility or extensibility
+    label?: unknown
+    score?: unknown
+    direction?: unknown
+    shape_type?: unknown
+    points?: number[][]
+    family?: unknown
+    genus?: unknown
+    species?: unknown
+  }>
+}
+       */
     }
     return shape
   })

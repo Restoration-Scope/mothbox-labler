@@ -33,19 +33,31 @@ export async function parseNightBotDetections(params: {
       if (!patchFileName) continue
       const patchId = patchFileName
       const existingPatch = patches[patchId]
+
+      const imageFileExisting = existingPatch?.imageFile
+      const hasHydratedFile = !!(imageFileExisting as any)?.file
+      const imageFile: IndexedFile | undefined = hasHydratedFile
+        ? (imageFileExisting as any)
+        : await (async () => {
+            if (imageFileExisting) {
+              const hydrated = await ensureFileHydrated(imageFileExisting as any)
+              return hydrated as any
+            }
+            const found = await findPatchFileForPatchId({
+              files,
+              patchMap,
+              patchId,
+              nightDiskPath: extractNightDiskPathFromIndexedPath((jsonFile as any)?.path ?? ''),
+            })
+            return found as any
+          })()
+
       patches[patchId] = {
         id: patchId,
         name: existingPatch?.name ?? patchId,
         nightId: photo.nightId,
         photoId: photo.id,
-        imageFile:
-          existingPatch?.imageFile ??
-          (await findPatchFileForPatchId({
-            files,
-            patchMap,
-            patchId,
-            nightDiskPath: extractNightDiskPathFromIndexedPath((jsonFile as any)?.path ?? ''),
-          })),
+        imageFile: imageFile as any,
       } as any
 
       const detectionId = patchId
@@ -63,6 +75,7 @@ export async function parseNightBotDetections(params: {
         shapeType: safeLabel(shape?.shape_type),
         points: Array.isArray(shape?.points) ? (shape.points as any) : undefined,
         detectedBy: 'auto',
+        clusterId: safeNumber(shape?.clusterID),
       } as any
 
       if (targetNightId && !processedPatchIds.has(patchId) && !!patches?.[patchId]?.imageFile) {
@@ -108,6 +121,7 @@ export async function overlayNightUserDetections(params: {
           points: Array.isArray(shape?.points) ? (shape.points as any) : (existing as any)?.points,
           detectedBy: 'user',
           identifiedAt,
+          clusterId: (safeNumber((shape as any)?.clusterID) as any) ?? (existing as any)?.clusterId,
         }
         detections[detectionId] = next
       }

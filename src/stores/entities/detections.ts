@@ -16,6 +16,7 @@ export type DetectionEntity = {
   detectedBy?: 'auto' | 'user'
   identifiedAt?: number
   isError?: boolean
+  clusterId?: number
 }
 
 export const detectionsStore = atom<Record<string, DetectionEntity>>({})
