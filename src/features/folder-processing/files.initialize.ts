@@ -43,9 +43,7 @@ export function preloadNightSummariesFromIndexed(
         continue
       }
       summaries[nightId] = { nightId, totalDetections: 0, totalIdentified: 0 }
-      if (!it.file) continue
-      void it.file
-        .text()
+      void ensureTextFromIndexedEntry(it as any)
         .then((txt) => JSON.parse(txt))
         .then((json) => {
           const s = {
@@ -74,4 +72,17 @@ function deriveSiteFromDeploymentFolder(deploymentFolderName: string) {
   const parts = name.split('_').filter(Boolean)
   if (parts.length >= 2) return parts[1]
   return name
+}
+
+async function ensureTextFromIndexedEntry(entry: { file?: File; handle?: { getFile?: () => Promise<File> } }) {
+  if (entry?.file) {
+    const text = await entry.file.text()
+    return text
+  }
+
+  const file = await entry?.handle?.getFile?.()
+  if (!file) return ''
+
+  const text = await file.text()
+  return text
 }

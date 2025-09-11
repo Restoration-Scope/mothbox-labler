@@ -29,10 +29,8 @@ export async function collectFilesWithPathsRecursively(params: {
   for await (const entry of directoryHandle.values()) {
     const entryName = (entry as unknown as { name?: string })?.name ?? ''
     if (isFileHandle(entry)) {
-      const shouldHydrate = shouldHydrateImmediately(entryName)
-      const file = shouldHydrate ? await entry.getFile() : undefined
-      const relFromRoot = [...currentParts.slice(1), entryName || file?.name || ''].filter(Boolean).join('/')
-      items.push({ file, handle: entry as unknown, path: relFromRoot, name: entryName || file?.name || '', size: file?.size ?? 0 })
+      const relFromRoot = [...currentParts.slice(1), entryName].filter(Boolean).join('/')
+      items.push({ file: undefined, handle: entry as unknown, path: relFromRoot, name: entryName, size: 0 })
       continue
     }
     const subdir = entry as FileSystemDirectoryHandleLike
@@ -99,13 +97,4 @@ export function getFileWebkitRelativePath(file: File) {
   const anyFile = file as File & { webkitRelativePath?: string }
   const rel = anyFile?.webkitRelativePath ?? ''
   return rel
-}
-
-function shouldHydrateImmediately(name: string) {
-  const lower = (name ?? '').toLowerCase()
-  if (!lower) return false
-  if (lower.endsWith('.json')) return true
-  if (lower.endsWith('.csv') || lower.endsWith('.tsv')) return true
-  if (lower === 'night_summary.json') return true
-  return false
 }
