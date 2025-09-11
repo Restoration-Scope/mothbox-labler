@@ -10,6 +10,6 @@ export default defineConfig({
     },
   },
   server: {
-    allowedHosts: ['vite-66.localcan.dev'],
+    allowedHosts: ['vite-96.localcan.dev'],
   },
 })
