@@ -3,6 +3,8 @@ import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, Comma
 import { projectSpeciesSelectionStore, searchSpecies, speciesListsStore, type TaxonRecord } from '~/stores/species-lists'
 import { detectionsStore } from '~/stores/entities/detections'
 import { useStore } from '@nanostores/react'
+import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
+import { Row } from '~/styles'
 
 export type IdentifyDialogProps = {
   open: boolean
@@ -95,6 +97,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
         ></CommandInput>
         <CommandList>
           <CommandEmpty>No matches. Press Enter to use your text.</CommandEmpty>
+
           {query.trim().toUpperCase() === 'ERROR' ? (
             <CommandGroup heading='Actions'>
               <CommandItem onSelect={() => handleSelect('ERROR')}>
@@ -105,6 +108,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
               </CommandItem>
             </CommandGroup>
           ) : null}
+
           {recentOptions.length && (!query.trim() || speciesOptions.length === 0) ? (
             <CommandGroup heading='Recent'>
               {recentOptions.map((r) => (
@@ -112,12 +116,17 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
                   <div className='flex flex-col'>
                     <span className='text-13'>{r.label}</span>
                     {r.taxon ? (
-                      <span className='text-11 text-neutral-500'>
+                      <span className='text-11 text-neutral-500 flex items-center gap-4'>
+                        <RankLettersInline taxon={r.taxon} />
                         {r.taxon.vernacularName || [r.taxon.genus, r.taxon.family, r.taxon.order].filter(Boolean).join(' • ')}
                       </span>
                     ) : null}
                   </div>
-                  {r.taxon?.taxonRank ? <span className='ml-auto text-11 text-neutral-600'>{r.taxon.taxonRank}</span> : null}
+                  {r.taxon?.taxonRank ? (
+                    <div className='ml-auto'>
+                      <TaxonRankBadge rank={r.taxon.taxonRank} />
+                    </div>
+                  ) : null}
                 </CommandItem>
               ))}
             </CommandGroup>
@@ -126,19 +135,31 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
             <CommandGroup heading='Species'>
               {speciesOptions.map((t) => (
                 <CommandItem key={(t.taxonID as any) ?? t.scientificName} onSelect={() => handleSelectTaxon(t)}>
-                  <div className='flex flex-col'>
+                  <Row className='gap-12'>
                     <span className='text-13'>{t.scientificName}</span>
-                    <span className='text-11 text-ink-secondary'>
+                    <span className='text-11 text-ink-secondary flex items-center gap-4'>
+                      <RankLettersInline taxon={t} />
                       {t.vernacularName || [t.genus, t.family, t.order].filter(Boolean).join(' • ')}
                     </span>
-                  </div>
-                  {t.taxonRank ? <span className='ml-auto text-11 text-neutral-600'>{t.taxonRank}</span> : null}
+                  </Row>
+
+                  {t.taxonRank ? (
+                    <div className='ml-auto'>
+                      <TaxonRankBadge rank={t.taxonRank} />
+                    </div>
+                  ) : null}
                 </CommandItem>
               ))}
             </CommandGroup>
           ) : null}
 
-          {query ? <CommandItem onSelect={() => handleSubmitFreeText()}>Use "{query}"</CommandItem> : null}
+          {query ? (
+            <CommandGroup>
+              <CommandItem onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
+                <span className='text-brand font-medium'>Use "{query}"</span>
+              </CommandItem>
+            </CommandGroup>
+          ) : null}
 
           <CommandGroup heading='Suggestions'>
             {options.map((opt) => (
@@ -150,5 +171,29 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
         </CommandList>
       </Command>
     </CommandDialog>
+  )
+}
+
+type RankLettersInlineProps = {
+  taxon?: TaxonRecord
+}
+
+function RankLettersInline(props: RankLettersInlineProps) {
+  const { taxon } = props
+
+  const ranks: string[] = []
+
+  if (taxon?.genus) ranks.push('genus')
+  if (taxon?.family) ranks.push('family')
+  if (taxon?.order) ranks.push('order')
+
+  if (!ranks.length) return null
+
+  return (
+    <span className='flex items-center gap-4'>
+      {ranks.map((r) => (
+        <TaxonRankLetterBadge key={r} rank={r} size='sm' />
+      ))}
+    </span>
   )
 }
