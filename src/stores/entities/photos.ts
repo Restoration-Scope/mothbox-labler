@@ -1,7 +1,8 @@
 import { atom } from 'nanostores'
 
 export type IndexedFile = {
-  file: File
+  file?: File
+  handle?: unknown
   path: string
   name: string
   size: number

@@ -8,7 +8,7 @@ function isLikelyNightFolderName(name: string) {
 }
 
 export function validateProjectRootSelection(params: {
-  files: Array<{ file: File; path: string; name: string; size: number }>
+  files: Array<{ file?: File; path: string; name: string; size: number }>
 }): { ok: true } | { ok: false; message: string } {
   const { files } = params
   if (!files?.length) return { ok: false, message: 'No files found in the selected folder.' }

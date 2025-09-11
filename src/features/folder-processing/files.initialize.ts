@@ -1,0 +1,77 @@
+import { directoryFilesStore, indexedFilesStore } from './files.state'
+import { buildNightIndexes } from './files.index'
+import { ingestSpeciesListsFromFiles, loadProjectSpeciesSelection } from '~/stores/species-lists'
+import { nightSummariesStore } from '~/stores/entities/night-summaries'
+
+export function applyIndexedFilesState(params: {
+  indexed: Array<{ file?: File; handle?: unknown; path: string; name: string; size: number }>
+}) {
+  const { indexed } = params
+  if (!Array.isArray(indexed) || indexed.length === 0) return
+
+  directoryFilesStore.set(indexed.map((i) => i.file).filter((f): f is File => !!f))
+  indexedFilesStore.set(indexed)
+
+  buildNightIndexes({ files: indexed })
+
+  preloadNightSummariesFromIndexed(indexed)
+
+  void ingestSpeciesListsFromFiles({ files: indexed.filter((i) => !!i.file) as any })
+  void loadProjectSpeciesSelection()
+}
+
+export function preloadNightSummariesFromIndexed(
+  indexed: Array<{ file?: File; handle?: unknown; path: string; name: string; size: number }>,
+) {
+  try {
+    const summaries: Record<string, { nightId: string; totalDetections: number; totalIdentified: number; updatedAt?: number }> = {}
+    for (const it of indexed) {
+      const lower = (it?.name ?? '').toLowerCase()
+      if (lower !== 'night_summary.json') continue
+      const pathNorm = (it?.path ?? '').replaceAll('\\', '/').replace(/^\/+/, '')
+      const parts = pathNorm.split('/').filter(Boolean)
+      if (parts.length < 2) continue
+      const baseParts = parts.slice(0, -1)
+      let nightId = ''
+      if (baseParts.length >= 4) {
+        nightId = baseParts.slice(0, 4).join('/')
+      } else if (baseParts.length === 3) {
+        const [project, deployment, night] = baseParts
+        const site = deriveSiteFromDeploymentFolder(deployment)
+        nightId = [project, site, deployment, night].join('/')
+      } else {
+        continue
+      }
+      summaries[nightId] = { nightId, totalDetections: 0, totalIdentified: 0 }
+      if (!it.file) continue
+      void it.file
+        .text()
+        .then((txt) => JSON.parse(txt))
+        .then((json) => {
+          const s = {
+            nightId,
+            totalDetections: Number(json?.totalDetections) || 0,
+            totalIdentified: Number(json?.totalIdentified) || 0,
+            updatedAt: typeof json?.updatedAt === 'number' ? json.updatedAt : undefined,
+          }
+          const current = nightSummariesStore.get() || {}
+          nightSummariesStore.set({ ...current, [nightId]: s })
+        })
+        .catch(() => {})
+    }
+    if (Object.keys(summaries).length) {
+      const current = nightSummariesStore.get() || {}
+      nightSummariesStore.set({ ...current, ...summaries })
+    }
+  } catch {
+    return
+  }
+}
+
+function deriveSiteFromDeploymentFolder(deploymentFolderName: string) {
+  const name = deploymentFolderName ?? ''
+  if (!name) return ''
+  const parts = name.split('_').filter(Boolean)
+  if (parts.length >= 2) return parts[1]
+  return name
+}
