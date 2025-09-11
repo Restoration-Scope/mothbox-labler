@@ -39,6 +39,7 @@ const badgeVariants = cva('inline-flex items-center grow-0 rounded-sm font-mediu
     },
     size: {
       default: 'px-6 py-[3px] text-13',
+      xsm: 'px-[3px] h-[14px] !text-[10px]',
       sm: 'px-[5px] py-1 text-13',
       md: 'px-8 py-4 text-14 rounded-md',
       lg: 'px-12 py-12 text-14 rounded-lg',
@@ -48,6 +49,7 @@ const badgeVariants = cva('inline-flex items-center grow-0 rounded-sm font-mediu
   },
   compoundVariants: [
     { size: 'default', className: '[&>svg]:ml-[-2px] [&>svg]:mr-4' },
+    { size: 'xsm', className: '[&>svg]:ml-[-2px] [&>svg]:mr-0' },
     { size: 'sm', className: '[&>svg]:ml-[-2px] [&>svg]:mr-2' },
     { size: 'md', className: '[&>svg]:mr-6' },
     { size: 'lg', className: '[&>svg]:mr-8' },

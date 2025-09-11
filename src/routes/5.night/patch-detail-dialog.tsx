@@ -6,7 +6,10 @@ import { detectionStoreById, labelDetections } from '~/stores/entities/detection
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { photosStore } from '~/stores/entities/photos'
 import { IdentifyDialog } from './identify-dialog'
+import { SpeciesPicker } from '~/components/species-picker'
+import { projectSpeciesSelectionStore, speciesListsStore } from '~/stores/species-lists'
 import type { TaxonRecord } from '~/stores/species-lists'
+import { TaxonRankBadge } from '~/components/taxon-rank-badge'
 
 export type PatchDetailDialogProps = {
   open: boolean
@@ -26,6 +29,8 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
   const photoUrl = useMemo(() => (photo?.imageFile ? URL.createObjectURL(photo.imageFile.file) : ''), [photo?.imageFile])
 
   const [identifyOpen, setIdentifyOpen] = useState(false)
+  const [speciesPickerOpen, setSpeciesPickerOpen] = useState(false)
+  const [identifyPending, setIdentifyPending] = useState(false)
   const projectId = useMemo(() => getProjectIdFromNightId(patch?.nightId), [patch?.nightId])
 
   useEffect(() => {
@@ -144,7 +149,21 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
               <span className='font-medium'>Points:</span> {Array.isArray(detection?.points) ? detection!.points!.length : 0}
             </div>
             <div className='pt-8'>
-              <Button size='sm' onClick={() => setIdentifyOpen(true)}>
+              <Button
+                size='sm'
+                onClick={() => {
+                  setIdentifyPending(true)
+                  const selectionByProject = projectSpeciesSelectionStore.get() || {}
+                  const hasSelection = !!selectionByProject?.[projectId || '']
+                  const anySpeciesLists = Object.keys(speciesListsStore.get() || {}).length > 0
+                  if (!hasSelection && anySpeciesLists) {
+                    setSpeciesPickerOpen(true)
+                    return
+                  }
+                  setIdentifyOpen(true)
+                  setIdentifyPending(false)
+                }}
+              >
                 Identify
               </Button>
             </div>
@@ -154,8 +173,9 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
               <div>
                 <span className='font-medium'>Scientific name:</span> {detection?.taxon?.scientificName ?? '—'}
               </div>
-              <div>
-                <span className='font-medium'>Rank:</span> {detection?.taxon?.taxonRank ?? '—'}
+              <div className='flex items-center gap-8'>
+                <span className='font-medium'>Rank:</span>
+                {detection?.taxon?.taxonRank ? <TaxonRankBadge rank={detection?.taxon?.taxonRank} /> : '—'}
               </div>
               <div>
                 <span className='font-medium'>Kingdom:</span> {detection?.taxon?.kingdom ?? '—'}
@@ -193,6 +213,19 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
             </div>
           </div>
         </div>
+        <SpeciesPicker
+          open={speciesPickerOpen}
+          onOpenChange={(open) => {
+            setSpeciesPickerOpen(open)
+            if (!open && identifyPending) {
+              const selectionByProject = projectSpeciesSelectionStore.get() || {}
+              const hasSelection = !!selectionByProject?.[projectId || '']
+              if (hasSelection) setIdentifyOpen(true)
+              setIdentifyPending(false)
+            }
+          }}
+          projectId={projectId || ''}
+        />
         <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onIdentifySubmit} projectId={projectId} />
       </DialogContent>
     </Dialog>
