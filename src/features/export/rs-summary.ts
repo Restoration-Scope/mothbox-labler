@@ -5,9 +5,9 @@ import { idbGet } from '~/utils/index-db'
 import { fsaaWriteBytes, type FileSystemDirectoryHandleLike } from '~/utils/fsaa'
 import { ensureReadWritePermission, persistenceConstants } from '~/features/folder-processing/files.persistence'
 import { generateNightDarwinCSVString } from '~/features/export/darwin-csv'
-import { zipSync, strToU8 } from 'fflate'
+import { zipSync, strToU8, type Zippable } from 'fflate'
 
-type ZipInput = { [path: string]: Uint8Array | string }
+type ZipInput = Zippable
 
 export async function exportNightSummaryRS(params: { nightId: string }) {
   const { nightId } = params
@@ -29,7 +29,7 @@ export async function exportNightSummaryRS(params: { nightId: string }) {
   const { csv, nightDiskPath } = csvGenerated
 
   const zipEntries: ZipInput = {}
-  zipEntries['darwin_export.csv'] = csv
+  zipEntries['darwin_export.csv'] = strToU8(csv)
 
   const allDetections = detectionsStore.get() || {}
   const allPatches = patchesStore.get() || {}

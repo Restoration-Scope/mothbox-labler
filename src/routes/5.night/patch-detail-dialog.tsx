@@ -25,8 +25,19 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
   const photos = useStore(photosStore)
   const photo = patch?.photoId ? photos?.[patch.photoId] : undefined
 
-  const patchUrl = useMemo(() => (patch?.imageFile ? URL.createObjectURL(patch.imageFile.file) : ''), [patch?.imageFile])
-  const photoUrl = useMemo(() => (photo?.imageFile ? URL.createObjectURL(photo.imageFile.file) : ''), [photo?.imageFile])
+  const patchUrl = useMemo(() => {
+    const file = patch?.imageFile?.file
+    if (!file) return ''
+    const url = URL.createObjectURL(file)
+    return url
+  }, [patch?.imageFile?.file])
+
+  const photoUrl = useMemo(() => {
+    const file = photo?.imageFile?.file
+    if (!file) return ''
+    const url = URL.createObjectURL(file)
+    return url
+  }, [photo?.imageFile?.file])
 
   const [identifyOpen, setIdentifyOpen] = useState(false)
   const [speciesPickerOpen, setSpeciesPickerOpen] = useState(false)

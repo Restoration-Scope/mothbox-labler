@@ -47,7 +47,7 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
     if (hasTaxon) {
       nextTaxon = taxon
     } else if (!isError && trimmed) {
-      const prev = existing?.taxon ?? {}
+      const prev: Partial<TaxonRecord> = existing?.taxon ?? {}
       nextTaxon = {
         scientificName: trimmed,
         taxonRank: 'species',
