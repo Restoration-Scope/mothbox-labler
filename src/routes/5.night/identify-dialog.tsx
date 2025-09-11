@@ -155,8 +155,29 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
 
           {query ? (
             <CommandGroup>
-              <CommandItem onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
-                <span className='text-brand font-medium'>Use "{query}"</span>
+              {/* Morpho species shoudl always be at the top */}
+              <CommandItem key='morphospecies' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
+                <span className='text-brand font-medium'>Add morpho species: "{query}"</span>
+              </CommandItem>
+
+              <CommandItem key='genus' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
+                <span className='text-brand font-medium'>Add Genus"{query}"</span>
+              </CommandItem>
+
+              <CommandItem key='tribe' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
+                <span className='text-brand font-medium'>Add Tribe"{query}"</span>
+              </CommandItem>
+
+              <CommandItem key='subfamily' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
+                <span className='text-brand font-medium'>Add Subfamily"{query}"</span>
+              </CommandItem>
+
+              <CommandItem key='family' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
+                <span className='text-brand font-medium'>Add Family"{query}"</span>
+              </CommandItem>
+
+              <CommandItem key='suborder' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
+                <span className='text-brand font-medium'>Add Suborder"{query}"</span>
               </CommandItem>
             </CommandGroup>
           ) : null}

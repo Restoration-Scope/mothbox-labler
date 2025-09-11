@@ -36,10 +36,11 @@ export function UserInitialsDialog() {
   return (
     <Dialog open={open}>
       <DialogContent onClose={() => setOpen(false)}>
-        <form onSubmit={onSubmit}>
+        <form onSubmit={onSubmit} className='col gap-y-8'>
           <DialogHeader>
-            <DialogTitle>Set your initials</DialogTitle>
+            <DialogTitle>Set your Name</DialogTitle>
           </DialogHeader>
+
           <div className='px-4'>
             <input
               className='w-full rounded border px-8 py-8 text-14'
@@ -52,6 +53,7 @@ export function UserInitialsDialog() {
               data-1p-ignore
             />
           </div>
+
           <DialogFooter>
             <Button type='submit' disabled={!initials.trim()}>
               Save
