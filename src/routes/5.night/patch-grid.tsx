@@ -5,16 +5,17 @@ import type { DetectionEntity } from '~/stores/entities/detections'
 import { detectionsStore } from '~/stores/entities/detections'
 import { PatchItem } from './patch-item'
 import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react'
-import { patchSizeStore } from '~/components/atomic/patch-size-control'
+import { patchColumnsStore } from '~/components/atomic/patch-size-control'
 import { selectedPatchIdsStore, selectionNightIdStore, setSelection, togglePatchSelection } from '~/stores/ui'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { useVirtualizer } from '@tanstack/react-virtual'
 // noop
 
 const DEFAULT_MIN_ITEM_WIDTH = 240
-const GRID_GAP = 8
+const GRID_GAP_DEFAULT = 8
+const GRID_GAP_COMPACT = 6
 const FOOTER_HEIGHT = 28
-const FOOTER_HIDE_THRESHOLD = 64 // hide footer when base size smaller than this
+const FOOTER_HIDE_THRESHOLD = 100 // hide footer when base size smaller than this
 
 export type PatchGridProps = {
   patches: PatchEntity[]
@@ -28,7 +29,7 @@ export type PatchGridProps = {
 export function PatchGrid(props: PatchGridProps) {
   const { patches, nightId, className, onOpenPatchDetail, loading, onImageProgress } = props
   const containerRef = useRef<HTMLDivElement | null>(null)
-  const patchSize = useStore(patchSizeStore)
+  const desiredColumns = useStore(patchColumnsStore)
   const selected = useStore(selectedPatchIdsStore)
   useStore(selectionNightIdStore)
 
@@ -83,19 +84,31 @@ export function PatchGrid(props: PatchGridProps) {
     return () => ro.disconnect()
   }, [])
 
-  const minItemWidth = patchSize || DEFAULT_MIN_ITEM_WIDTH
+  const minItemWidth = DEFAULT_MIN_ITEM_WIDTH
+  const gapPx = useMemo(() => {
+    const tentativeWidth =
+      containerWidth && desiredColumns
+        ? Math.floor((containerWidth - Math.max(0, desiredColumns - 1) * GRID_GAP_DEFAULT) / desiredColumns)
+        : DEFAULT_MIN_ITEM_WIDTH
+    return tentativeWidth < 100 ? GRID_GAP_COMPACT : GRID_GAP_DEFAULT
+  }, [containerWidth, desiredColumns])
 
-  const columns = useMemo(() => computeColumnCount({ containerWidth, minItemWidth }), [containerWidth, minItemWidth])
-  const itemWidth = useMemo(() => computeItemWidth({ containerWidth, columns, gap: GRID_GAP }), [containerWidth, columns])
+  const columns = useMemo(() => {
+    if (!containerWidth) return Math.max(1, desiredColumns || 1)
+    const maxColumns = 24
+    const cols = Math.max(1, Math.min(maxColumns, Math.round(desiredColumns || 1)))
+    return cols
+  }, [containerWidth, desiredColumns])
+  const itemWidth = useMemo(() => computeItemWidth({ containerWidth, columns, gap: gapPx }), [containerWidth, columns, gapPx])
   const rowHeight = useMemo(() => {
     // Item height approximates square image + footer + vertical gap between rows
     // Fallback to MIN_ITEM_WIDTH before the container is measured to prevent ultra-short rows
     const baseWidth = itemWidth || minItemWidth
-    const footer = (patchSize || minItemWidth) < FOOTER_HIDE_THRESHOLD ? 0 : FOOTER_HEIGHT
-    const height = Math.max(0, baseWidth) + footer + GRID_GAP
-    console.log('📏 grid: sizing', { containerWidth, minItemWidth, columns, itemWidth, footer, rowHeight: height })
+    const footer = (itemWidth || 0) < FOOTER_HIDE_THRESHOLD ? 0 : FOOTER_HEIGHT
+    const height = Math.max(0, baseWidth) + footer + gapPx
+    console.log('📏 grid: sizing', { containerWidth, columns, itemWidth, footer, gapPx, rowHeight: height })
     return height
-  }, [itemWidth, minItemWidth, patchSize, containerWidth, columns])
+  }, [itemWidth, containerWidth, columns, gapPx, minItemWidth])
 
   const rowCount = useMemo(() => {
     if (!orderedIds.length) return 0
@@ -143,8 +156,8 @@ export function PatchGrid(props: PatchGridProps) {
     rowVirtualizer.scrollToIndex(0, { align: 'start' })
     rowVirtualizer.scrollToOffset(0)
     const totalSize = rowVirtualizer.getTotalSize()
-    console.log('🔄 grid: size change reset', { patchSize, columns, rowHeight, totalSize })
-  }, [patchSize, rowVirtualizer, columns, rowHeight])
+    console.log('🔄 grid: size change reset', { desiredColumns, columns, rowHeight, totalSize })
+  }, [desiredColumns, rowVirtualizer, columns, rowHeight])
 
   // Proactively re-measure after layout-affecting changes (prevents short stacked rows after 0-items view)
   useEffect(() => {
@@ -278,6 +291,7 @@ export function PatchGrid(props: PatchGridProps) {
     >
       <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
         {!orderedIds.length ? <div className='p-8 text-sm text-neutral-500'>No patches found</div> : null}
+
         {rowVirtualizer.getVirtualItems().map((virtualRow) => {
           const start = virtualRow.index * Math.max(1, columns)
           const end = Math.min(start + Math.max(1, columns), orderedIds.length)
@@ -294,7 +308,7 @@ export function PatchGrid(props: PatchGridProps) {
                 transform: `translateY(${virtualRow.start}px)`,
               }}
             >
-              <div className='grid gap-8' style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(0, 1fr))` }}>
+              <div className='grid' style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(0, 1fr))`, gap: `${gapPx}px` }}>
                 {items.map((id, i) => {
                   const index = start + i
                   return (
@@ -302,7 +316,7 @@ export function PatchGrid(props: PatchGridProps) {
                       id={id}
                       key={id}
                       index={index}
-                      compact={(patchSize || minItemWidth) < FOOTER_HIDE_THRESHOLD}
+                      compact={(itemWidth || 0) < FOOTER_HIDE_THRESHOLD}
                       onOpenDetail={onOpenPatchDetail}
                       onImageLoad={handleImageLoad}
                       onImageError={handleImageError}
@@ -342,8 +356,7 @@ const GridContainer = React.forwardRef<HTMLDivElement, GridContainerProps>(funct
   )
 })
 
-type ComputeDetectionAreaParams = { detection?: DetectionEntity }
-function computeDetectionArea(params: ComputeDetectionAreaParams) {
+function computeDetectionArea(params: { detection?: DetectionEntity }) {
   const { detection } = params
   const points = detection?.points
   if (!Array.isArray(points) || points.length === 0) return 0
@@ -351,6 +364,7 @@ function computeDetectionArea(params: ComputeDetectionAreaParams) {
   let minY = Number.POSITIVE_INFINITY
   let maxX = Number.NEGATIVE_INFINITY
   let maxY = Number.NEGATIVE_INFINITY
+
   for (const pt of points) {
     const x = typeof pt?.[0] === 'number' ? pt[0] : null
     const y = typeof pt?.[1] === 'number' ? pt[1] : null
@@ -360,18 +374,19 @@ function computeDetectionArea(params: ComputeDetectionAreaParams) {
     if (x > maxX) maxX = x
     if (y > maxY) maxY = y
   }
+
   const width = Math.max(0, maxX - minX)
   const height = Math.max(0, maxY - minY)
   const area = width * height
   return area
 }
 
-function computeColumnCount(params: { containerWidth: number; minItemWidth: number }) {
-  const { containerWidth, minItemWidth } = params
+function computeColumnCount(params: { containerWidth: number; minItemWidth: number; gap?: number }) {
+  const { containerWidth, minItemWidth, gap = GRID_GAP_DEFAULT } = params
   const minColumns = 1
   if (!containerWidth || containerWidth <= 0) return minColumns
   const clampedMin = Math.max(30, Math.min(800, minItemWidth))
-  const raw = Math.floor((containerWidth + GRID_GAP) / (clampedMin + GRID_GAP))
+  const raw = Math.floor((containerWidth + gap) / (clampedMin + gap))
   const cols = Math.max(minColumns, raw)
   return cols
 }

@@ -19,7 +19,7 @@ export type PatchItemProps = {
 }
 
 function PatchItemImpl(props: PatchItemProps) {
-  const { id, index } = props
+  const { id, index, compact } = props
   const patch = useStore(patchStoreById(id))
   const detection = useStore(detectionStoreById(id))
   const selected = useStore(selectedPatchIdsStore)
@@ -27,20 +27,6 @@ function PatchItemImpl(props: PatchItemProps) {
   const isSelected = selected?.has?.(id)
 
   const url = useObjectUrl(patch?.imageFile?.file)
-
-  // useEffect(() => {
-  //   if (!id) return
-  //   const hasImage = !!patch?.imageFile
-  //   if (!hasImage) {
-  //     // console.log('🚨 patch: missing imageFile', { id, patchName: patch?.name, photoId: patch?.photoId })
-  //   } else {
-  //     // console.log('🖼️ patch: image available', {
-  //     //   id,
-  //     //   path: patch?.imageFile?.path,
-  //     //   size: patch?.imageFile?.size,
-  //     // })
-  //   }
-  // }, [id, patch?.imageFile, patch?.name, patch?.photoId])
 
   function onToggle() {
     if (!id) return
@@ -66,7 +52,7 @@ function PatchItemImpl(props: PatchItemProps) {
       role='button'
       aria-pressed={isSelected}
     >
-      {props?.compact ? null : (
+      {!compact && (
         <Button
           icon={ZoomInIcon}
           className='absolute top-8 z-5 right-8 opacity-0 group-hover:opacity-100'
@@ -104,7 +90,8 @@ function PatchItemImpl(props: PatchItemProps) {
       ) : (
         <div className='aspect-square w-full ' />
       )}
-      {props?.compact ? null : (
+
+      {!compact && (
         <div className='h-28 w-full px-6 flex items-center justify-between'>
           <Badge size='sm'>{label}</Badge>
         </div>
