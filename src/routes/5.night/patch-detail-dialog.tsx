@@ -223,6 +223,7 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
             </div>
           </div>
         </div>
+
         <SpeciesPicker
           open={speciesPickerOpen}
           onOpenChange={(open) => {
@@ -236,6 +237,7 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
           }}
           projectId={projectId || ''}
         />
+
         <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onIdentifySubmit} projectId={projectId} />
       </DialogContent>
     </Dialog>
