@@ -15,7 +15,7 @@ export type SpeciesPickerProps = {
 }
 
 export function SpeciesPicker(props: SpeciesPickerProps) {
-  const { open, onOpenChange, projectId, recommendedListId } = props
+  const { open, onOpenChange, projectId } = props
   const lists = useStore(speciesListsStore)
   const selection = useStore(projectSpeciesSelectionStore)
 
@@ -32,21 +32,10 @@ export function SpeciesPicker(props: SpeciesPickerProps) {
       <CommandInput placeholder='Search species lists…' withSearchIcon />
       <CommandList>
         <CommandEmpty>No species lists found.</CommandEmpty>
-        {recommendedListId ? (
-          <CommandGroup heading='Recommended'>
-            <ListItem
-              id={recommendedListId}
-              name={lists?.[recommendedListId]?.name || recommendedListId}
-              isSelected={selection?.[projectId] === recommendedListId}
-              onSelect={handleSelect}
-            />
-          </CommandGroup>
-        ) : null}
-        <CommandGroup heading='All lists'>
-          {options.map((opt) => (
-            <ListItem key={opt.id} list={opt} isSelected={selection?.[projectId] === opt.id} onSelect={handleSelect} />
-          ))}
-        </CommandGroup>
+
+        {options.map((opt) => (
+          <ListItem key={opt.id} list={opt} isSelected={selection?.[projectId] === opt.id} onSelect={handleSelect} />
+        ))}
       </CommandList>
     </CommandDialog>
   )
@@ -56,8 +45,8 @@ function ListItem(props: { list: SpeciesList; isSelected?: boolean; onSelect: (i
   const { list, isSelected, onSelect } = props
 
   return (
-    <CommandItem onSelect={() => onSelect(list.id)} className='text-ellipsis'>
-      <Column className='gap-4 flex-1'>
+    <CommandItem onSelect={() => onSelect(list.id)} className='text-ellipsis !py-4'>
+      <Column className='gap-2 flex-1'>
         <span className='flex-1'>{list.name}</span>
         <span className='flex-1 text-11 font-mono text-ink-secondary'>{list.doi}</span>
       </Column>
