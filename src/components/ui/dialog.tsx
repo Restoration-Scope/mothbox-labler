@@ -105,7 +105,7 @@ const DialogClose = ({ className, onClick, ...rest }: React.HTMLAttributes<HTMLD
 DialogClose.displayName = 'DialogClose'
 
 const DialogHeader = ({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) => (
-  <div className={cn('flex flex-col space-y-6 text-center sm:text-left', className)} {...props} />
+  <div className={cn('flex flex-col text-center sm:text-left', className)} {...props} />
 )
 DialogHeader.displayName = 'DialogHeader'
 

@@ -1,21 +1,23 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
-import { projectSpeciesSelectionStore, searchSpecies, speciesListsStore, type TaxonRecord } from '~/stores/species-lists'
+import { searchSpecies, speciesListsStore, type TaxonRecord } from '~/stores/species/species-lists'
+import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
+
 import { detectionsStore } from '~/stores/entities/detections'
 import { useStore } from '@nanostores/react'
 import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
 import { Row } from '~/styles'
+import { DialogTitle } from '@radix-ui/react-dialog'
 
 export type IdentifyDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
-  suggestions?: string[] // legacy plain-text labels
   onSubmit: (label: string, taxon?: TaxonRecord) => void
   projectId?: string
 }
 
 export function IdentifyDialog(props: IdentifyDialogProps) {
-  const { open, onOpenChange, suggestions, onSubmit, projectId } = props
+  const { open, onOpenChange, onSubmit, projectId } = props
   const [query, setQuery] = useState('')
   const selection = useStore(projectSpeciesSelectionStore)
   useStore(speciesListsStore)
@@ -25,17 +27,27 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   }, [open])
   const detections = useStore(detectionsStore)
 
-  const options = useMemo(() => {
-    const list = suggestions ?? []
-    const q = query.trim().toLowerCase()
-    if (!q) return list.slice(0, 20)
-    return list.filter((s) => s.toLowerCase().includes(q)).slice(0, 20)
-  }, [suggestions, query])
-
   const speciesOptions = useMemo(() => {
     const listId = projectId ? selection?.[projectId] : undefined
-    if (!listId) return [] as TaxonRecord[]
+    if (!listId) {
+      if (query.trim()) console.log('🌀 identify: no species list selected for project', { projectId, query })
+      return [] as TaxonRecord[]
+    }
     const res = searchSpecies({ speciesListId: listId, query, limit: 20 })
+    if (query.trim())
+      console.log('✅ identify: species results', {
+        projectId,
+        listId,
+        q: query,
+        count: res.length,
+        sample: res.slice(0, 10).map((t) => ({
+          name: t?.scientificName,
+          rank: t?.taxonRank,
+          genus: t?.genus,
+          family: t?.family,
+          order: t?.order,
+        })),
+      })
     return res
   }, [selection, projectId, query])
 
@@ -79,16 +91,15 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} className='max-w-[520px] !p-0'>
-      <Command>
+      <DialogTitle className='hidden'>Identitfy</DialogTitle>
+      <Command shouldFilter={false}>
         <CommandInput
           placeholder='Type a label (species, genus, family, ...)'
           value={query}
-          containerClassName='px-12'
-          className='px-12'
           onValueChange={setQuery as any}
           withSearchIcon
           onKeyDown={(e: any) => {
-            const hasAnyResults = (speciesOptions?.length ?? 0) > 0 || (options?.length ?? 0) > 0
+            const hasAnyResults = (speciesOptions?.length ?? 0) > 0
             if (e.key === 'Enter' && query.trim() && !hasAnyResults) {
               e.preventDefault()
               handleSubmitFreeText()
@@ -131,7 +142,8 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
               ))}
             </CommandGroup>
           ) : null}
-          {speciesOptions.length ? (
+
+          {speciesOptions?.length ? (
             <CommandGroup heading='Species'>
               {speciesOptions.map((t) => (
                 <CommandItem key={(t.taxonID as any) ?? t.scientificName} onSelect={() => handleSelectTaxon(t)}>
@@ -153,9 +165,8 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
             </CommandGroup>
           ) : null}
 
-          {query ? (
+          {/* {query && (
             <CommandGroup>
-              {/* Morpho species shoudl always be at the top */}
               <CommandItem key='morphospecies' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
                 <span className='text-brand font-medium'>Add morpho species: "{query}"</span>
               </CommandItem>
@@ -180,15 +191,9 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
                 <span className='text-brand font-medium'>Add Suborder"{query}"</span>
               </CommandItem>
             </CommandGroup>
-          ) : null}
+          )} */}
 
-          <CommandGroup heading='Suggestions'>
-            {options.map((opt) => (
-              <CommandItem key={opt} onSelect={() => handleSelect(opt)}>
-                {opt}
-              </CommandItem>
-            ))}
-          </CommandGroup>
+          {/* No legacy suggestions rendered */}
         </CommandList>
       </Command>
     </CommandDialog>

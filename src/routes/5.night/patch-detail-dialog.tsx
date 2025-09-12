@@ -7,8 +7,9 @@ import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { photosStore } from '~/stores/entities/photos'
 import { IdentifyDialog } from './identify-dialog'
 import { SpeciesPicker } from '~/components/species-picker'
-import { projectSpeciesSelectionStore, speciesListsStore } from '~/stores/species-lists'
-import type { TaxonRecord } from '~/stores/species-lists'
+import { speciesListsStore } from '~/stores/species/species-lists'
+import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
+import type { TaxonRecord } from '~/stores/species/species-lists'
 import { TaxonRankBadge } from '~/components/taxon-rank-badge'
 
 export type PatchDetailDialogProps = {
@@ -67,23 +68,22 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent align='max'>
-        <DialogHeader>
+      <DialogContent align='max' className='max-w-[900px]'>
+        <DialogHeader className='grid grid-cols-2 gap-8 mb-8'>
           <DialogTitle>Patch details</DialogTitle>
-          <DialogDescription>Preview the patch and its source photo. Open assets or copy their paths.</DialogDescription>
+          <DialogTitle>Source Photo</DialogTitle>
         </DialogHeader>
 
         <div className='grid grid-cols-1 gap-12 md:grid-cols-2'>
           <div className='space-y-8'>
-            <h4 className='text-14 font-semibold'>Patch</h4>
             {patchUrl ? (
               <img
                 src={patchUrl}
                 alt={patch?.name ?? 'patch'}
-                className='w-full max-h-[60vh] object-contain rounded-md border border-black/10'
+                className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
               />
             ) : (
-              <div className='w-full h-[200px] rounded-md border border-black/10 bg-neutral-50' />
+              <div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />
             )}
             <div className='flex flex-wrap gap-8'>
               {patchUrl ? (
@@ -108,15 +108,14 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
           </div>
 
           <div className='space-y-8'>
-            <h4 className='text-14 font-semibold'>Source photo</h4>
             {photoUrl ? (
               <img
                 src={photoUrl}
                 alt={photo?.name ?? 'photo'}
-                className='w-full max-h-[60vh] object-contain rounded-md border border-black/10'
+                className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
               />
             ) : (
-              <div className='w-full h-[200px] rounded-md border border-black/10 bg-neutral-50' />
+              <div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />
             )}
             <div className='flex flex-wrap gap-8'>
               {photoUrl ? (

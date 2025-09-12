@@ -46,12 +46,12 @@ interface CommandInputProps extends React.ComponentPropsWithoutRef<typeof Comman
 
 const CommandInput = React.forwardRef<React.ElementRef<typeof CommandPrimitive.Input>, CommandInputProps>(
   ({ className, children, withSearchIcon, containerClassName, ...props }, ref) => (
-    <div className={cn('flex items-center border-b', containerClassName)} cmdk-input-wrapper=''>
+    <div className={cn('flex items-center border-b px-12', containerClassName)} cmdk-input-wrapper=''>
       {withSearchIcon && <Search className='h-16 w-16 shrink-0 opacity-50' />}
       <CommandPrimitive.Input
         ref={ref}
         className={cn(
-          'flex h-[36px] w-full rounded-md bg-transparent py-12 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
+          'flex h-[36px] px-12 w-full rounded-md bg-transparent py-12 text-sm outline-none placeholder:text-muted-foreground disabled:cursor-not-allowed disabled:opacity-50',
           'border-transparent focus:border-transparent focus:ring-0',
           className,
         )}

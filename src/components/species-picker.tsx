@@ -1,7 +1,11 @@
 import { useMemo } from 'react'
 import { useStore } from '@nanostores/react'
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
-import { speciesListsStore, projectSpeciesSelectionStore, saveProjectSpeciesSelection } from '~/stores/species-lists'
+import { SpeciesList, speciesListsStore } from '~/stores/species/species-lists'
+import { projectSpeciesSelectionStore, saveProjectSpeciesSelection } from '~/stores/species/project-species-list'
+import { Column } from '~/styles'
+import { CheckCircleIcon } from 'lucide-react'
+import { Icon } from '~/components/atomic/Icon'
 
 export type SpeciesPickerProps = {
   open: boolean
@@ -40,7 +44,7 @@ export function SpeciesPicker(props: SpeciesPickerProps) {
         ) : null}
         <CommandGroup heading='All lists'>
           {options.map((opt) => (
-            <ListItem key={opt.id} id={opt.id} name={opt.name} isSelected={selection?.[projectId] === opt.id} onSelect={handleSelect} />
+            <ListItem key={opt.id} list={opt} isSelected={selection?.[projectId] === opt.id} onSelect={handleSelect} />
           ))}
         </CommandGroup>
       </CommandList>
@@ -48,13 +52,16 @@ export function SpeciesPicker(props: SpeciesPickerProps) {
   )
 }
 
-type ListItemProps = { id: string; name: string; isSelected?: boolean; onSelect: (id: string) => void }
-function ListItem(props: ListItemProps) {
-  const { id, name, isSelected, onSelect } = props
+function ListItem(props: { list: SpeciesList; isSelected?: boolean; onSelect: (id: string) => void }) {
+  const { list, isSelected, onSelect } = props
+
   return (
-    <CommandItem onSelect={() => onSelect(id)}>
-      <span className='flex-1'>{name}</span>
-      {isSelected ? <span className='text-11 text-primary'>Selected</span> : null}
+    <CommandItem onSelect={() => onSelect(list.id)} className='text-ellipsis'>
+      <Column className='gap-4 flex-1'>
+        <span className='flex-1'>{list.name}</span>
+        <span className='flex-1 text-11 font-mono text-ink-secondary'>{list.doi}</span>
+      </Column>
+      {isSelected ? <Icon icon={CheckCircleIcon} className='text-brand mr-12' /> : null}
     </CommandItem>
   )
 }
