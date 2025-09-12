@@ -1,21 +1,19 @@
 import { useStore } from '@nanostores/react'
 import { useMemo, useState } from 'react'
+import { ensureSpeciesListSelection } from '~/components/species-picker.state'
 import { nightsStore } from '~/stores/entities/4.nights'
-import { patchesStore } from '~/stores/entities/5.patches'
-import { detectionsStore, acceptDetections, labelDetections } from '~/stores/entities/detections'
-import { photosStore } from '~/stores/entities/photos'
 import type { PatchEntity } from '~/stores/entities/5.patches'
+import { patchesStore } from '~/stores/entities/5.patches'
 import type { DetectionEntity } from '~/stores/entities/detections'
-import { speciesListsStore } from '~/stores/species/species-lists'
-import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
+import { acceptDetections, detectionsStore, labelDetections } from '~/stores/entities/detections'
+import { photosStore } from '~/stores/entities/photos'
 import { clearPatchSelection, selectedPatchIdsStore, setSelection } from '~/stores/ui'
 import { Row } from '~/styles'
+import { IdentifyDialog } from './identify-dialog'
 import { NightLeftPanel } from './night-left-panel'
+import { PatchDetailDialog } from './patch-detail-dialog'
 import { PatchGrid } from './patch-grid'
 import { SelectionBar } from './selection-bar'
-import { SpeciesPicker } from '~/components/species-picker'
-import { IdentifyDialog } from './identify-dialog'
-import { PatchDetailDialog } from './patch-detail-dialog'
 
 type TaxonSelection = { rank: 'order' | 'family' | 'genus' | 'species'; name: string } | undefined
 
@@ -26,13 +24,9 @@ export function NightView(props: { nightId: string }) {
   const patches = useStore(patchesStore)
   const detections = useStore(detectionsStore)
   const photos = useStore(photosStore)
-  useStore(projectSpeciesSelectionStore)
-
   const [selectedTaxon, setSelectedTaxon] = useState<TaxonSelection>(undefined)
   const [identifyOpen, setIdentifyOpen] = useState(false)
   const [selectedBucket, setSelectedBucket] = useState<'auto' | 'user' | undefined>('auto')
-  const [speciesPickerOpen, setSpeciesPickerOpen] = useState(false)
-  const [identifyPending, setIdentifyPending] = useState(false)
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailPatchId, setDetailPatchId] = useState<string | null>(null)
   const selected = useStore(selectedPatchIdsStore)
@@ -77,16 +71,7 @@ export function NightView(props: { nightId: string }) {
 
   function onIdentify() {
     if (selectedCount === 0) return
-    setIdentifyPending(true)
-    const selectionByProject = projectSpeciesSelectionStore.get() || {}
-    const hasSelection = !!selectionByProject?.[night?.projectId as any]
-    const anySpeciesLists = Object.keys(speciesListsStore.get() || {}).length > 0
-    if (!hasSelection && anySpeciesLists) {
-      setSpeciesPickerOpen(true)
-      return
-    }
-    setIdentifyOpen(true)
-    setIdentifyPending(false)
+    ensureSpeciesListSelection({ projectId: (night as any)?.projectId, onReady: () => setIdentifyOpen(true) })
   }
 
   function onAccept() {
@@ -147,20 +132,6 @@ export function NightView(props: { nightId: string }) {
           onSelectAll={onSelectAll}
         />
       </div>
-      <SpeciesPicker
-        open={identifyOpen || speciesPickerOpen}
-        onOpenChange={(open) => {
-          if (speciesPickerOpen) setSpeciesPickerOpen(open)
-          else setIdentifyOpen(open)
-          if (!open && identifyPending) {
-            const selectionByProject = projectSpeciesSelectionStore.get() || {}
-            const hasSelection = !!selectionByProject?.[night?.projectId as any]
-            if (hasSelection) setIdentifyOpen(true)
-            setIdentifyPending(false)
-          }
-        }}
-        projectId={(night as any)?.projectId}
-      />
       <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onSubmitLabel} projectId={(night as any)?.projectId} />
       <PatchDetailDialog open={detailOpen} onOpenChange={setDetailOpen} patchId={detailPatchId} />
     </Row>

@@ -41,18 +41,16 @@ export function UserInitialsDialog() {
             <DialogTitle>Set your Name</DialogTitle>
           </DialogHeader>
 
-          <div className='px-4'>
-            <input
-              className='w-full rounded border px-8 py-8 text-14'
-              placeholder='e.g. BL'
-              value={initials}
-              onChange={(e) => setInitials(e.target.value)}
-              autoFocus
-              autoComplete='off'
-              autoCorrect='off'
-              data-1p-ignore
-            />
-          </div>
+          <input
+            className='w-full rounded border px-8 py-8 text-14 mt-12 mb-4'
+            placeholder='e.g. BL'
+            value={initials}
+            onChange={(e) => setInitials(e.target.value)}
+            autoFocus
+            autoComplete='off'
+            autoCorrect='off'
+            data-1p-ignore
+          />
 
           <DialogFooter>
             <Button type='submit' disabled={!initials.trim()}>

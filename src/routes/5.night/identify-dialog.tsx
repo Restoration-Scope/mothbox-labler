@@ -6,7 +6,7 @@ import { projectSpeciesSelectionStore } from '~/stores/species/project-species-l
 import { detectionsStore } from '~/stores/entities/detections'
 import { useStore } from '@nanostores/react'
 import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
-import { Row } from '~/styles'
+import { Column, Row } from '~/styles'
 import { DialogTitle } from '@radix-ui/react-dialog'
 
 export type IdentifyDialogProps = {
@@ -147,13 +147,13 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
             <CommandGroup heading='Species'>
               {speciesOptions.map((t) => (
                 <CommandItem key={(t.taxonID as any) ?? t.scientificName} onSelect={() => handleSelectTaxon(t)}>
-                  <Row className='gap-12'>
+                  <Column className='gap-0'>
                     <span className='text-13'>{t.scientificName}</span>
                     <span className='text-11 text-ink-secondary flex items-center gap-4'>
                       <RankLettersInline taxon={t} />
                       {t.vernacularName || [t.genus, t.family, t.order].filter(Boolean).join(' • ')}
                     </span>
-                  </Row>
+                  </Column>
 
                   {t.taxonRank ? (
                     <div className='ml-auto'>

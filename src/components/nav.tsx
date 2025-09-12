@@ -8,10 +8,11 @@ import { useOpenDirectoryMutation, useRestoreDirectoryQuery } from '~/features/f
 import { Loader } from '~/components/atomic/Loader'
 import { Button } from '~/components/ui/button'
 import { clearSelections } from '~/features/folder-processing/files.service'
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { speciesListsStore } from '~/stores/species/species-lists'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 import { SpeciesPicker } from '~/components/species-picker'
+import { $isSpeciesPickerOpen, $speciesPickerProjectId } from '~/components/species-picker.state'
 import { userSessionStore, clearUserSession } from '~/stores/ui'
 import { useAppReady } from '~/features/folder-processing/files-queries'
 import { Avatar, AvatarFallback } from '~/components/ui/avatar'
@@ -25,7 +26,6 @@ export function Nav() {
   const nights = useStore(nightsStore)
   const { pathname } = useRouterState({ select: (s) => s.location })
   const breadcrumbs = getBreadcrumbs({ pathname, projects, sites, deployments, nights })
-  const [pickerOpen, setPickerOpen] = useState(false)
   const selection = useStore(projectSpeciesSelectionStore)
   const speciesLists = useStore(speciesListsStore)
   const session = useStore(userSessionStore)
@@ -52,7 +52,13 @@ export function Nav() {
         <div className='justify-self-center relative top-4 flex items-center gap-12'>
           {breadcrumbs.length ? <Breadcrumbs breadcrumbs={breadcrumbs} /> : null}
           {activeProjectId ? (
-            <button className='text-12 px-8 py-4 rounded border hover:bg-neutral-50' onClick={() => setPickerOpen(true)}>
+            <button
+              className='text-12 px-8 py-4 rounded border hover:bg-neutral-50'
+              onClick={() => {
+                $speciesPickerProjectId.set(activeProjectId)
+                $isSpeciesPickerOpen.set(true)
+              }}
+            >
               Species: {activeSpeciesName ?? 'Select…'}
             </button>
           ) : null}
@@ -64,7 +70,7 @@ export function Nav() {
             <span>{restoreQuery.isLoading ? '🌀 Restoring previously picked folder…' : '🌀 Processing selected folder…'}</span>
           </div>
         ) : null}
-        <SpeciesPicker open={pickerOpen} onOpenChange={setPickerOpen} projectId={activeProjectId} />
+        <SpeciesPicker />
 
         <div className='ml-auto'>
           {appReady ? (

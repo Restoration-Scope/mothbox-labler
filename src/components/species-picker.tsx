@@ -1,21 +1,18 @@
-import { useMemo } from 'react'
 import { useStore } from '@nanostores/react'
-import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
-import { SpeciesList, speciesListsStore } from '~/stores/species/species-lists'
-import { projectSpeciesSelectionStore, saveProjectSpeciesSelection } from '~/stores/species/project-species-list'
-import { Column } from '~/styles'
 import { CheckCircleIcon } from 'lucide-react'
+import { useMemo } from 'react'
 import { Icon } from '~/components/atomic/Icon'
+import { CommandDialog, CommandEmpty, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
+import { projectSpeciesSelectionStore, saveProjectSpeciesSelection } from '~/stores/species/project-species-list'
+import { SpeciesList, speciesListsStore } from '~/stores/species/species-lists'
+import { Column } from '~/styles'
+import { $isSpeciesPickerOpen, $speciesPickerProjectId } from './species-picker.state'
 
-export type SpeciesPickerProps = {
-  open: boolean
-  onOpenChange: (open: boolean) => void
-  projectId: string
-  recommendedListId?: string
-}
+// state is in species-picker.state.ts to satisfy fast refresh rules
 
-export function SpeciesPicker(props: SpeciesPickerProps) {
-  const { open, onOpenChange, projectId } = props
+export function SpeciesPicker() {
+  const isOpen = useStore($isSpeciesPickerOpen)
+  const projectId = useStore($speciesPickerProjectId) || ''
   const lists = useStore(speciesListsStore)
   const selection = useStore(projectSpeciesSelectionStore)
 
@@ -24,13 +21,17 @@ export function SpeciesPicker(props: SpeciesPickerProps) {
   function handleSelect(listId: string) {
     if (!listId || !projectId) return
     void saveProjectSpeciesSelection({ projectId, speciesListId: listId })
-    onOpenChange(false)
+    $isSpeciesPickerOpen.set(false)
+  }
+
+  function handleOpenChange(next: boolean) {
+    $isSpeciesPickerOpen.set(next)
   }
 
   return (
-    <CommandDialog open={open} onOpenChange={onOpenChange} className='max-w-[520px] !p-0'>
+    <CommandDialog open={isOpen} onOpenChange={handleOpenChange} className='max-w-[520px] !p-0'>
       <CommandInput placeholder='Search species lists…' withSearchIcon />
-      <CommandList>
+      <CommandList className='p-8'>
         <CommandEmpty>No species lists found.</CommandEmpty>
 
         {options.map((opt) => (
@@ -50,7 +51,7 @@ function ListItem(props: { list: SpeciesList; isSelected?: boolean; onSelect: (i
         <span className='flex-1'>{list.name}</span>
         <span className='flex-1 text-11 font-mono text-ink-secondary'>{list.doi}</span>
       </Column>
-      {isSelected ? <Icon icon={CheckCircleIcon} className='text-brand mr-12' /> : null}
+      {isSelected ? <Icon icon={CheckCircleIcon} className='text-brand mr-6' /> : null}
     </CommandItem>
   )
 }

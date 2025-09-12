@@ -1,16 +1,13 @@
-import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@nanostores/react'
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from '~/components/ui/dialog'
+import { useEffect, useMemo, useState } from 'react'
+import { TaxonRankBadge } from '~/components/taxon-rank-badge'
 import { Button } from '~/components/ui/button'
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog'
 import { detectionStoreById, labelDetections } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { photosStore } from '~/stores/entities/photos'
-import { IdentifyDialog } from './identify-dialog'
-import { SpeciesPicker } from '~/components/species-picker'
-import { speciesListsStore } from '~/stores/species/species-lists'
-import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 import type { TaxonRecord } from '~/stores/species/species-lists'
-import { TaxonRankBadge } from '~/components/taxon-rank-badge'
+import { IdentifyDialog } from './identify-dialog'
 
 export type PatchDetailDialogProps = {
   open: boolean
@@ -41,8 +38,7 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
   }, [photo?.imageFile?.file])
 
   const [identifyOpen, setIdentifyOpen] = useState(false)
-  const [speciesPickerOpen, setSpeciesPickerOpen] = useState(false)
-  const [identifyPending, setIdentifyPending] = useState(false)
+
   const projectId = useMemo(() => getProjectIdFromNightId(patch?.nightId), [patch?.nightId])
 
   useEffect(() => {
@@ -158,25 +154,6 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
             <div>
               <span className='font-medium'>Points:</span> {Array.isArray(detection?.points) ? detection!.points!.length : 0}
             </div>
-            <div className='pt-8'>
-              <Button
-                size='sm'
-                onClick={() => {
-                  setIdentifyPending(true)
-                  const selectionByProject = projectSpeciesSelectionStore.get() || {}
-                  const hasSelection = !!selectionByProject?.[projectId || '']
-                  const anySpeciesLists = Object.keys(speciesListsStore.get() || {}).length > 0
-                  if (!hasSelection && anySpeciesLists) {
-                    setSpeciesPickerOpen(true)
-                    return
-                  }
-                  setIdentifyOpen(true)
-                  setIdentifyPending(false)
-                }}
-              >
-                Identify
-              </Button>
-            </div>
 
             <div className='pt-8 space-y-2'>
               <h5 className='text-13 font-semibold text-neutral-800'>Taxonomy</h5>
@@ -223,20 +200,6 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
             </div>
           </div>
         </div>
-
-        <SpeciesPicker
-          open={speciesPickerOpen}
-          onOpenChange={(open) => {
-            setSpeciesPickerOpen(open)
-            if (!open && identifyPending) {
-              const selectionByProject = projectSpeciesSelectionStore.get() || {}
-              const hasSelection = !!selectionByProject?.[projectId || '']
-              if (hasSelection) setIdentifyOpen(true)
-              setIdentifyPending(false)
-            }
-          }}
-          projectId={projectId || ''}
-        />
 
         <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onIdentifySubmit} projectId={projectId} />
       </DialogContent>
