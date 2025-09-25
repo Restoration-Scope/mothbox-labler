@@ -1,4 +1,5 @@
-import { speciesListsStore, type SpeciesList, type TaxonRecord, invalidateSpeciesIndexForListId } from './species-lists'
+import { speciesListsStore, type SpeciesList, type TaxonRecord } from './species-list.store'
+import { invalidateSpeciesIndexForListId } from './species-search'
 import { csvToObjects } from '~/utils/csv'
 import type { IndexedFile as FolderIndexedFile } from '~/features/folder-processing/files.state'
 
@@ -57,7 +58,6 @@ export async function ingestSpeciesListsFromFiles(params: { files: IndexedFile[]
     }
   }
 
-  console.log('lists: ', lists)
   speciesListsStore.set(lists)
 }
 
@@ -77,7 +77,6 @@ async function readSpeciesCsvRows(params: { indexedFile: IndexedFile }) {
 
 type LowerKeyMap = Record<string, unknown>
 
-// Canonical field key preferences (case-insensitive)
 const FIELD_KEYS = {
   scientificName: ['scientificName', 'acceptedScientificName', 'canonicalName', 'binomial', 'name'],
   taxonRank: ['taxonRank'],
@@ -169,7 +168,6 @@ function buildExtrasFiltered(row: any) {
     extras[key] = value
   }
 
-  // Ensure whitelisted extras are present even if empty in the loop above
   for (const k of EXTRAS_WHITELIST) {
     const v = (row as any)?.[k]
     if (v != null && !(k in extras)) extras[k] = v
@@ -188,7 +186,7 @@ function buildLowerKeyMap(row: any) {
 
 function getStringCI(lowerMap: LowerKeyMap, keys: string[]) {
   for (const k of keys) {
-    const v = lowerMap[k.toLowerCase()]
+    const v = (lowerMap as any)[k.toLowerCase()]
     if (typeof v === 'string' && v.trim()) return v.trim()
   }
   return undefined

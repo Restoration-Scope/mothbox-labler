@@ -37,7 +37,7 @@ type ToggleControlProps = { canToggle?: boolean; expanded?: boolean; onToggleExp
 function ToggleControl(props: ToggleControlProps) {
   const { canToggle, expanded, onToggleExpanded } = props
 
-  if (!canToggle) return null
+  if (!canToggle) return <div className='w-20 h-16'></div>
 
   return (
     <div
