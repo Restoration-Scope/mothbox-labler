@@ -86,7 +86,25 @@ export async function exportUserDetectionsForNight(params: { nightId: string }) 
   // Update + persist night summary
   const totalDetections = detectionsForNight.length
   const totalIdentified = detectionsForNight.filter((d) => (d as any)?.detectedBy === 'user').length
-  const summary: NightSummaryEntity = { nightId, totalDetections, totalIdentified, updatedAt: Date.now() }
+  const morphoCounts: Record<string, number> = {}
+  const morphoPreviewPatchIds: Record<string, string> = {}
+  for (const d of detectionsForNight) {
+    const isUser = (d as any)?.detectedBy === 'user'
+    const isMorpho = (d as any)?.isMorpho === true
+    const label = typeof (d as any)?.label === 'string' ? ((d as any)?.label as string) : ''
+    const key = isUser && isMorpho ? normalizeMorphoKey(label) : ''
+    if (!key) continue
+    morphoCounts[key] = (morphoCounts[key] || 0) + 1
+    if (!morphoPreviewPatchIds[key] && (d as any)?.patchId) morphoPreviewPatchIds[key] = String((d as any)?.patchId)
+  }
+  const summary: NightSummaryEntity = {
+    nightId,
+    totalDetections,
+    totalIdentified,
+    updatedAt: Date.now(),
+    morphoCounts,
+    morphoPreviewPatchIds,
+  }
   const currentSummaries = nightSummariesStore.get() || {}
   nightSummariesStore.set({ ...currentSummaries, [nightId]: summary })
 
@@ -201,4 +219,10 @@ function getPhotoBaseFromPhotoId(photoId: string): string {
   if (!id.toLowerCase().endsWith('.jpg')) return id
   const base = id.slice(0, -'.jpg'.length)
   return base
+}
+
+function normalizeMorphoKey(label: string): string {
+  const text = (label ?? '').trim().toLowerCase()
+  const res = text
+  return res
 }

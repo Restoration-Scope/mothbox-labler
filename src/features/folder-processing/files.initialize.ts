@@ -26,7 +26,17 @@ export function preloadNightSummariesFromIndexed(
   indexed: Array<{ file?: File; handle?: unknown; path: string; name: string; size: number }>,
 ) {
   try {
-    const summaries: Record<string, { nightId: string; totalDetections: number; totalIdentified: number; updatedAt?: number }> = {}
+    const summaries: Record<
+      string,
+      {
+        nightId: string
+        totalDetections: number
+        totalIdentified: number
+        updatedAt?: number
+        morphoCounts?: Record<string, number>
+        morphoPreviewPatchIds?: Record<string, string>
+      }
+    > = {}
     for (const it of indexed) {
       const lower = (it?.name ?? '').toLowerCase()
       if (lower !== 'night_summary.json') continue
@@ -53,6 +63,12 @@ export function preloadNightSummariesFromIndexed(
             totalDetections: Number(json?.totalDetections) || 0,
             totalIdentified: Number(json?.totalIdentified) || 0,
             updatedAt: typeof json?.updatedAt === 'number' ? json.updatedAt : undefined,
+            morphoCounts:
+              typeof json?.morphoCounts === 'object' && json?.morphoCounts ? (json.morphoCounts as Record<string, number>) : undefined,
+            morphoPreviewPatchIds:
+              typeof json?.morphoPreviewPatchIds === 'object' && json?.morphoPreviewPatchIds
+                ? (json.morphoPreviewPatchIds as Record<string, string>)
+                : undefined,
           }
           const current = nightSummariesStore.get() || {}
           nightSummariesStore.set({ ...current, [nightId]: s })
