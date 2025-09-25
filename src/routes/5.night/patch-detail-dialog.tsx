@@ -6,7 +6,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/u
 import { detectionStoreById, labelDetections } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { photosStore } from '~/stores/entities/photos'
-import type { TaxonRecord } from '~/stores/species/species-lists'
+import type { TaxonRecord } from '~/features/species-identification/species-list.store'
 import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
 
 export type PatchDetailDialogProps = {
