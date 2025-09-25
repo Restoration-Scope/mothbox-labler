@@ -7,7 +7,7 @@ import { detectionStoreById, labelDetections } from '~/stores/entities/detection
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { photosStore } from '~/stores/entities/photos'
 import type { TaxonRecord } from '~/stores/species/species-lists'
-import { IdentifyDialog } from './identify-dialog'
+import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
 
 export type PatchDetailDialogProps = {
   open: boolean
