@@ -1,6 +1,6 @@
 import { atom, computed } from 'nanostores'
 import { scheduleSaveUserDetections } from '~/features/folder-processing/files.writer'
-import type { TaxonRecord } from '~/stores/species-lists'
+import type { TaxonRecord } from '~/features/species-identification/species-list.store'
 
 export type DetectionEntity = {
   id: string
