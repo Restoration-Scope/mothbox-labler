@@ -1,6 +1,6 @@
 import { directoryFilesStore, indexedFilesStore } from './files.state'
 import { buildNightIndexes } from './files.index'
-import { ingestSpeciesListsFromFiles } from '~/stores/species/species.ingest'
+import { ingestSpeciesListsFromFiles } from '~/features/species-identification/species.ingest'
 import { loadProjectSpeciesSelection } from '~/stores/species/project-species-list'
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
 
