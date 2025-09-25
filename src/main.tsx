@@ -4,6 +4,7 @@ import './styles/index.css'
 import { RouterProvider } from '@tanstack/react-router'
 import { router } from './router.tsx'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { setMeta } from './utils/meta'
 
 const rootElement = document.getElementById('root')!
 const queryClient = new QueryClient({
@@ -11,6 +12,14 @@ const queryClient = new QueryClient({
     queries: { retry: false, refetchOnWindowFocus: false },
     mutations: { retry: false },
   },
+})
+
+setMeta({
+  title: 'Mothbox Labeler',
+  siteName: 'Mothbox Labeler',
+  description: 'Local app to review and label MothBox insect detections per night.',
+  image: '/mothbox.svg',
+  url: '/',
 })
 
 createRoot(rootElement).render(
