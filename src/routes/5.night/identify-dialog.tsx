@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
-import { searchSpecies, speciesListsStore, type TaxonRecord } from '~/stores/species/species-lists'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
+import { searchSpecies, type TaxonRecord } from '~/stores/species/species-lists'
 
-import { detectionsStore } from '~/stores/entities/detections'
 import { useStore } from '@nanostores/react'
-import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
-import { Column, Row } from '~/styles'
 import { DialogTitle } from '@radix-ui/react-dialog'
+import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
+import { detectionsStore, type DetectionEntity } from '~/stores/entities/detections'
+import { Column } from '~/styles'
 
 export type IdentifyDialogProps = {
   open: boolean
@@ -18,55 +18,23 @@ export type IdentifyDialogProps = {
 
 export function IdentifyDialog(props: IdentifyDialogProps) {
   const { open, onOpenChange, onSubmit, projectId } = props
+
   const [query, setQuery] = useState('')
   const selection = useStore(projectSpeciesSelectionStore)
-  useStore(speciesListsStore)
+  const detections = useStore(detectionsStore)
 
   useEffect(() => {
     if (open) setQuery('')
   }, [open])
-  const detections = useStore(detectionsStore)
 
   const speciesOptions = useMemo(() => {
-    const listId = projectId ? selection?.[projectId] : undefined
-    if (!listId) {
-      if (query.trim()) console.log('🌀 identify: no species list selected for project', { projectId, query })
-      return [] as TaxonRecord[]
-    }
-    const res = searchSpecies({ speciesListId: listId, query, limit: 20 })
-    if (query.trim())
-      console.log('✅ identify: species results', {
-        projectId,
-        listId,
-        q: query,
-        count: res.length,
-        sample: res.slice(0, 10).map((t) => ({
-          name: t?.scientificName,
-          rank: t?.taxonRank,
-          genus: t?.genus,
-          family: t?.family,
-          order: t?.order,
-        })),
-      })
+    const res = getSpeciesOptions({ selection, projectId, query })
     return res
   }, [selection, projectId, query])
 
   const recentOptions = useMemo(() => {
-    const all = Object.values(detections ?? {})
-      .filter((d: any) => d?.detectedBy === 'user' && (!!d?.taxon?.scientificName || !!d?.label))
-      .sort((a: any, b: any) => (b?.identifiedAt ?? 0) - (a?.identifiedAt ?? 0))
-
-    const unique: Array<{ label: string; taxon?: TaxonRecord }> = []
-    const seen = new Set<string>()
-    for (const d of all) {
-      const text = (d?.taxon?.scientificName ?? d?.label ?? '').trim()
-      const key = text.toLowerCase()
-      if (!key || seen.has(key)) continue
-      seen.add(key)
-      unique.push({ label: text, taxon: d?.taxon })
-      if (unique.length >= 5) break
-    }
-    return unique
+    const res = getRecentOptions({ detections })
+    return res
   }, [detections])
 
   function handleSelect(label: string) {
@@ -123,22 +91,13 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
           {recentOptions.length && (!query.trim() || speciesOptions.length === 0) ? (
             <CommandGroup heading='Recent'>
               {recentOptions.map((r) => (
-                <CommandItem key={r.label} onSelect={() => (r.taxon ? handleSelectTaxon(r.taxon) : handleSelect(r.label))}>
-                  <div className='flex flex-col'>
-                    <span className='text-13'>{r.label}</span>
-                    {r.taxon ? (
-                      <span className='text-11 text-neutral-500 flex items-center gap-4'>
-                        <RankLettersInline taxon={r.taxon} />
-                        {r.taxon.vernacularName || [r.taxon.genus, r.taxon.family, r.taxon.order].filter(Boolean).join(' • ')}
-                      </span>
-                    ) : null}
-                  </div>
-                  {r.taxon?.taxonRank ? (
-                    <div className='ml-auto'>
-                      <TaxonRankBadge rank={r.taxon.taxonRank} />
-                    </div>
-                  ) : null}
-                </CommandItem>
+                <SpeciesOptionRow
+                  key={r.label}
+                  label={r.label}
+                  taxon={r.taxon}
+                  onSelect={() => (r.taxon ? handleSelectTaxon(r.taxon) : handleSelect(r.label))}
+                  subtitleClassName='text-11 text-neutral-500 flex items-center gap-4'
+                />
               ))}
             </CommandGroup>
           ) : null}
@@ -146,26 +105,18 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
           {speciesOptions?.length ? (
             <CommandGroup heading='Species'>
               {speciesOptions.map((t) => (
-                <CommandItem key={(t.taxonID as any) ?? t.scientificName} onSelect={() => handleSelectTaxon(t)}>
-                  <Column className='gap-0'>
-                    <span className='text-13'>{t.scientificName}</span>
-                    <span className='text-11 text-ink-secondary flex items-center gap-4'>
-                      <RankLettersInline taxon={t} />
-                      {t.vernacularName || [t.genus, t.family, t.order].filter(Boolean).join(' • ')}
-                    </span>
-                  </Column>
-
-                  {t.taxonRank ? (
-                    <div className='ml-auto'>
-                      <TaxonRankBadge rank={t.taxonRank} />
-                    </div>
-                  ) : null}
-                </CommandItem>
+                <SpeciesOptionRow
+                  key={(t.taxonID as any) ?? t.scientificName}
+                  label={t.scientificName}
+                  taxon={t}
+                  onSelect={() => handleSelectTaxon(t)}
+                  itemClassName='row gap-x-8 !py-8'
+                />
               ))}
             </CommandGroup>
           ) : null}
 
-          {/* {query && (
+          {query && (
             <CommandGroup>
               <CommandItem key='morphospecies' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
                 <span className='text-brand font-medium'>Add morpho species: "{query}"</span>
@@ -191,7 +142,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
                 <span className='text-brand font-medium'>Add Suborder"{query}"</span>
               </CommandItem>
             </CommandGroup>
-          )} */}
+          )}
 
           {/* No legacy suggestions rendered */}
         </CommandList>
@@ -218,8 +169,101 @@ function RankLettersInline(props: RankLettersInlineProps) {
   return (
     <span className='flex items-center gap-4'>
       {ranks.map((r) => (
-        <TaxonRankLetterBadge key={r} rank={r} size='sm' />
+        <TaxonRankLetterBadge key={r} rank={r} size='xsm' />
       ))}
     </span>
   )
+}
+
+type SpeciesOptionRowProps = {
+  label: string
+  taxon?: TaxonRecord
+  onSelect: () => void
+  itemClassName?: string
+  subtitleClassName?: string
+}
+
+function SpeciesOptionRow(props: SpeciesOptionRowProps) {
+  const { label, taxon, onSelect, itemClassName, subtitleClassName } = props
+
+  return (
+    <CommandItem onSelect={onSelect} className={itemClassName}>
+      <Column className='gap-0 flex-1'>
+        <span className='text-14 line-clamp-1'>{label}</span>
+        {taxon && (
+          <span className={subtitleClassName ?? 'text-11 text-ink-secondary flex items-center gap-4'}>
+            <RankLettersInline taxon={taxon} />
+            {taxon.vernacularName || [taxon.genus, taxon.family, taxon.order].filter(Boolean).join(' • ')}
+          </span>
+        )}
+      </Column>
+
+      {taxon?.taxonRank && <TaxonRankBadge rank={taxon.taxonRank} />}
+    </CommandItem>
+  )
+}
+
+// Helpers (atomic) — keep at bottom
+
+type GetSpeciesOptionsParams = {
+  selection?: Record<string, string>
+  projectId?: string
+  query: string
+}
+
+function getSpeciesOptions(params: GetSpeciesOptionsParams) {
+  const { selection, projectId, query } = params
+
+  const listId = projectId ? selection?.[projectId] : undefined
+  if (!listId) {
+    if (query.trim()) console.log('🌀 identify: no species list selected for project', { projectId, query })
+    const empty: TaxonRecord[] = []
+    return empty
+  }
+
+  const result = searchSpecies({ speciesListId: listId, query, limit: 20 })
+
+  if (query.trim())
+    console.log('✅ identify: species results', {
+      projectId,
+      listId,
+      q: query,
+      count: result.length,
+      sample: result.slice(0, 10).map((t) => ({
+        name: t?.scientificName,
+        rank: t?.taxonRank,
+        genus: t?.genus,
+        family: t?.family,
+        order: t?.order,
+      })),
+    })
+
+  const res = result
+  return res
+}
+
+type GetRecentOptionsParams = {
+  detections?: Record<string, DetectionEntity>
+}
+
+function getRecentOptions(params: GetRecentOptionsParams) {
+  const { detections } = params
+
+  const all = Object.values(detections ?? {})
+    .filter((d: DetectionEntity | undefined) => d?.detectedBy === 'user' && (!!d?.taxon?.scientificName || !!d?.label))
+    .sort((a, b) => ((b?.identifiedAt ?? 0) as number) - ((a?.identifiedAt ?? 0) as number))
+
+  const unique: Array<{ label: string; taxon?: TaxonRecord }> = []
+  const seen = new Set<string>()
+  for (const d of all) {
+    const text = (d?.taxon?.scientificName ?? d?.label ?? '').trim()
+    const key = text.toLowerCase()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    unique.push({ label: text, taxon: d?.taxon })
+    if (unique.length >= 5) break
+  }
+
+  const res = unique
+  return res
 }
