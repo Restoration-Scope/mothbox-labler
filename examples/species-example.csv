@@ -1,3 +1,2 @@
 taxonKey	scientificName	acceptedTaxonKey	acceptedScientificName	numberOfOccurrences	taxonRank	taxonomicStatus	kingdom	kingdomKey	phylum	phylumKey	class	classKey	order	orderKey	family	familyKey	genus	genusKey	species	speciesKey	iucnRedListCategory
-9149595	Dryobates pubescens (Linnaeus, 1766)	9149595	Dryobates pubescens (Linnaeus, 1766)	14724	SPECIES	ACCEPTED	Animalia	1	Chordata	44	Aves	212	Piciformes	724	Picidae	9333	Dryobates	8399994	Dryobates pubescens	9149595	LC
-9813242	Falco columbarius Linnaeus, 1758	9813242	Falco columbarius Linnaeus, 1758	3806	SPECIES	ACCEPTED	Animalia	1	Chordata	44	Aves	212	Falconiformes	7191407	Falconidae	5240	Falco	2480996	Falco columbarius	9813242	LC
+7827796	Azeta leucoma Felder, 1874	1777755	Azeta signans Walker, 1858	1	SPECIES	SYNONYM	Animalia	1	Arthropoda	54	Insecta	216	Lepidoptera	797	Erebidae	4532185	Azeta	1777734	Azeta signans	1777755	
