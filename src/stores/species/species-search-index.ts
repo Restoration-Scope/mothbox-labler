@@ -1,5 +1,5 @@
 import fuzzysort from 'fuzzysort'
-import type { TaxonRecord } from '~/stores/species-lists'
+import type { TaxonRecord } from '~/stores/species/species-lists'
 
 export type SpeciesListRow = {
   taxonKey?: string | number
@@ -90,7 +90,8 @@ export function searchSpeciesIndex(params: {
 
   const filterAccepted = (r: TaxonRecord) => {
     const rank = (r?.taxonRank ?? '').toString().toLowerCase()
-    const status = (r as any)?.taxonomicStatus?.toString().toLowerCase?.() ?? ''
+    const statusFromExtras = ((r as any)?.extras as any)?.taxonomicStatus as any
+    const status = typeof statusFromExtras === 'string' ? statusFromExtras.toLowerCase() : ''
     const isAccepted = !status || status === 'accepted'
     return rank !== 'unranked' && isAccepted
   }
@@ -108,7 +109,6 @@ export function mapRowToTaxonRecord(row: SpeciesListRow): TaxonRecord {
     taxonID: row?.taxonKey,
     scientificName,
     taxonRank: row?.taxonRank,
-    taxonomicStatus: row?.taxonomicStatus,
     kingdom: safeString(row?.kingdom),
     phylum: safeString(row?.phylum),
     class: safeString(row?.class),
@@ -117,9 +117,8 @@ export function mapRowToTaxonRecord(row: SpeciesListRow): TaxonRecord {
     genus: safeString(row?.genus),
     species: safeString(row?.species),
     acceptedTaxonKey: row?.acceptedTaxonKey,
-    acceptedScientificName: safeString(row?.acceptedScientificName),
     iucnRedListCategory: safeString(row?.iucnRedListCategory),
-    extras: row as any,
+    extras: buildExtrasFiltered(row as any),
   }
   return record
 }
@@ -165,4 +164,64 @@ function dedupeByKey(records: TaxonRecord[]) {
 
 function safeString(v: unknown) {
   return typeof v === 'string' && v.trim() ? v.trim() : undefined
+}
+
+const EXTRAS_WHITELIST = [
+  'numberOfOccurrences',
+  'kingdomKey',
+  'phylumKey',
+  'classKey',
+  'orderKey',
+  'familyKey',
+  'genusKey',
+  'speciesKey',
+  // mirror ingest: keep these in extras
+  'taxonomicStatus',
+  'acceptedScientificName',
+] as const
+
+function buildExtrasFiltered(row: any) {
+  const extras: Record<string, unknown> = {}
+  if (!row || typeof row !== 'object') return extras
+
+  const canonicalKeys = new Set<string>([
+    'taxonkey',
+    'scientificname',
+    'acceptedscientificname',
+    'numberofoccurrences',
+    'taxonrank',
+    'taxonomicstatus',
+    'kingdom',
+    'kingdomkey',
+    'phylum',
+    'phylumkey',
+    'class',
+    'classkey',
+    'order',
+    'orderkey',
+    'family',
+    'familykey',
+    'genus',
+    'genuskey',
+    'species',
+    'specieskey',
+    'acceptedtaxonkey',
+    'iucnredlistcategory',
+  ])
+
+  for (const [key, value] of Object.entries(row)) {
+    const lowerKey = key.toLowerCase()
+    if (canonicalKeys.has(lowerKey)) continue
+    if (value == null) continue
+    if (typeof value === 'string' && !value.trim()) continue
+    extras[key] = value
+  }
+
+  // Ensure whitelisted extras are present even if empty in the loop above
+  for (const k of EXTRAS_WHITELIST) {
+    const v = (row as any)?.[k]
+    if (v != null && !(k in extras)) extras[k] = v
+  }
+
+  return extras
 }

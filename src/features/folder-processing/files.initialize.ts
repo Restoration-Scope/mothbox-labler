@@ -1,6 +1,6 @@
 import { directoryFilesStore, indexedFilesStore } from './files.state'
 import { buildNightIndexes } from './files.index'
-import { ingestSpeciesListsFromFiles } from '~/stores/species/species-lists'
+import { ingestSpeciesListsFromFiles } from '~/stores/species/species.ingest'
 import { loadProjectSpeciesSelection } from '~/stores/species/project-species-list'
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
 
@@ -18,7 +18,7 @@ export function applyIndexedFilesState(params: {
   preloadNightSummariesFromIndexed(indexed)
 
   // Ingest species lists from either File or Handle entries
-  void ingestSpeciesListsFromFiles({ files: indexed as any })
+  void ingestSpeciesListsFromFiles({ files: indexed })
   void loadProjectSpeciesSelection()
 }
 

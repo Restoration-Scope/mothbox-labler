@@ -2,13 +2,7 @@ import { atom } from 'nanostores'
 import fuzzysort from 'fuzzysort'
 import { csvToObjects } from '~/utils/csv'
 
-export type IndexedFile = {
-  file?: File
-  handle?: { getFile?: () => Promise<File> }
-  path: string
-  name: string
-  size: number
-}
+// Ingest types moved to species.ingest.ts; keep minimal local types only if needed
 
 // Darwin Core-aligned subset used by the app. We keep additional file columns under extras.
 export type TaxonRecord = {
@@ -46,80 +40,14 @@ export type SpeciesList = {
 
 export const speciesListsStore = atom<Record<string, SpeciesList>>({})
 
-export async function ingestSpeciesListsFromFiles(params: { files: IndexedFile[] }) {
-  const { files } = params
-  if (!files?.length) return
-
-  const lists: Record<string, SpeciesList> = { ...(speciesListsStore.get() || {}) }
-
-  for (const f of files) {
-    const pathLower = (f?.path ?? '').replaceAll('\\', '/').toLowerCase()
-    const isSpeciesFolder = pathLower.includes('/species/') || pathLower.startsWith('species/')
-    const isCsv = pathLower.endsWith('.csv') || pathLower.endsWith('.tsv')
-    if (!isSpeciesFolder || !isCsv) continue
-
-    try {
-      const rows = await readSpeciesCsvRows({ indexedFile: f })
-      if (!Array.isArray(rows) || rows.length === 0) continue
-
-      const records = rows.map((row) => mapRowToTaxonRecord(row)).filter((r) => !!r?.scientificName)
-
-      // Dedupe by taxonID || scientificName
-      const seen: Record<string, boolean> = {}
-      const unique: TaxonRecord[] = []
-
-      for (const r of records) {
-        const key = String(r?.taxonID ?? r?.scientificName ?? '')
-          .trim()
-          .toLowerCase()
-        if (!key || seen[key]) continue
-        seen[key] = true
-        unique.push(r)
-      }
-
-      const id = f?.name || f?.path
-      const fileName = f?.name || f?.path
-
-      // example fileName: SpeciesList_CountryPanamaCostaRica_TaxaInsecta_doi.org10.15468dl.epzeza.csv
-      // example fileName: CountryPanamaCostaRica_TaxaInsecta_doi.org10.15468dl.epzeza
-      const baseName = fileName?.replace('SpeciesList_', '').replace('SpeciesList_', '.csv').split('_')
-      const doi = baseName[2]
-      const name = baseName[0] + ' - ' + baseName[1]
-
-      lists[id] = {
-        id,
-        name,
-        doi,
-        fileName,
-        sourcePath: f.path,
-        records: unique,
-        recordCount: unique.length,
-      }
-
-      // Invalidate any cached index for this list so it rebuilds lazily
-      delete speciesIndexCache[id]
-    } catch (err) {
-      console.log('🚨 species: failed to parse species list', { path: f?.path, err })
-    }
-  }
-
-  speciesListsStore.set(lists)
+// Invalidation API used by species.ingest.ts
+export function invalidateSpeciesIndexForListId(listId: string) {
+  if (!listId) return
+  delete speciesIndexCache[listId]
+  delete speciesExactIndexCache[listId]
 }
 
-async function readSpeciesCsvRows(params: { indexedFile: IndexedFile }) {
-  const { indexedFile } = params
-
-  const file = indexedFile?.file || (await indexedFile?.handle?.getFile?.())
-  if (!file) return [] as any[]
-
-  const text = await file.text()
-  if (!text) return [] as any[]
-
-  // const csvParser = await getCsvToObjects({ path: '~/utils/csv' })
-  const rows = csvToObjects({ csvContent: text, hasHeaders: true }) as any[]
-  const result = Array.isArray(rows) ? rows : []
-  return result
-}
+// CSV reading and mapping moved to species.ingest.ts
 
 // Simple in-memory index with prepared strings for fast searching
 type SpeciesIndexItem = { ref: TaxonRecord; search: any }
@@ -129,10 +57,13 @@ const speciesExactIndexCache: Record<string, Record<string, TaxonRecord[]> | und
 
 function ensureSpeciesIndexForList(list: SpeciesList | undefined): SpeciesIndexItem[] {
   if (!list) return []
+
   const cached = speciesIndexCache[list.id]
   if (cached) return cached
+
   const items: SpeciesIndexItem[] = []
   const exactIndex: Record<string, TaxonRecord[]> = {}
+
   for (const r of list.records) {
     // Build the combined string WITHOUT scientificName; prefer explicit rank columns
     const combined = [r.species, r.genus, r.family, r.order, r.class, r.phylum, r.kingdom, r.vernacularName].filter(Boolean).join(' | ')
@@ -142,6 +73,7 @@ function ensureSpeciesIndexForList(list: SpeciesList | undefined): SpeciesIndexI
     const isUnranked = (r?.taxonRank ?? '').toLowerCase() === 'unranked'
     const status = (r?.taxonomicStatus ?? '').toLowerCase()
     const statusOk = !status || status === 'accepted'
+
     if (!isUnranked && statusOk) {
       addExact(exactIndex, r.species, r) // species epithet
       addExact(exactIndex, r.genus, r)
@@ -152,6 +84,7 @@ function ensureSpeciesIndexForList(list: SpeciesList | undefined): SpeciesIndexI
       addExact(exactIndex, r.kingdom, r)
     }
   }
+
   speciesIndexCache[list.id] = items
   speciesExactIndexCache[list.id] = exactIndex
   return items
@@ -161,8 +94,10 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
   const { speciesListId, query, limit = 20 } = params
   const trimmed = (query ?? '').trim()
   if (!trimmed) return [] as TaxonRecord[]
+
   const allLists = speciesListsStore.get() || {}
   const list = speciesListId ? allLists[speciesListId] : undefined
+
   const index = ensureSpeciesIndexForList(list)
   if (!index.length) return []
 
@@ -265,57 +200,7 @@ function getStringCI(lowerMap: Record<string, unknown>, keys: string[]) {
   return undefined
 }
 
-function mapRowToTaxonRecord(row: any): TaxonRecord {
-  const lower = buildLowerKeyMap(row)
-
-  // Primary scientific name with common synonyms/fallbacks
-  // We ignore scientificName/canonical/binomial for matching/indexing. Keep it only for label when species is absent.
-  let scientificName =
-    getStringCI(lower, [
-      'scientificName',
-      'scientificname',
-      'acceptedScientificName',
-      'acceptscientificname',
-      'canonicalName',
-      'canonicalname',
-      'binomial',
-      'name',
-    ]) || ''
-
-  const genus = getStringCI(lower, ['genus'])
-  const family = getStringCI(lower, ['family'])
-  const order = getStringCI(lower, ['order'])
-  const species = getStringCI(lower, ['species'])
-  const vernacularName = getStringCI(lower, ['vernacularName', 'vernacularname', 'commonName', 'common_name', 'vernacular_name'])
-
-  // If the file row lacks a scientificName but has a genus/family/order, use the highest available rank as display name
-  if (!scientificName) scientificName = species || genus || family || order || ''
-
-  const record: TaxonRecord = {
-    taxonID: (row?.taxonID ?? row?.taxonKey ?? lower['taxonid'] ?? lower['taxonkey']) as any,
-    scientificName,
-    taxonRank: getStringCI(lower, ['taxonRank', 'rank']),
-    taxonomicStatus: getStringCI(lower, ['taxonomicStatus', 'taxonomicstatus', 'status']),
-    kingdom: getStringCI(lower, ['kingdom']),
-    phylum: getStringCI(lower, ['phylum']),
-    class: getStringCI(lower, ['class']),
-    order,
-    family,
-    genus,
-    species,
-    vernacularName,
-    acceptedTaxonKey: (row?.acceptedTaxonKey ?? lower['acceptedtaxonkey'] ?? lower['acceptednameusageid']) as any,
-    acceptedScientificName: getStringCI(lower, [
-      'acceptedScientificName',
-      'acceptedscientificname',
-      'acceptedNameUsage',
-      'acceptednameusage',
-    ]),
-    iucnRedListCategory: getStringCI(lower, ['iucnRedListCategory', 'iucnredlistcategory', 'iucn_category']),
-    extras: row,
-  }
-  return record
-}
+// mapping helpers moved to species.ingest.ts
 
 function addExact(index: Record<string, TaxonRecord[]>, value: string | undefined, ref: TaxonRecord) {
   const key = (value ?? '').trim().toLowerCase()
