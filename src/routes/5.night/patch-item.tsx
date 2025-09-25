@@ -66,8 +66,8 @@ function PatchItemImpl(props: PatchItemProps) {
       <div
         className={cn(
           'absolute pointer-events-none inset-0 ring-inset rounded-md ring-1 ring-black/10',
-          'hover:ring-black/40 hover:ring-[1.5px]',
-          isSelected && 'ring-2 hover:ring-2 hover:ring-black ring-brand',
+          'group-hover:ring-black/40 group-hover:ring-[1.5px]',
+          isSelected && 'ring-2 group-hover:ring-2 group-hover:ring-black ring-brand',
         )}
       />
       {url ? (
