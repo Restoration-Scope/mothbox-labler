@@ -75,7 +75,6 @@ export function PatchGrid(props: PatchGridProps) {
       const padding = getHorizontalPadding(el)
       const available = Math.max(0, width - padding)
       setContainerWidth(available)
-      console.log('📐 grid: measure container', { width, padding, available })
     }
     // Measure immediately to avoid an initial 0-width pass that collapses rows
     measure()
@@ -106,14 +105,12 @@ export function PatchGrid(props: PatchGridProps) {
     const baseWidth = itemWidth || minItemWidth
     const footer = (itemWidth || 0) < FOOTER_HIDE_THRESHOLD ? 0 : FOOTER_HEIGHT
     const height = Math.max(0, baseWidth) + footer + gapPx
-    console.log('📏 grid: sizing', { containerWidth, columns, itemWidth, footer, gapPx, rowHeight: height })
     return height
   }, [itemWidth, containerWidth, columns, gapPx, minItemWidth])
 
   const rowCount = useMemo(() => {
     if (!orderedIds.length) return 0
     const count = Math.ceil(orderedIds.length / Math.max(1, columns))
-    console.log('🔢 grid: rows', { items: orderedIds.length, columns, rowCount: count })
     return count
   }, [orderedIds, columns])
 
@@ -145,7 +142,6 @@ export function PatchGrid(props: PatchGridProps) {
     rowVirtualizer.scrollToIndex(0, { align: 'start' })
     rowVirtualizer.scrollToOffset(0)
     const totalSize = rowVirtualizer.getTotalSize()
-    console.log('🔄 grid: filter change reset', { prev: prevCountRef.current, next: count, columns, rowHeight, totalSize })
     prevCountRef.current = count
   }, [orderedIds.length, rowVirtualizer, columns, rowHeight])
 
@@ -156,14 +152,12 @@ export function PatchGrid(props: PatchGridProps) {
     rowVirtualizer.scrollToIndex(0, { align: 'start' })
     rowVirtualizer.scrollToOffset(0)
     const totalSize = rowVirtualizer.getTotalSize()
-    console.log('🔄 grid: size change reset', { desiredColumns, columns, rowHeight, totalSize })
   }, [desiredColumns, rowVirtualizer, columns, rowHeight])
 
   // Proactively re-measure after layout-affecting changes (prevents short stacked rows after 0-items view)
   useEffect(() => {
     const id = requestAnimationFrame(() => {
       rowVirtualizer.measure()
-      console.log('📣 grid: virtualizer measure', { columns, rowHeight, items: orderedIds.length, containerWidth })
     })
     return () => cancelAnimationFrame(id)
   }, [rowHeight, columns, containerWidth, orderedIds.length, rowVirtualizer])
@@ -195,7 +189,6 @@ export function PatchGrid(props: PatchGridProps) {
 
   function handleItemMouseDown(e: React.MouseEvent, index: number, patchId: string) {
     e.preventDefault()
-    console.log('🖱️ grid: mousedown on item', { index, patchId })
     if (e.shiftKey) {
       const start = anchorIndex ?? index
       const [lo, hi] = start <= index ? [start, index] : [index, start]
