@@ -40,7 +40,7 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
   ).length
 
   return (
-    <Column className={cn('p-20 pt-12', className)}>
+    <Column className={cn('px-16 py-20 pt-12', className)}>
       <WarningsBox warnings={warnings} className='mb-16' />
       <div className='mb-16'>
         <h3 className='mb-6 text-16 font-semibold'>Summary</h3>
