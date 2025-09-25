@@ -6,6 +6,9 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/u
 import { detectionStoreById, labelDetections } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { photosStore } from '~/stores/entities/photos'
+import type { PatchEntity } from '~/stores/entities/5.patches'
+import type { PhotoEntity } from '~/stores/entities/photos'
+import { useObjectUrl } from '~/utils/use-object-url'
 import type { TaxonRecord } from '~/features/species-identification/species-list.store'
 import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
 
@@ -23,36 +26,9 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
   const photos = useStore(photosStore)
   const photo = patch?.photoId ? photos?.[patch.photoId] : undefined
 
-  const patchUrl = useMemo(() => {
-    const file = patch?.imageFile?.file
-    if (!file) return ''
-    const url = URL.createObjectURL(file)
-    return url
-  }, [patch?.imageFile?.file])
-
-  const photoUrl = useMemo(() => {
-    const file = photo?.imageFile?.file
-    if (!file) return ''
-    const url = URL.createObjectURL(file)
-    return url
-  }, [photo?.imageFile?.file])
-
   const [identifyOpen, setIdentifyOpen] = useState(false)
 
   const projectId = useMemo(() => getProjectIdFromNightId(patch?.nightId), [patch?.nightId])
-
-  useEffect(() => {
-    return () => {
-      if (patchUrl) URL.revokeObjectURL(patchUrl)
-      if (photoUrl) URL.revokeObjectURL(photoUrl)
-    }
-  }, [patchUrl, photoUrl])
-
-  function onCopy(text?: string) {
-    const value = (text ?? '').trim()
-    if (!value) return
-    void navigator?.clipboard?.writeText?.(value)
-  }
 
   function onIdentifySubmit(label: string, taxon?: TaxonRecord) {
     const detectionId = patch?.id
@@ -71,69 +47,8 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
         </DialogHeader>
 
         <div className='grid grid-cols-1 gap-12 md:grid-cols-2'>
-          <div className='space-y-8'>
-            {patchUrl ? (
-              <img
-                src={patchUrl}
-                alt={patch?.name ?? 'patch'}
-                className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
-              />
-            ) : (
-              <div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />
-            )}
-            <div className='flex flex-wrap gap-8'>
-              {patchUrl ? (
-                <a href={patchUrl} target='_blank' rel='noreferrer'>
-                  <Button size='xsm' variant='outline'>
-                    Open patch
-                  </Button>
-                </a>
-              ) : null}
-              <Button size='xsm' variant='outline' onClick={() => onCopy(patch?.imageFile?.path)}>
-                Copy patch path
-              </Button>
-            </div>
-
-            <div className='text-12 text-neutral-700 break-all'>
-              <span className='font-medium'>File path:</span> {patch?.imageFile?.path ?? '—'}
-            </div>
-
-            <div className='text-12 text-neutral-700 break-all mt-12'>
-              <span className='font-medium'>Patch ID:</span> {patch?.id}
-            </div>
-          </div>
-
-          <div className='space-y-8'>
-            {photoUrl ? (
-              <img
-                src={photoUrl}
-                alt={photo?.name ?? 'photo'}
-                className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
-              />
-            ) : (
-              <div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />
-            )}
-            <div className='flex flex-wrap gap-8'>
-              {photoUrl ? (
-                <a href={photoUrl} target='_blank' rel='noreferrer'>
-                  <Button size='xsm' variant='outline'>
-                    Open photo
-                  </Button>
-                </a>
-              ) : null}
-              <Button size='xsm' variant='outline' onClick={() => onCopy(photo?.imageFile?.path)}>
-                Copy photo path
-              </Button>
-            </div>
-            <div className='text-12 text-neutral-700 break-all'>
-              <div>
-                <span className='font-medium'>Photo ID:</span> {photo?.id}
-              </div>
-              <div>
-                <span className='font-medium'>File path:</span> {photo?.imageFile?.path ?? '—'}
-              </div>
-            </div>
-          </div>
+          <PatchDetails patch={patch} />
+          <SourcePhoto photo={photo} />
         </div>
 
         <div className='mt-12 grid grid-cols-1 md:grid-cols-2 gap-12 text-12 text-neutral-700'>
@@ -187,6 +102,7 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
               </div>
             </div>
           </div>
+
           <div className='space-y-4'>
             <h4 className='text-14 font-semibold text-neutral-800'>Links</h4>
             <div>
@@ -205,6 +121,92 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
       </DialogContent>
     </Dialog>
   )
+}
+
+function PatchDetails(props: { patch?: PatchEntity }) {
+  const { patch } = props
+
+  const patchUrl = useObjectUrl(patch?.imageFile?.file)
+
+  return (
+    <div className='space-y-8'>
+      {patchUrl ? (
+        <img
+          src={patchUrl}
+          alt={patch?.name ?? 'patch'}
+          className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
+        />
+      ) : (
+        <div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />
+      )}
+      <div className='flex flex-wrap gap-8'>
+        {patchUrl ? (
+          <a href={patchUrl} target='_blank' rel='noreferrer'>
+            <Button size='xsm' variant='outline'>
+              Open patch
+            </Button>
+          </a>
+        ) : null}
+        <Button size='xsm' variant='outline' onClick={() => copyToClipboard(patch?.imageFile?.path)}>
+          Copy patch path
+        </Button>
+      </div>
+
+      <div className='text-12 text-neutral-700 break-all'>
+        <span className='font-medium'>File path:</span> {patch?.imageFile?.path ?? '—'}
+      </div>
+
+      <div className='text-12 text-neutral-700 break-all mt-12'>
+        <span className='font-medium'>Patch ID:</span> {patch?.id}
+      </div>
+    </div>
+  )
+}
+
+function SourcePhoto(props: { photo?: PhotoEntity }) {
+  const { photo } = props
+
+  const photoUrl = useObjectUrl(photo?.imageFile?.file)
+
+  return (
+    <div className='space-y-8'>
+      {photoUrl ? (
+        <img
+          src={photoUrl}
+          alt={photo?.name ?? 'photo'}
+          className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
+        />
+      ) : (
+        <div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />
+      )}
+      <div className='flex flex-wrap gap-8'>
+        {photoUrl ? (
+          <a href={photoUrl} target='_blank' rel='noreferrer'>
+            <Button size='xsm' variant='outline'>
+              Open photo
+            </Button>
+          </a>
+        ) : null}
+        <Button size='xsm' variant='outline' onClick={() => copyToClipboard(photo?.imageFile?.path)}>
+          Copy photo path
+        </Button>
+      </div>
+      <div className='text-12 text-neutral-700 break-all'>
+        <div>
+          <span className='font-medium'>Photo ID:</span> {photo?.id}
+        </div>
+        <div>
+          <span className='font-medium'>File path:</span> {photo?.imageFile?.path ?? '—'}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function copyToClipboard(text?: string) {
+  const value = (text ?? '').trim()
+  if (!value) return
+  void navigator?.clipboard?.writeText?.(value)
 }
 
 function getProjectIdFromNightId(nightId?: string | null) {
