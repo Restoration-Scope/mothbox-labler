@@ -9,6 +9,7 @@ import { nightSummariesStore } from '~/stores/entities/night-summaries'
 import { pickerErrorStore } from '~/stores/ui'
 import { useAppLoading } from '~/features/folder-processing/files-queries'
 import { Row } from '~/styles'
+import { Button } from '~/components/ui/button'
 import { HomeSummaryPanel } from './home-summary-panel'
 import { ProjectsSection } from './projects-section'
 
@@ -25,16 +26,23 @@ export function Home() {
 
   return (
     <Row className='p-20 pt-12 h-full min-h-0 items-start gap-16 overflow-y-auto'>
-      <HomeSummaryPanel
-        className='w-[240px] sticky top-0 '
-        projects={projects}
-        sites={sites}
-        deployments={deployments}
-        nights={nights}
-        patches={patches}
-        detections={detections}
-        nightSummaries={nightSummaries}
-      />
+      <div className='w-[240px] sticky top-0'>
+        <div className='mb-12'>
+          <Button size='xsm' to={'/morphospecies'}>
+            Morphospecies
+          </Button>
+        </div>
+        <HomeSummaryPanel
+          className=''
+          projects={projects}
+          sites={sites}
+          deployments={deployments}
+          nights={nights}
+          patches={patches}
+          detections={detections}
+          nightSummaries={nightSummaries}
+        />
+      </div>
       <div className='min-h-0 flex-1'>
         {pickerError ? (
           <div className='mb-12 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700'>{pickerError}</div>
