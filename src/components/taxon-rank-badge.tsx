@@ -16,7 +16,7 @@ export function TaxonRankBadge(props: TaxonRankBadgeProps) {
   const variant = mapRankToVariant({ rank })
 
   return (
-    <Badge variant={variant} size={size} className={cn('shrink-0', className)}>
+    <Badge variant={variant} size={size} className={cn('shrink-0 font-normal', className)}>
       {rank}
     </Badge>
   )
