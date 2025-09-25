@@ -230,7 +230,7 @@ function GenusNode(props: {
         onToggleExpanded={() => toggleKey(genusKey)}
       />
 
-      {hasChildren ? (
+      {hasChildren && genusExpanded ? (
         <IndentedBranch>
           {(genusNode.children || []).map((speciesNode, index) => (
             <div key={`species-${orderName}-${familyName}-${genusNode.name}-${speciesNode.name}`} className='relative'>
