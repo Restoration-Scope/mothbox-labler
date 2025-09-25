@@ -5,6 +5,8 @@ import { Deployments } from './routes/3.deployments'
 import { Nights } from './routes/4.nights'
 import { Night } from './routes/5.night'
 import { RootLayout } from '~/root-layout'
+import { MorphospeciesIndex } from '~/routes/morphospecies/index'
+import { MorphospeciesDetail } from '~/routes/morphospecies/detail'
 import { Home } from '~/routes/0.home'
 
 export const rootRoute = createRootRoute({
@@ -47,7 +49,28 @@ export const nightRoute = createRoute({
   component: Night,
 })
 
-export const routeTree = rootRoute.addChildren([indexRoute, projectsRoute, sitesRoute, deploymentsRoute, nightsRoute, nightRoute])
+export const morphoIndexRoute = createRoute({
+  getParentRoute,
+  path: '/morphospecies',
+  component: MorphospeciesIndex,
+})
+
+export const morphoDetailRoute = createRoute({
+  getParentRoute,
+  path: '/morphospecies/$key',
+  component: MorphospeciesDetail,
+})
+
+export const routeTree = rootRoute.addChildren([
+  indexRoute,
+  projectsRoute,
+  sitesRoute,
+  deploymentsRoute,
+  nightsRoute,
+  nightRoute,
+  morphoIndexRoute,
+  morphoDetailRoute,
+])
 
 export const router = createRouter({
   routeTree,
