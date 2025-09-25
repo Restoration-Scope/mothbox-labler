@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
-import { searchSpecies, type TaxonRecord } from '~/stores/species/species-lists'
+import { searchSpecies } from '~/features/species-identification/species-search'
+import { TaxonRecord } from './species-list.store'
 
 import { useStore } from '@nanostores/react'
 import { DialogTitle } from '@radix-ui/react-dialog'

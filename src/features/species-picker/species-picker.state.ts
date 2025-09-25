@@ -1,5 +1,5 @@
 import { atom } from 'nanostores'
-import { speciesListsStore } from '~/stores/species/species-lists'
+import { speciesListsStore } from '~/features/species-identification/species-list.store'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 
 export const $isSpeciesPickerOpen = atom<boolean>(false)

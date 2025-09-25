@@ -4,7 +4,7 @@ import { useMemo } from 'react'
 import { Icon } from '~/components/atomic/Icon'
 import { CommandDialog, CommandEmpty, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
 import { projectSpeciesSelectionStore, saveProjectSpeciesSelection } from '~/stores/species/project-species-list'
-import { SpeciesList, speciesListsStore } from '~/stores/species/species-lists'
+import { SpeciesList, speciesListsStore } from '~/features/species-identification/species-list.store'
 import { Column } from '~/styles'
 import { $isSpeciesPickerOpen, $speciesPickerProjectId } from './species-picker.state'
 

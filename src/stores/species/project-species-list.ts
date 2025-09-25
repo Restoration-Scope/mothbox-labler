@@ -1,10 +1,8 @@
 import { atom } from 'nanostores'
 
-// Defer IDB utils to dynamic import to avoid alias issues in non-Vite scripts
 let idbGet: ((db: string, store: string, key: string) => Promise<unknown>) | undefined
 let idbPut: ((db: string, store: string, key: string, value: unknown) => Promise<void>) | undefined
 
-// projectId -> speciesListId
 export const projectSpeciesSelectionStore = atom<Record<string, string>>({})
 
 const IDB_DB = 'mothbox-labeler'
@@ -24,9 +22,7 @@ export async function saveProjectSpeciesSelection(params: { projectId: string; s
       idbPut = (mod as any).idbPut
     }
     await (idbPut as any)(IDB_DB, IDB_SELECTION, 'selection', next)
-  } catch {
-    // ignore when IDB not available (e.g., during script runs)
-  }
+  } catch {}
 }
 
 export async function loadProjectSpeciesSelection() {
@@ -37,7 +33,5 @@ export async function loadProjectSpeciesSelection() {
     }
     const saved = (await (idbGet as any)(IDB_DB, IDB_SELECTION, 'selection')) as Record<string, string> | null
     if (saved && typeof saved === 'object') projectSpeciesSelectionStore.set(saved)
-  } catch {
-    // ignore
-  }
+  } catch {}
 }
