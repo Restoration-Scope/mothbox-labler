@@ -2,6 +2,7 @@ import { cn } from '~/utils/cn'
 import { Icon } from '~/components/atomic/Icon'
 import { ChevronDownIcon, ChevronUpIcon, CircleMinusIcon, CirclePlusIcon } from 'lucide-react'
 import { Row } from '~/styles'
+import { getTaxonomyPrefix } from './taxonomy-prefix'
 
 export type TaxonomyRowProps = {
   rank: 'order' | 'family' | 'genus' | 'species'
@@ -14,11 +15,13 @@ export type TaxonomyRowProps = {
   expanded?: boolean
   onToggleExpanded?: () => void
   isFirstChild?: boolean
+  isMorphoSpecies?: boolean
 }
 
 export function TaxonomyRow(props: TaxonomyRowProps) {
-  const { rank, name, count, selected, onSelect, withConnector, canToggle, expanded, onToggleExpanded, isFirstChild } = props
-  const prefix = rank === 'order' ? 'O' : rank === 'family' ? 'F' : rank === 'genus' ? 'G' : 'S'
+  const { rank, name, count, selected, onSelect, withConnector, canToggle, expanded, onToggleExpanded, isFirstChild, isMorphoSpecies } =
+    props
+  const prefix = getTaxonomyPrefix({ rank, isMorpho: isMorphoSpecies })
 
   return (
     <div className='relative w-full'>

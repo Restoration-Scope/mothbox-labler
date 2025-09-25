@@ -20,13 +20,16 @@ export type TaxonomySectionProps = {
   onSelectTaxon: (params: { taxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }; bucket: 'auto' | 'user' }) => void
   emptyText: string
   className?: string
+  errorsCount?: number
 }
 
 export function TaxonomySection(props: TaxonomySectionProps) {
-  const { title, nodes, bucket, selectedTaxon, selectedBucket, onSelectTaxon, emptyText, className } = props
+  const { title, nodes, bucket, selectedTaxon, selectedBucket, onSelectTaxon, emptyText, className, errorsCount = 0 } = props
   const collapsedSet = useStore(collapsedKeysStore)
 
-  if (!nodes || nodes.length === 0) {
+  const hasNodes = Array.isArray(nodes) && nodes.length > 0
+  const hasErrors = bucket === 'user' && (errorsCount || 0) > 0
+  if (!hasNodes && !hasErrors) {
     return (
       <div className={className}>
         <LeftPanelHeading className='mb-6 text-14 font-semibold'>{title}</LeftPanelHeading>
@@ -35,8 +38,9 @@ export function TaxonomySection(props: TaxonomySectionProps) {
     )
   }
 
-  const allCount = nodes.reduce((acc, n) => acc + (n?.count || 0), 0)
+  const allCount = (nodes || []).reduce((acc, n) => acc + (n?.count || 0), 0)
   const isAllSelected = !selectedTaxon && selectedBucket === bucket
+  const isErrorsSelected = selectedBucket === 'user' && selectedTaxon?.name === 'ERROR'
 
   return (
     <div className={className}>
@@ -55,7 +59,7 @@ export function TaxonomySection(props: TaxonomySectionProps) {
           />
         ) : null}
 
-        {nodes.map((orderNode) => (
+        {(nodes || []).map((orderNode) => (
           <OrderNode
             key={`order-${orderNode.name}`}
             bucket={bucket}
@@ -65,12 +69,24 @@ export function TaxonomySection(props: TaxonomySectionProps) {
             onSelectTaxon={onSelectTaxon}
           />
         ))}
+
+        {bucket === 'user' && hasErrors ? (
+          <CountsRow
+            label='Errors'
+            count={errorsCount || 0}
+            selected={isErrorsSelected}
+            onSelect={() => {
+              clearPatchSelection()
+              onSelectTaxon({ taxon: { rank: 'species', name: 'ERROR' }, bucket: 'user' })
+            }}
+          />
+        ) : null}
       </div>
     </div>
   )
 }
 
-function SectionHeader(props: { title: string; bucket: 'auto' | 'user'; nodes: TaxonomyNode[] }) {
+function SectionHeader(props: { title: string; bucket: 'auto' | 'user'; nodes?: TaxonomyNode[] }) {
   const { title, bucket, nodes } = props
   return (
     <div className='mb-6 flex items-center justify-between'>
@@ -81,7 +97,7 @@ function SectionHeader(props: { title: string; bucket: 'auto' | 'user'; nodes: T
   )
 }
 
-function SectionMoreMenu(props: { bucket: 'auto' | 'user'; nodes: TaxonomyNode[] }) {
+function SectionMoreMenu(props: { bucket: 'auto' | 'user'; nodes?: TaxonomyNode[] }) {
   const { bucket, nodes } = props
   return (
     <DropdownMenu>
@@ -90,9 +106,9 @@ function SectionMoreMenu(props: { bucket: 'auto' | 'user'; nodes: TaxonomyNode[]
       </DropdownMenuTrigger>
 
       <DropdownMenuContent align='end' sideOffset={4}>
-        <DropdownMenuItem onSelect={() => expandMany(allKeysFor(nodes, bucket))}>Expand all</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => expandMany(allKeysFor(nodes || [], bucket))}>Expand all</DropdownMenuItem>
 
-        <DropdownMenuItem onSelect={() => collapseMany(allKeysFor(nodes, bucket))}>Collapse all</DropdownMenuItem>
+        <DropdownMenuItem onSelect={() => collapseMany(allKeysFor(nodes || [], bucket))}>Collapse all</DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
   )
@@ -245,6 +261,7 @@ function GenusNode(props: {
                 }}
                 withConnector
                 isFirstChild={index === 0}
+                isMorphoSpecies={speciesNode.isMorpho}
               />
             </div>
           ))}

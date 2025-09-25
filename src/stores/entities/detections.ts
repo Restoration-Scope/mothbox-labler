@@ -17,6 +17,7 @@ export type DetectionEntity = {
   identifiedAt?: number
   isError?: boolean
   clusterId?: number
+  isMorpho?: boolean
 }
 
 export const detectionsStore = atom<Record<string, DetectionEntity>>({})
@@ -49,6 +50,12 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
       nextTaxon = taxon
     } else if (!isError && trimmed) {
       const prev: Partial<TaxonRecord> = existing?.taxon ?? {}
+      const hasFamilyOrGenus = !!prev?.family || !!prev?.genus
+      if (!hasFamilyOrGenus) {
+        // Do not assign morphospecies when no family or genus context
+        // Keep detection unchanged for this id
+        continue
+      }
       nextTaxon = {
         scientificName: trimmed,
         taxonRank: 'species',
@@ -71,6 +78,7 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
       identifiedAt,
       taxon: nextTaxon,
       isError,
+      isMorpho: !hasTaxon && !isError && !!trimmed,
     }
     updated[id] = next
   }

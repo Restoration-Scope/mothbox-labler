@@ -8,6 +8,7 @@ export type TaxonomyNode = {
   name: string
   count: number
   children?: TaxonomyNode[]
+  isMorpho?: boolean
 }
 
 export type NightLeftPanelProps = {

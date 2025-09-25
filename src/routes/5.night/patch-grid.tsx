@@ -5,6 +5,7 @@ import type { DetectionEntity } from '~/stores/entities/detections'
 import { detectionsStore } from '~/stores/entities/detections'
 import { PatchItem } from './patch-item'
 import React, { useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react'
+import { useHotkeys } from 'react-hotkeys-hook'
 import { patchColumnsStore } from '~/components/atomic/patch-size-control'
 import { selectedPatchIdsStore, selectionNightIdStore, setSelection, togglePatchSelection } from '~/stores/ui'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
@@ -39,6 +40,7 @@ export function PatchGrid(props: PatchGridProps) {
   const [dragToggled, setDragToggled] = useState<Set<string>>(new Set())
   const [anchorIndex, setAnchorIndex] = useState<number | null>(null)
   const [focusIndex, setFocusIndex] = useState<number>(0)
+  const [hoverIndex, setHoverIndex] = useState<number | null>(null)
 
   const detections = useStore(detectionsStore)
   const orderedIds = useMemo(() => {
@@ -235,11 +237,20 @@ export function PatchGrid(props: PatchGridProps) {
   function onMouseMoveContainer(e: React.MouseEvent) {
     const target = e.target as HTMLElement
     const indexAttr = target?.closest('[data-index]')?.getAttribute('data-index')
-    if (indexAttr != null && isDragging) {
+    if (indexAttr != null) {
       const index = Number(indexAttr)
-      const id = orderedIds[index]
-      if (id) handleItemMouseEnter(id)
+      if (!Number.isNaN(index) && index !== hoverIndex) setHoverIndex(index)
+      if (isDragging) {
+        const id = orderedIds[index]
+        if (id) handleItemMouseEnter(id)
+      }
+    } else if (hoverIndex != null) {
+      setHoverIndex(null)
     }
+  }
+
+  function onMouseLeaveContainer(e: React.MouseEvent) {
+    if (hoverIndex != null) setHoverIndex(null)
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
@@ -254,11 +265,29 @@ export function PatchGrid(props: PatchGridProps) {
     }
     if (e.key === ' ') {
       e.preventDefault()
+      if (hoverIndex != null) return
       const id = orderedIds[focusIndex]
       if (id) togglePatchSelection({ patchId: id })
       return
     }
   }
+
+  const hoveredId = useMemo(() => {
+    if (hoverIndex == null) return null
+    const id = orderedIds[hoverIndex]
+    return id ?? null
+  }, [hoverIndex, orderedIds])
+
+  useHotkeys(
+    'space',
+    (e) => {
+      if (!hoveredId) return
+      e.preventDefault()
+      onOpenPatchDetail(hoveredId)
+    },
+    {},
+    [hoveredId, onOpenPatchDetail],
+  )
 
   function focusItem(index: number) {
     const colCount = Math.max(1, columns)
@@ -281,6 +310,7 @@ export function PatchGrid(props: PatchGridProps) {
       onKeyDown={onKeyDown}
       onMouseDown={onMouseDownContainer}
       onMouseMove={onMouseMoveContainer}
+      onMouseLeave={onMouseLeaveContainer}
     >
       <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
         {!orderedIds.length ? <div className='p-8 text-sm text-neutral-500'>No patches found</div> : null}
@@ -331,10 +361,11 @@ type GridContainerProps = {
   onMouseDown: (e: React.MouseEvent) => void
   onMouseMove: (e: React.MouseEvent) => void
   onKeyDown: (e: React.KeyboardEvent) => void
+  onMouseLeave: (e: React.MouseEvent) => void
 }
 
 const GridContainer = React.forwardRef<HTMLDivElement, GridContainerProps>(function GridContainer(props, ref) {
-  const { className, children, onMouseDown, onMouseMove, onKeyDown } = props
+  const { className, children, onMouseDown, onMouseMove, onKeyDown, onMouseLeave } = props
   return (
     <div
       ref={ref}
@@ -342,6 +373,7 @@ const GridContainer = React.forwardRef<HTMLDivElement, GridContainerProps>(funct
       onKeyDown={onKeyDown}
       onMouseDown={onMouseDown}
       onMouseMove={onMouseMove}
+      onMouseLeave={onMouseLeave}
       className={cn('relative overflow-y-auto p-8 outline-none', className)}
     >
       {children}

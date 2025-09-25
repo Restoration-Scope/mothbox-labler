@@ -38,6 +38,13 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     return res
   }, [detections])
 
+  const filteredRecentOptions = useMemo(() => {
+    const q = (query ?? '').trim().toLowerCase()
+    if (!q) return recentOptions
+    const filtered = (recentOptions || []).filter((r) => (r?.label || '').toLowerCase().includes(q))
+    return filtered
+  }, [recentOptions, query])
+
   function handleSelect(label: string) {
     const value = (label ?? '').trim()
     if (!value) return
@@ -89,9 +96,9 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
             </CommandGroup>
           ) : null}
 
-          {recentOptions.length && (!query.trim() || speciesOptions.length === 0) ? (
+          {(!query.trim() && recentOptions.length > 0) || (query.trim() && filteredRecentOptions.length > 0) ? (
             <CommandGroup heading='Recent'>
-              {recentOptions.map((r) => (
+              {(query.trim() ? filteredRecentOptions : recentOptions).map((r) => (
                 <SpeciesOptionRow
                   key={r.label}
                   label={r.label}
@@ -108,7 +115,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
               {speciesOptions.map((t) => (
                 <SpeciesOptionRow
                   key={(t.taxonID as any) ?? t.scientificName}
-                  label={t.scientificName}
+                  label={t.species || t.scientificName}
                   taxon={t}
                   onSelect={() => handleSelectTaxon(t)}
                   itemClassName='row gap-x-8 !py-8'

@@ -35,6 +35,9 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
     (d) => (d as any)?.nightId === nightId && (d as any)?.detectedBy === 'user',
   ).length
   const canExport = totalForNight > 0 && totalIdentifiedForNight === totalForNight
+  const errorCountForNight = Object.values(detections ?? {}).filter(
+    (d) => (d as any)?.nightId === nightId && (d as any)?.detectedBy === 'user' && (d as any)?.isError === true,
+  ).length
 
   return (
     <Column className={cn('p-20 pt-12', className)}>
@@ -81,6 +84,7 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
         selectedBucket={selectedBucket}
         onSelectTaxon={onSelectTaxon}
         emptyText='No identifications yet'
+        errorsCount={errorCountForNight}
       />
 
       <div className='mt-auto pt-16'>

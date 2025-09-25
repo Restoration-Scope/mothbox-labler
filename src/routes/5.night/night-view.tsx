@@ -10,6 +10,7 @@ import { photosStore } from '~/stores/entities/photos'
 import { clearPatchSelection, selectedPatchIdsStore, setSelection } from '~/stores/ui'
 import { Row } from '~/styles'
 import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
+import { toast } from 'sonner'
 import { NightLeftPanel } from '@/features/left-panel/night-left-panel'
 import { PatchDetailDialog } from './patch-detail-dialog'
 import { PatchGrid } from './patch-grid'
@@ -83,6 +84,17 @@ export function NightView(props: { nightId: string }) {
   function onSubmitLabel(label: string, taxon?: any) {
     if (!label) return
     if (selectedDetectionIds.length === 0) return
+    const isCustom = !taxon && label.trim().toUpperCase() !== 'ERROR'
+    if (isCustom) {
+      for (const id of selectedDetectionIds) {
+        const d = detections?.[id]
+        const hasFamilyOrGenus = !!d?.taxon?.family || !!d?.taxon?.genus
+        if (!hasFamilyOrGenus) {
+          toast.error('🚨 Cannot assign morphospecies without family or genus')
+          return
+        }
+      }
+    }
     labelDetections({ detectionIds: selectedDetectionIds, label, taxon })
     clearPatchSelection()
   }
@@ -143,38 +155,60 @@ type TaxonomyNode = {
   name: string
   count: number
   children?: TaxonomyNode[]
+  isMorpho?: boolean
 }
+
+const UNASSIGNED_LABEL = 'Unassigned'
 
 function buildTaxonomyTreeForNight(params: { detections: Record<string, any>; nightId: string; bucket: 'auto' | 'user' }) {
   const { detections, nightId, bucket } = params
   const onlyUser = bucket === 'user'
   const roots: TaxonomyNode[] = []
-  function ensureChild(nodes: TaxonomyNode[], rank: TaxonomyNode['rank'], name: string): TaxonomyNode {
+  function ensureChild(nodes: TaxonomyNode[], rank: TaxonomyNode['rank'], name: string, isMorphoSpecies?: boolean): TaxonomyNode {
     let node = nodes.find((n) => n.rank === rank && n.name === name)
     if (!node) {
       node = { rank, name, count: 0, children: [] }
       nodes.push(node)
     }
     node.count++
+    if (rank === 'species' && isMorphoSpecies) node.isMorpho = true
     return node
   }
   for (const d of Object.values(detections ?? {})) {
     if ((d as any)?.nightId !== nightId) continue
     const detectedBy = (d as any)?.detectedBy === 'user' ? 'user' : 'auto'
     if ((onlyUser && detectedBy !== 'user') || (!onlyUser && detectedBy !== 'auto')) continue
-    const order = (d as any)?.taxon?.order
-    const family = (d as any)?.taxon?.family
-    const genus = (d as any)?.taxon?.genus
-    const species = (d as any)?.taxon?.species
+    // Skip error items from taxonomy tree; they are shown as a separate "Errors" row
+    if (onlyUser && (d as any)?.isError) continue
+    const order = (d as any)?.taxon?.order as string | undefined
+    const family = (d as any)?.taxon?.family as string | undefined
+    const genus = (d as any)?.taxon?.genus as string | undefined
+    const species = (d as any)?.taxon?.species as string | undefined
+    const hasSpecies = !!species
+    const hasGenus = !!genus
+    const hasFamily = !!family
+    const hasOrder = !!order
     const path: Array<{ rank: TaxonomyNode['rank']; name: string }> = []
-    if (order) path.push({ rank: 'order', name: order })
-    if (family) path.push({ rank: 'family', name: family })
-    if (genus) path.push({ rank: 'genus', name: genus })
-    if (species) path.push({ rank: 'species', name: species })
+    if (onlyUser) {
+      // For identified items, always anchor under O/F/G using placeholders when missing
+      const orderName = hasOrder || hasFamily || hasGenus || hasSpecies ? order || UNASSIGNED_LABEL : undefined
+      const familyName = hasFamily || hasGenus || hasSpecies ? family || UNASSIGNED_LABEL : undefined
+      const genusName = hasGenus || hasSpecies ? genus || UNASSIGNED_LABEL : undefined
+      if (orderName) path.push({ rank: 'order', name: orderName })
+      if (familyName) path.push({ rank: 'family', name: familyName })
+      if (genusName) path.push({ rank: 'genus', name: genusName })
+      if (hasSpecies && species) path.push({ rank: 'species', name: species })
+    } else {
+      // For auto, include only known ranks without placeholders
+      if (order) path.push({ rank: 'order', name: order })
+      if (family) path.push({ rank: 'family', name: family })
+      if (genus) path.push({ rank: 'genus', name: genus })
+      if (species) path.push({ rank: 'species', name: species })
+    }
     if (path.length === 0) continue
     let currentLevel = roots
     for (const seg of path) {
-      const node = ensureChild(currentLevel, seg.rank, seg.name)
+      const node = ensureChild(currentLevel, seg.rank, seg.name, seg.rank === 'species' ? (d as any)?.isMorpho === true : undefined)
       if (!node.children) node.children = []
       currentLevel = node.children
     }
@@ -194,6 +228,11 @@ function filterPatchesByTaxon(params: {
   selectedBucket?: 'auto' | 'user'
 }) {
   const { patches, detections, selectedTaxon, selectedBucket } = params
+  // Special handling: selecting 'ERROR' (species-level placeholder) under Identified filters by isError
+  if (selectedBucket === 'user' && selectedTaxon?.name === 'ERROR') {
+    const result = patches.filter((p) => (detections?.[p.id] as any)?.isError === true)
+    return result
+  }
   if (!selectedTaxon && selectedBucket) {
     const result = patches.filter((p) => {
       const det = detections?.[p.id]
