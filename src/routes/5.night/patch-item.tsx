@@ -3,11 +3,13 @@ import { useStore } from '@nanostores/react'
 import { detectionStoreById } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { Badge } from '~/components/ui/badge'
+import { TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
 import { selectedPatchIdsStore, togglePatchSelection } from '~/stores/ui'
 import { cn } from '~/utils/cn'
 import { useObjectUrl } from '~/utils/use-object-url'
 import { Button } from '~/components/ui/button'
 import { ZoomInIcon } from 'lucide-react'
+import type { BadgeVariants } from '~/components/ui/badge'
 
 export type PatchItemProps = {
   id: string
@@ -16,6 +18,7 @@ export type PatchItemProps = {
   onImageLoad?: (id: string) => void
   onImageError?: (id: string) => void
   compact?: boolean
+  clusterVariant?: BadgeVariants['variant']
 }
 
 function PatchItemImpl(props: PatchItemProps) {
@@ -24,6 +27,8 @@ function PatchItemImpl(props: PatchItemProps) {
   const detection = useStore(detectionStoreById(id))
   const selected = useStore(selectedPatchIdsStore)
   const label = detection?.label || 'Unlabeled'
+  const rank = detection?.isMorpho ? 'morphospecies' : detection?.taxon?.taxonRank
+  const clusterId = typeof detection?.clusterId === 'number' ? detection.clusterId : undefined
   const isSelected = selected?.has?.(id)
 
   const url = useObjectUrl(patch?.imageFile?.file)
@@ -92,9 +97,16 @@ function PatchItemImpl(props: PatchItemProps) {
       )}
 
       {!compact && (
-        <div className='h-28 w-full px-6 flex items-center justify-between'>
+        <div className='absolute bottom-4 w-full px-6 flex gap-4 items-center '>
+          <TaxonRankLetterBadge rank={rank} size='xsm' />
           <Badge size='sm'>{label}</Badge>
         </div>
+      )}
+
+      {!compact && typeof clusterId === 'number' && (
+        <Badge size='xsm' className='absolute top-4 left-4' variant={props?.clusterVariant ?? 'gray'} title='Cluster ID'>
+          C{clusterId}
+        </Badge>
       )}
     </div>
   )

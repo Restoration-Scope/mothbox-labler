@@ -10,6 +10,7 @@ import { patchColumnsStore } from '~/components/atomic/patch-size-control'
 import { selectedPatchIdsStore, selectionNightIdStore, setSelection, togglePatchSelection } from '~/stores/ui'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { useVirtualizer } from '@tanstack/react-virtual'
+import type { BadgeVariants } from '~/components/ui/badge'
 // noop
 
 const DEFAULT_MIN_ITEM_WIDTH = 240
@@ -62,6 +63,48 @@ export function PatchGrid(props: PatchGridProps) {
     })
     const ids = withSortKey.map((x) => x.id)
     return ids
+  }, [patches, detections])
+
+  // Derive stable clusterId -> variant mapping (round-robin across a pool) for this grid
+  const clusterVariantMap = useMemo(() => {
+    const pool: Array<import('~/components/ui/badge').BadgeVariants['variant']> = [
+      'red',
+      'orange',
+      'amber',
+      'yellow',
+      'lime',
+      'green',
+      'emerald',
+      'teal',
+      'cyan',
+      'sky',
+      'blue',
+      'indigo',
+      'violet',
+      'purple',
+      'fuchsia',
+      'pink',
+      'rose',
+      'brand',
+      'gray',
+    ]
+    const uniqueClusterIds = new Set<number>()
+    for (const p of patches || []) {
+      const det = detections?.[p.id]
+      const cid = typeof (det as any)?.clusterId === 'number' ? ((det as any)?.clusterId as number) : undefined
+      if (typeof cid === 'number') uniqueClusterIds.add(cid)
+    }
+    const sorted = Array.from(uniqueClusterIds).sort((a, b) => a - b)
+    const map = new Map<number, (typeof pool)[number]>()
+    // To avoid consecutive similar hues, cycle with a step
+    const step = 5 // relatively prime to many pool lengths to spread hues
+    let idx = 0
+    for (const cid of sorted) {
+      const variant = pool[idx % pool.length]
+      map.set(cid, variant)
+      idx = (idx + step) % pool.length
+    }
+    return map
   }, [patches, detections])
 
   // Reset scroll and focus when the visible item count changes (filters)
@@ -334,6 +377,9 @@ export function PatchGrid(props: PatchGridProps) {
               <div className='grid' style={{ gridTemplateColumns: `repeat(${Math.max(1, columns)}, minmax(0, 1fr))`, gap: `${gapPx}px` }}>
                 {items.map((id, i) => {
                   const index = start + i
+                  const det = detections?.[id]
+                  const cid = typeof (det as any)?.clusterId === 'number' ? ((det as any)?.clusterId as number) : undefined
+                  const clusterVariant = typeof cid === 'number' ? getClusterVariant(cid) : undefined
                   return (
                     <PatchItem
                       id={id}
@@ -343,6 +389,7 @@ export function PatchGrid(props: PatchGridProps) {
                       onOpenDetail={onOpenPatchDetail}
                       onImageLoad={handleImageLoad}
                       onImageError={handleImageError}
+                      clusterVariant={clusterVariant}
                     />
                   )
                 })}
@@ -432,4 +479,58 @@ function getHorizontalPadding(el: HTMLElement) {
   const right = parseFloat(styles?.paddingRight || '0')
   const total = (isFinite(left) ? left : 0) + (isFinite(right) ? right : 0)
   return total
+}
+
+function getClusterVariant(cid: number): BadgeVariants['variant'] {
+  const pool = getDispersedVariantPool()
+  const h = hashNumber(cid)
+  const idx = h % pool.length
+  const variant = pool[idx]
+  return variant
+}
+
+function getDispersedVariantPool(): Array<BadgeVariants['variant']> {
+  const base: Array<BadgeVariants['variant']> = [
+    'red',
+    'orange',
+    'amber',
+    'yellow',
+    'lime',
+    'green',
+    'emerald',
+    'teal',
+    'cyan',
+    'sky',
+    'blue',
+    'indigo',
+    'violet',
+    'purple',
+    'fuchsia',
+    'pink',
+    'rose',
+    'brand',
+    'gray',
+  ]
+  const step = 5
+  const out: Array<BadgeVariants['variant']> = []
+  let i = 0
+  const n = base.length
+  const used = new Set<number>()
+  for (let k = 0; k < n; k++) {
+    while (used.has(i)) i = (i + 1) % n
+    out.push(base[i])
+    used.add(i)
+    i = (i + step) % n
+  }
+  return out
+}
+
+function hashNumber(n: number): number {
+  // 32-bit mix, positive
+  let x = n | 0
+  x = ((x >>> 16) ^ x) * 0x45d9f3b
+  x = ((x >>> 16) ^ x) * 0x45d9f3b
+  x = (x >>> 16) ^ x
+  if (x < 0) x = ~x
+  return x >>> 0
 }
