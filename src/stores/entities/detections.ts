@@ -1,6 +1,8 @@
 import { atom, computed } from 'nanostores'
 import { scheduleSaveUserDetections } from '~/features/folder-processing/files.writer'
 import type { TaxonRecord } from '~/features/species-identification/species-list.store'
+import { photosStore, type PhotoEntity } from '~/stores/entities/photos'
+import { parseBotDetectionJsonSafely, extractPatchFilename } from '~/features/ingest/ingest-json'
 
 export type DetectionEntity = {
   id: string
@@ -112,4 +114,144 @@ export function acceptDetections(params: { detectionIds: string[] }) {
     if (n) touchedNightIds.add(n)
   }
   for (const nightId of touchedNightIds) scheduleSaveUserDetections({ nightId })
+}
+
+export async function resetDetections(params: { detectionIds: string[] }) {
+  const { detectionIds } = params
+  if (!Array.isArray(detectionIds) || detectionIds.length === 0) return
+
+  const current = detectionsStore.get() || {}
+  const photos = photosStore.get() || {}
+
+  // Group by photo to avoid redundant JSON parsing
+  const idsByPhoto: Record<string, string[]> = {}
+  for (const id of detectionIds) {
+    const existing = current?.[id]
+    const photoId = (existing as any)?.photoId as string | undefined
+    if (!existing || !photoId) continue
+    if (!idsByPhoto[photoId]) idsByPhoto[photoId] = []
+    idsByPhoto[photoId].push(id)
+  }
+
+  const updated: Record<string, DetectionEntity> = { ...current }
+  const touchedNightIds = new Set<string>()
+
+  for (const [photoId, ids] of Object.entries(idsByPhoto)) {
+    const photo = photos?.[photoId] as PhotoEntity | undefined
+    const jsonFile = (photo as any)?.botDetectionFile
+    let shapes: Array<any> = []
+    if (jsonFile) {
+      try {
+        const parsed = await parseBotDetectionJsonSafely({ file: jsonFile as any })
+        shapes = Array.isArray(parsed?.shapes) ? parsed!.shapes : []
+      } catch {
+        shapes = []
+      }
+    }
+
+    for (const id of ids) {
+      const existing = current?.[id]
+      if (!existing) continue
+      const nightId = (existing as any)?.nightId as string | undefined
+      if (nightId) touchedNightIds.add(nightId)
+
+      // Find matching bot shape by patch filename
+      const match = shapes.find((s: any) => extractPatchFilename({ patchPath: (s as any)?.patch_path ?? '' }) === id)
+
+      if (match) {
+        const taxon = deriveTaxonFromShape(match)
+        const next: DetectionEntity = {
+          ...existing,
+          label: taxon?.scientificName || safeLabel((match as any)?.label),
+          taxon: taxon as any,
+          score: safeNumber((match as any)?.score),
+          direction: safeNumber((match as any)?.direction),
+          shapeType: safeLabel((match as any)?.shape_type),
+          points: Array.isArray((match as any)?.points) ? ((match as any)?.points as any) : (existing as any)?.points,
+          clusterId: safeNumber((match as any)?.clusterID) as any,
+          detectedBy: 'auto',
+          identifiedAt: undefined,
+          isError: undefined,
+          isMorpho: undefined,
+        }
+        updated[id] = next
+      } else {
+        // Fallback: clear human flags and mark as auto without changing core fields
+        const next: DetectionEntity = {
+          ...existing,
+          detectedBy: 'auto',
+          identifiedAt: undefined,
+          isError: undefined,
+          isMorpho: undefined,
+        }
+        updated[id] = next
+      }
+    }
+  }
+
+  detectionsStore.set(updated)
+  for (const nightId of touchedNightIds) scheduleSaveUserDetections({ nightId })
+}
+
+function safeLabel(value: unknown) {
+  const res = typeof value === 'string' ? value : undefined
+  return res
+}
+
+function safeNumber(value: unknown) {
+  const res = typeof value === 'number' ? value : undefined
+  return res
+}
+
+function deriveTaxonFromShape(shape: any) {
+  const kingdom = safeLabel(shape?.kingdom)
+  const phylum = safeLabel(shape?.phylum)
+  const klass = safeLabel(shape?.class)
+  const order = safeLabel(shape?.order)
+  const family = safeLabel(shape?.family)
+  const genus = safeLabel(shape?.genus)
+  const species = safeLabel(shape?.species)
+
+  let scientificName: string | undefined
+  let taxonRank: string | undefined
+  if (species) {
+    scientificName = species
+    taxonRank = 'species'
+  } else if (genus) {
+    scientificName = genus
+    taxonRank = 'genus'
+  } else if (family) {
+    scientificName = family
+    taxonRank = 'family'
+  } else if (order) {
+    scientificName = order
+    taxonRank = 'order'
+  } else if (klass) {
+    scientificName = klass
+    taxonRank = 'class'
+  } else if (phylum) {
+    scientificName = phylum
+    taxonRank = 'phylum'
+  } else if (kingdom) {
+    scientificName = kingdom
+    taxonRank = 'kingdom'
+  } else {
+    scientificName = undefined
+    taxonRank = undefined
+  }
+
+  if (!scientificName && !kingdom && !phylum && !klass && !order && !family && !genus && !species) return undefined as any
+
+  const taxon = {
+    scientificName: scientificName || '',
+    taxonRank,
+    kingdom,
+    phylum,
+    class: klass,
+    order,
+    family,
+    genus,
+    species,
+  } as any
+  return taxon
 }
