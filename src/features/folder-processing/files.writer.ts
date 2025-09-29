@@ -70,15 +70,20 @@ export async function exportUserDetectionsForNight(params: { nightId: string }) 
 
   const tasks: Array<Promise<void>> = []
 
-  for (const [photoId, items] of Object.entries(byPhoto)) {
+  // Write identified JSON for every photo in the night.
+  // When a photo has no user detections, write an empty shapes array to clear any stale file.
+  for (const p of photosForNight) {
+    const photoId = (p as any)?.id as string
+    if (!photoId) continue
     const baseName = getPhotoBaseFromPhotoId(photoId)
     if (!baseName) continue
     const nightDiskPath = nightDiskPathByPhotoId[photoId]
     if (!nightDiskPath) continue
-
+    const items = byPhoto[photoId] || []
     const fileName = `${baseName}_identified.json`
     const pathParts = nightDiskPath.split('/').filter(Boolean)
-    tasks.push(writeJson(root, [...pathParts, fileName], buildUserIdentifiedJson({ baseName, detections: items })))
+    const json = buildUserIdentifiedJson({ baseName, detections: items })
+    tasks.push(writeJson(root, [...pathParts, fileName], json))
   }
 
   await Promise.all(tasks)
