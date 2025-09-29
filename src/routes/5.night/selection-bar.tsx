@@ -10,11 +10,12 @@ export type SelectionBarProps = {
   onAccept: () => void
   onUnselect: () => void
   onSelectAll: () => void
+  onResetToAuto?: () => void
   className?: string
 }
 
 export function SelectionBar(props: SelectionBarProps) {
-  const { selectedCount, onIdentify, onAccept, onUnselect, onSelectAll, className } = props
+  const { selectedCount, onIdentify, onAccept, onUnselect, onSelectAll, onResetToAuto, className } = props
 
   const hasSelection = selectedCount > 0
   const label = useMemo(() => `${selectedCount} selected`, [selectedCount])
@@ -75,19 +76,20 @@ export function SelectionBar(props: SelectionBarProps) {
         <ActionButton label='Accept' keys={['a']} onClick={onAccept} />
         <ActionButton label='Unselect' keys={['u']} onClick={onUnselect} />
         <ActionButton label='Select All' keys={['shift', 'a']} onClick={onSelectAll} />
+        {onResetToAuto ? <ActionButton label='Reset' onClick={onResetToAuto} /> : null}
       </div>
     </div>
   )
 }
 
-type ActionButtonProps = { label: string; keys: string[]; onClick: () => void }
+type ActionButtonProps = { label: string; keys?: string[]; onClick: () => void }
 
 function ActionButton(props: ActionButtonProps) {
   const { label, keys, onClick } = props
   return (
     <Button size='sm' variant='outline' className='flex items-center gap-x-8' onClick={onClick}>
       <span>{label}</span>
-      <KeyShortcuts keys={keys} />
+      {keys && keys.length > 0 ? <KeyShortcuts keys={keys} /> : null}
     </Button>
   )
 }

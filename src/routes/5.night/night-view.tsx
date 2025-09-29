@@ -5,7 +5,7 @@ import { nightsStore } from '~/stores/entities/4.nights'
 import type { PatchEntity } from '~/stores/entities/5.patches'
 import { patchesStore } from '~/stores/entities/5.patches'
 import type { DetectionEntity } from '~/stores/entities/detections'
-import { acceptDetections, detectionsStore, labelDetections } from '~/stores/entities/detections'
+import { acceptDetections, detectionsStore, labelDetections, resetDetections } from '~/stores/entities/detections'
 import { photosStore } from '~/stores/entities/photos'
 import { clearPatchSelection, selectedPatchIdsStore, setSelection } from '~/stores/ui'
 import { Row } from '~/styles'
@@ -109,6 +109,12 @@ export function NightView(props: { nightId: string }) {
     setSelection({ nightId, patchIds: allPatchIds })
   }
 
+  async function onResetToAuto() {
+    if (selectedDetectionIds.length === 0) return
+    await resetDetections({ detectionIds: selectedDetectionIds })
+    clearPatchSelection()
+  }
+
   function onOpenPatchDetail(id: string) {
     if (!id) return
     setDetailPatchId(id)
@@ -142,6 +148,7 @@ export function NightView(props: { nightId: string }) {
           onAccept={onAccept}
           onUnselect={onUnselect}
           onSelectAll={onSelectAll}
+          onResetToAuto={onResetToAuto}
         />
       </div>
       <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onSubmitLabel} projectId={(night as any)?.projectId} />
