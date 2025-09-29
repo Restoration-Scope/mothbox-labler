@@ -34,7 +34,6 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
   const totalIdentifiedForNight = Object.values(detections ?? {}).filter(
     (d) => (d as any)?.nightId === nightId && (d as any)?.detectedBy === 'user',
   ).length
-  const canExport = totalForNight > 0 && totalIdentifiedForNight === totalForNight
   const errorCountForNight = Object.values(detections ?? {}).filter(
     (d) => (d as any)?.nightId === nightId && (d as any)?.detectedBy === 'user' && (d as any)?.isError === true,
   ).length
@@ -89,7 +88,6 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
 
       <div className='mt-auto pt-16'>
         <Button
-          disabled={!canExport}
           className='w-full'
           onClick={() => {
             const p = exportNightDarwinCSV({ nightId })
@@ -104,7 +102,6 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
         </Button>
 
         <Button
-          disabled={!canExport}
           className='w-full mt-8'
           onClick={() => {
             const p = exportNightSummaryRS({ nightId })
