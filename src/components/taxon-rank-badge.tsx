@@ -48,6 +48,7 @@ function mapRankToVariant(params: { rank?: string | null }): NonNullable<BadgeVa
 
   const value = (rank ?? '').toString().trim().toLowerCase()
 
+  if (value === 'morphospecies') return 'blue'
   if (value === 'species') return 'blue'
   if (value === 'family') return 'orange'
   if (value === 'order') return 'yellow'
@@ -61,6 +62,7 @@ function mapRankToLetter(params: { rank?: string | null }): string {
 
   const value = (rank ?? '').toString().trim().toLowerCase()
 
+  if (value === 'morphospecies') return 'M'
   if (value === 'species') return 'S'
   if (value === 'genus') return 'G'
   if (value === 'family') return 'F'
