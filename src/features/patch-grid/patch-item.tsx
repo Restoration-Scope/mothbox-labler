@@ -10,6 +10,7 @@ import { useObjectUrl } from '~/utils/use-object-url'
 import { Button } from '~/components/ui/button'
 import { ZoomInIcon } from 'lucide-react'
 import type { BadgeVariants } from '~/components/ui/badge'
+import { getClusterVariant } from '~/utils/colors'
 
 export type PatchItemProps = {
   id: string
@@ -45,6 +46,9 @@ function PatchItemImpl(props: PatchItemProps) {
     if (open) open(id)
   }
 
+  const clusterVariant: BadgeVariants['variant'] | undefined =
+    props?.clusterVariant ?? (typeof clusterId === 'number' ? getClusterVariant(clusterId) : undefined)
+
   return (
     <div
       className={cn('group w-full relative bg-neutral-100 rounded-md cursor-pointer outline-none')}
@@ -57,6 +61,8 @@ function PatchItemImpl(props: PatchItemProps) {
       role='button'
       aria-pressed={isSelected}
     >
+      {!compact && typeof clusterId === 'number' && <ClusterRow clusterId={clusterId} clusterVariant={clusterVariant} />}
+
       {!compact && (
         <Button
           icon={ZoomInIcon}
@@ -96,18 +102,29 @@ function PatchItemImpl(props: PatchItemProps) {
         <div className='aspect-square w-full ' />
       )}
 
-      {!compact && (
-        <div className='absolute bottom-4 w-full px-6 flex gap-4 items-center '>
-          <TaxonRankLetterBadge rank={rank} size='xsm' />
-          <Badge size='sm'>{label}</Badge>
-        </div>
-      )}
+      {!compact && <TaxonRankRow rank={rank} label={label} />}
+    </div>
+  )
+}
 
-      {!compact && typeof clusterId === 'number' && (
-        <Badge size='xsm' className='absolute top-4 left-4' variant={props?.clusterVariant ?? 'gray'} title='Cluster ID'>
-          C{clusterId}
-        </Badge>
-      )}
+function TaxonRankRow(props: { rank: string | undefined; label: string | undefined }) {
+  const { rank, label } = props
+
+  return (
+    <div className='w-full h-[22px] mx-4 flex gap-4 items-center '>
+      {rank && <TaxonRankLetterBadge rank={rank} size='xsm' />}
+      <Badge size='sm'>{label}</Badge>
+    </div>
+  )
+}
+
+function ClusterRow(props: { clusterId: number; clusterVariant: BadgeVariants['variant'] }) {
+  const { clusterId, clusterVariant } = props
+  return (
+    <div className='h-[22px]'>
+      <Badge size='xsm' className='h-16 mx-4' variant={clusterVariant} title='Cluster ID'>
+        C{clusterId}
+      </Badge>
     </div>
   )
 }

@@ -13,7 +13,7 @@ import { IdentifyDialog } from '~/features/species-identification/identify-dialo
 import { toast } from 'sonner'
 import { NightLeftPanel } from '@/features/left-panel/night-left-panel'
 import { PatchDetailDialog } from './patch-detail-dialog'
-import { PatchGrid } from './patch-grid'
+import { PatchGrid } from '~/features/patch-grid/patch-grid'
 import { SelectionBar } from './selection-bar'
 
 type TaxonSelection = { rank: 'order' | 'family' | 'genus' | 'species'; name: string } | undefined
@@ -141,7 +141,14 @@ export function NightView(props: { nightId: string }) {
         className='w-[300px] overflow-y-auto'
       />
       <div className='relative flex-1 min-h-0 overflow-hidden'>
-        <PatchGrid patches={sorted} nightId={nightId} className='h-full' onOpenPatchDetail={onOpenPatchDetail} />
+        <PatchGrid
+          patches={sorted}
+          nightId={nightId}
+          className='h-full'
+          onOpenPatchDetail={onOpenPatchDetail}
+          selectedTaxon={selectedTaxon as any}
+          selectedBucket={selectedBucket}
+        />
         <SelectionBar
           selectedCount={selectedCount}
           onIdentify={onIdentify}

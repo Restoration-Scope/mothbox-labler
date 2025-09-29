@@ -36,6 +36,7 @@ const badgeVariants = cva('inline-flex items-center grow-0 rounded-sm font-mediu
       pink: 'bg-pink-100 !text-pink-700 ring-pink-200',
       rose: 'bg-rose-100 !text-rose-700 ring-rose-200',
       gray: 'bg-sageA-4 !text-ink-primary',
+      darkgray: 'bg-gray-900 !text-ink-primary',
     },
     size: {
       default: 'px-6 py-[3px] text-13',
