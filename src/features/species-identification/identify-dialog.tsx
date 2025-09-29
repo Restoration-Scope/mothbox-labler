@@ -10,6 +10,8 @@ import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-ba
 import { detectionsStore, type DetectionEntity } from '~/stores/entities/detections'
 import { Column } from '~/styles'
 
+const MAX_SPECIES_UI_RESULTS = 50
+
 export type IdentifyDialogProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -32,6 +34,12 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     const res = getSpeciesOptions({ selection, projectId, query })
     return res
   }, [selection, projectId, query])
+
+  const speciesOptionsLimited = useMemo(() => {
+    const list = speciesOptions || []
+    const res = list.slice(0, MAX_SPECIES_UI_RESULTS)
+    return res
+  }, [speciesOptions])
 
   const recentOptions = useMemo(() => {
     const res = getRecentOptions({ detections })
@@ -110,9 +118,9 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
             </CommandGroup>
           ) : null}
 
-          {speciesOptions?.length ? (
+          {speciesOptionsLimited?.length ? (
             <CommandGroup heading='Species'>
-              {speciesOptions.map((t) => (
+              {speciesOptionsLimited.map((t) => (
                 <SpeciesOptionRow
                   key={(t.taxonID as any) ?? t.scientificName}
                   label={t.species || t.scientificName}
