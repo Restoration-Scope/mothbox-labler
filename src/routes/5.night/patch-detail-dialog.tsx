@@ -40,7 +40,7 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent align='max' className='max-w-[900px]'>
+      <DialogContent align='vhSide' className='max-w-[900px]'>
         <DialogHeader className='grid grid-cols-2 gap-8 mb-8'>
           <DialogTitle>Patch details</DialogTitle>
           <DialogTitle>Source Photo</DialogTitle>

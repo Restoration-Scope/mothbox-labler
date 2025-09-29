@@ -8,7 +8,8 @@ import { useOpenDirectoryMutation, useRestoreDirectoryQuery } from '~/features/f
 import { Loader } from '~/components/atomic/Loader'
 import { Button } from '~/components/ui/button'
 import { clearSelections } from '~/features/folder-processing/files.service'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { MorphoCatalogDialog } from '~/features/morphospecies/morpho-catalog-dialog'
 import { speciesListsStore } from '~/features/species-identification/species-list.store'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 import { SpeciesPicker } from '~/features/species-picker/species-picker'
@@ -30,6 +31,7 @@ export function Nav() {
   const speciesLists = useStore(speciesListsStore)
   const session = useStore(userSessionStore)
   const appReady = useAppReady()
+  const [isMorphoOpen, setIsMorphoOpen] = useState(false)
   const activeProjectId = useMemo(() => (pathname.startsWith('/projects/') ? pathname.split('/')[2] : ''), [pathname])
   const activeSpeciesName = useMemo(() => {
     const listId = selection?.[activeProjectId]
@@ -71,6 +73,18 @@ export function Nav() {
           </div>
         ) : null}
         <SpeciesPicker />
+
+        <div className='ml-12'>
+          <Button
+            variant='outline'
+            onClick={() => {
+              setIsMorphoOpen(true)
+            }}
+          >
+            Morphospecies
+          </Button>
+          <MorphoCatalogDialog open={isMorphoOpen} onOpenChange={setIsMorphoOpen} />
+        </div>
 
         <div className='ml-auto'>
           {appReady ? (

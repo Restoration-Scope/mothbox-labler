@@ -41,7 +41,6 @@ export function MorphoSpeciesDetailsDialog(props: MorphoSpeciesDetailsDialogProp
   useEffect(() => {
     let cancelled = false
     async function pickPreviewFile() {
-      // Try from patches store first (if that night was ingested already)
       for (const pair of usage.previewPairs) {
         const f = (patches?.[pair.patchId] as any)?.imageFile?.file as File | undefined
         if (f) {
@@ -50,7 +49,6 @@ export function MorphoSpeciesDetailsDialog(props: MorphoSpeciesDetailsDialogProp
         }
       }
 
-      // Fallback: use patchFileMapByNightStore (available after indexing) and hydrate via handle
       for (const pair of usage.previewPairs) {
         const mapForNight = patchMapByNight?.[pair.nightId]
         const indexed: IndexedFile | undefined = mapForNight?.[pair.patchId.toLowerCase()]

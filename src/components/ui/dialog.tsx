@@ -50,6 +50,8 @@ const dialogContentVariants = cva(
           'top-[50%] max-h-[85vh] translate-y-[-50%] data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-top-[48%]',
         top: 'top-[10vh]',
         max: 'top-[50%] max-h-[98vh] translate-y-[-50%] data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-top-[48%]',
+        vhSide:
+          'top-8 bottom-8 right-8 left-auto translate-x-0 h-[calc(100vh-16px)] max-h-[calc(100vh-16px)] w-[66.6667vw] max-w-none data-[state=closed]:slide-out-to-right-[10%] data-[state=open]:slide-in-from-right-[10%] data-[state=closed]:zoom-out-[1] data-[state=open]:zoom-in-[1]         ',
         full: cn(
           'w-full h-full max-w-[calc(100vw-40px)] max-h-[calc(100vh-40px)] inset-20',
           'translate-x-[0px] translate-y-[0px] data-[state=closed]:slide-out-to-top-[48%] data-[state=open]:slide-in-from-top-[48%]',
@@ -64,7 +66,7 @@ const dialogContentVariants = cva(
 
 interface DialogContentProps extends React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> {
   onClose?: any
-  align?: 'center' | 'top' | 'max' | 'full'
+  align?: 'center' | 'top' | 'max' | 'full' | 'vhSide'
   hideClose?: boolean
 }
 const DialogContent = React.forwardRef<React.ElementRef<typeof DialogPrimitive.Content>, DialogContentProps>(
