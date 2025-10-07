@@ -22,7 +22,10 @@ export type DetectionEntity = {
   identifiedAt?: number
   isError?: boolean
   clusterId?: number
+  // Deprecated: derive morphospecies from `morphospecies` presence
   isMorpho?: boolean
+  // When user types free text identification, store the morphospecies string
+  morphospecies?: string
   speciesListId?: string
   speciesListDOI?: string
 }
@@ -55,8 +58,10 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
     // If user provides a custom text (no explicit taxon) and is not ERROR, treat it as a morphospecies (species level)
     // and inherit existing higher taxonomy (order/family/genus) from the detection, when present.
     let nextTaxon: TaxonRecord | undefined = existing?.taxon
+    let nextMorphospecies: string | undefined = existing?.morphospecies
     if (hasTaxon) {
       nextTaxon = taxon
+      nextMorphospecies = undefined
     } else if (!isError && trimmed) {
       const prev: Partial<TaxonRecord> = existing?.taxon ?? {}
       const hasOrderFamilyOrGenus = !!prev?.order || !!prev?.family || !!prev?.genus
@@ -76,8 +81,10 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
         genus: prev?.genus,
         species: trimmed,
       }
+      nextMorphospecies = trimmed
     } else if (isError) {
       nextTaxon = undefined
+      nextMorphospecies = undefined
     }
 
     const projectId = getProjectIdFromNightId(existing?.nightId)
@@ -91,7 +98,9 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
       identifiedAt,
       taxon: nextTaxon,
       isError,
-      isMorpho: !hasTaxon && !isError && !!trimmed,
+      // legacy flag no longer used; left undefined
+      isMorpho: undefined,
+      morphospecies: nextMorphospecies,
       speciesListId: speciesListId || existing?.speciesListId,
       speciesListDOI: speciesListDOI || existing?.speciesListDOI,
     }
@@ -297,9 +306,8 @@ function updateNightSummariesInMemory(params: { nightIds: Set<string>; detection
 
     for (const d of detectionsForNight) {
       const isUser = (d as any)?.detectedBy === 'user'
-      const isMorpho = (d as any)?.isMorpho === true
-      const label = typeof (d as any)?.label === 'string' ? ((d as any)?.label as string) : ''
-      const key = isUser && isMorpho ? (label || '').trim().toLowerCase() : ''
+      const morpho = typeof (d as any)?.morphospecies === 'string' ? ((d as any)?.morphospecies as string) : ''
+      const key = isUser && morpho ? (morpho || '').trim().toLowerCase() : ''
       if (!key) continue
       morphoCounts[key] = (morphoCounts[key] || 0) + 1
       if (!morphoPreviewPatchIds[key] && (d as any)?.patchId) morphoPreviewPatchIds[key] = String((d as any)?.patchId)
