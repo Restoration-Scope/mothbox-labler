@@ -25,6 +25,8 @@ const ITEM_BOTTOM_ROWS = 1
 // Same height for top and bottom rows
 const TOP_ROW_HEIGHT = 22
 const DEFAULT_MIN_ITEM_WIDTH = 240
+const HEADER_BASE_HEIGHT = 32
+const HEADER_TOP_MARGIN = 20
 
 export type PatchGridProps = {
   patches: PatchEntity[]
@@ -190,11 +192,25 @@ export function PatchGrid(props: PatchGridProps) {
   const rowVirtualizer = useVirtualizer({
     count: blocks.length,
     getScrollElement: () => containerRef.current,
-    estimateSize: (i) => (blocks[i]?.kind === 'row' ? rowHeight : 32),
+    estimateSize: (i) => {
+      const base = blocks[i]?.kind === 'row' ? rowHeight : HEADER_BASE_HEIGHT
+      const nextIsHeader = blocks[i + 1]?.kind === 'header'
+      const extra = nextIsHeader ? HEADER_TOP_MARGIN : 0
+      const size = base + extra
+      return size
+    },
     overscan: 5,
     measureElement: (el) => {
-      const r = (el as HTMLElement)?.getBoundingClientRect?.()
-      const h = Math.ceil(r?.height || rowHeight)
+      const node = el as HTMLElement | null
+      const r = node?.getBoundingClientRect?.()
+      const base = Math.ceil(r?.height || rowHeight)
+      const idxAttr = node?.getAttribute('data-block-index')
+      const idx = idxAttr != null ? Number(idxAttr) : -1
+      const nextIsHeader = idx >= 0 && blocks[idx + 1]?.kind === 'header'
+      const kind = node?.getAttribute('data-kind')
+      const rowGapExtra = kind === 'row' ? gapPx : 0
+      const extra = (nextIsHeader ? HEADER_TOP_MARGIN : 0) + rowGapExtra
+      const h = base + extra
       return h
     },
   })
@@ -357,10 +373,10 @@ export function PatchGrid(props: PatchGridProps) {
 
   function focusItem(index: number) {
     const blockIndex = itemIndexToBlockIndex[index]
-    if (typeof blockIndex === 'number') rowVirtualizer.scrollToIndex(blockIndex, { align: 'center' })
     requestAnimationFrame(() => {
       const el = containerRef.current?.querySelector(`[data-index="${index}"]`) as HTMLElement | null
-      el?.focus()
+      // Avoid scrolling when focusing the item
+      el?.focus({ preventScroll: true })
     })
   }
 
@@ -385,6 +401,7 @@ export function PatchGrid(props: PatchGridProps) {
               key={stripe.key}
               ref={rowVirtualizer.measureElement}
               data-block-index={stripe.index}
+              data-kind={block?.kind}
               style={{ position: 'absolute', top: 0, left: 0, width: '100%', transform: `translateY(${stripe.start}px)` }}
             >
               {block?.kind === 'header' ? (
