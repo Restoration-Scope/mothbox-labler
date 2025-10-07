@@ -10,7 +10,6 @@ import { photosStore } from '~/stores/entities/photos'
 import { clearPatchSelection, selectedPatchIdsStore, setSelection } from '~/stores/ui'
 import { Row } from '~/styles'
 import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
-import { toast } from 'sonner'
 import { NightLeftPanel } from '@/features/left-panel/night-left-panel'
 import { PatchDetailDialog } from './patch-detail-dialog'
 import { PatchGrid } from '~/features/patch-grid/patch-grid'
@@ -84,17 +83,7 @@ export function NightView(props: { nightId: string }) {
   function onSubmitLabel(label: string, taxon?: any) {
     if (!label) return
     if (selectedDetectionIds.length === 0) return
-    const isCustom = !taxon && label.trim().toUpperCase() !== 'ERROR'
-    if (isCustom) {
-      for (const id of selectedDetectionIds) {
-        const d = detections?.[id]
-        const hasFamilyOrGenus = !!d?.taxon?.family || !!d?.taxon?.genus
-        if (!hasFamilyOrGenus) {
-          toast.error('🚨 Cannot assign morphospecies without family or genus')
-          return
-        }
-      }
-    }
+
     labelDetections({ detectionIds: selectedDetectionIds, label, taxon })
     clearPatchSelection()
   }
