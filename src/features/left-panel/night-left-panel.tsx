@@ -101,7 +101,7 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
           Export Darwin CSV
         </Button>
 
-        <Button
+        {/* <Button
           className='w-full mt-8'
           onClick={() => {
             const p = exportNightSummaryRS({ nightId })
@@ -113,7 +113,7 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
           }}
         >
           Export summary to RS
-        </Button>
+        </Button> */}
       </div>
     </Column>
   )
