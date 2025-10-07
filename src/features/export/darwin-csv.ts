@@ -6,7 +6,12 @@ import { objectsToCSV } from '~/utils/csv'
 import { fsaaWriteText, type FileSystemDirectoryHandleLike } from '~/utils/fsaa'
 import { ensureReadWritePermission, persistenceConstants } from '~/features/folder-processing/files.persistence'
 
-// FSAA types moved to utils/fsaa.ts
+/**
+add a new column:
+- name: the deepest taxonomic level that was identifed as. If it was kingdom animalia, jsut animalia. If it was family "so and so" then it shoudl be that.  OR if it's morphospecies then it's that . Unless there's a genus and species. theen it hsoudl be `{genus} {species}`
+
+
+ */
 
 const SOFTWARE_NAME = 'Mothbeam v2'
 
@@ -65,9 +70,9 @@ const DARWIN_COLUMNS = [
 type DarwinColumn = (typeof DARWIN_COLUMNS)[number]
 type DarwinRow = Record<DarwinColumn, string>
 
-export async function exportNightDarwinCSV(params: { nightId: string }) {
+export async function exportNightDarwinCSV(params: { nightId: string }): Promise<boolean> {
   const { nightId } = params
-  if (!nightId) return
+  if (!nightId) return false
   console.log('🏁 exportNightDarwinCSV: start', { nightId })
 
   const root = (await idbGet(
@@ -75,18 +80,101 @@ export async function exportNightDarwinCSV(params: { nightId: string }) {
     persistenceConstants.IDB_STORE,
     'projectsRoot',
   )) as FileSystemDirectoryHandleLike | null
-  if (!root) return
+  if (!root) return false
 
   const granted = await ensureReadWritePermission(root as any)
-  if (!granted) return
+  if (!granted) return false
 
   const generated = await generateNightDarwinCSVString({ nightId })
-  if (!generated) return
+  if (!generated) return false
   const { csv, nightDiskPath } = generated
 
   const pathParts = [...nightDiskPath.split('/').filter(Boolean), 'darwin_export.csv']
   await fsaaWriteText(root, pathParts, csv)
   console.log('✅ exportNightDarwinCSV: written file', { path: pathParts.join('/') })
+  return true
+}
+
+export async function openNightFolderPicker(params: { nightId: string }): Promise<boolean> {
+  const { nightId } = params
+  if (!nightId) return false
+
+  const root = (await idbGet(
+    persistenceConstants.IDB_NAME,
+    persistenceConstants.IDB_STORE,
+    'projectsRoot',
+  )) as FileSystemDirectoryHandleLike | null
+  if (!root) return false
+
+  const granted = await ensureReadWritePermission(root as any)
+  if (!granted) return false
+
+  const allPhotos = photosStore.get() || {}
+  const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
+  if (!photos.length) return false
+
+  const nightDiskPath = getNightDiskPathFromAnyPhoto({ photos })
+  if (!nightDiskPath) return false
+
+  const dirParts = nightDiskPath.split('/').filter(Boolean)
+
+  let current: FileSystemDirectoryHandleLike | null = root
+  for (const part of dirParts) {
+    const next = (await current?.getDirectoryHandle?.(part, { create: false })) as FileSystemDirectoryHandleLike | null
+    if (!next) return false
+    current = next
+  }
+
+  const canShow = typeof (window as unknown as { showDirectoryPicker?: unknown })?.showDirectoryPicker === 'function'
+  if (!canShow) return false
+
+  try {
+    // @ts-expect-error: startIn can accept a FileSystemHandle; TS lib may be behind
+    await window.showDirectoryPicker?.({ startIn: current as any })
+    return true
+  } catch {
+    return false
+  }
+}
+
+export async function copyNightFolderPathToClipboard(params: { nightId: string }): Promise<boolean> {
+  const { nightId } = params
+  if (!nightId) return false
+
+  const allPhotos = photosStore.get() || {}
+  const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
+  if (!photos.length) return false
+
+  const nightDiskPath = getNightDiskPathFromAnyPhoto({ photos })
+  if (!nightDiskPath) return false
+
+  const ok = await writeTextToClipboard(nightDiskPath)
+  console.log(ok ? '📋 Copied night folder path' : '🚨 Failed to copy folder path', { nightDiskPath })
+  return ok
+}
+
+async function writeTextToClipboard(text: string): Promise<boolean> {
+  try {
+    if (typeof navigator?.clipboard?.writeText === 'function') {
+      await navigator.clipboard.writeText(text)
+      return true
+    }
+  } catch {}
+
+  try {
+    const textarea = document.createElement('textarea')
+    textarea.value = text
+    textarea.setAttribute('readonly', 'true')
+    textarea.style.position = 'fixed'
+    textarea.style.left = '-9999px'
+    document.body.appendChild(textarea)
+    textarea.select()
+    const success = document.execCommand('copy')
+    textarea.remove()
+    return success
+  } catch {
+    return false
+  }
 }
 
 export async function generateNightDarwinCSVString(params: { nightId: string }): Promise<{ csv: string; nightDiskPath: string } | null> {

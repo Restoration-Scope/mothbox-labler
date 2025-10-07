@@ -5,7 +5,7 @@ import { Button } from '~/components/ui/button'
 import { useParams } from '@tanstack/react-router'
 import { useStore } from '@nanostores/react'
 import { detectionsStore } from '~/stores/entities/detections'
-import { exportNightDarwinCSV } from '~/features/export/darwin-csv'
+import { exportNightDarwinCSV, copyNightFolderPathToClipboard } from '~/features/export/darwin-csv'
 import { toast } from 'sonner'
 import { exportNightSummaryRS } from '~/features/export/rs-summary'
 import { PatchSizeControl } from '~/components/atomic/patch-size-control'
@@ -93,7 +93,15 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
             const p = exportNightDarwinCSV({ nightId })
             toast.promise(p, {
               loading: '💾 Exporting Darwin CSV…',
-              success: '✅ Darwin CSV exported',
+              success: () => ({
+                message: '✅ Darwin CSV exported',
+                action: {
+                  label: 'Copy folder path',
+                  onClick: () => {
+                    void copyNightFolderPathToClipboard({ nightId })
+                  },
+                },
+              }),
               error: '🚨 Failed to export Darwin CSV',
             })
           }}

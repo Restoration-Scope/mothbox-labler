@@ -4,6 +4,7 @@ import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { useAppLoading } from '~/features/folder-processing/files-queries'
 import { Toaster } from 'sonner'
 import { UserInitialsDialog } from '~/components/user-initials-dialog'
+import { ConfirmDialog } from '~/components/dialogs/ConfirmDialog'
 
 export function RootLayout() {
   const { isLoading } = useAppLoading()
@@ -17,6 +18,7 @@ export function RootLayout() {
       <Toaster />
 
       <UserInitialsDialog />
+      <ConfirmDialog />
     </div>
   )
 }

@@ -10,6 +10,7 @@ import { photosStore } from '~/stores/entities/photos'
 import { clearPatchSelection, selectedPatchIdsStore, setSelection } from '~/stores/ui'
 import { Row } from '~/styles'
 import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
+import { useConfirmDialog } from '~/components/dialogs/ConfirmDialog'
 import { NightLeftPanel } from '@/features/left-panel/night-left-panel'
 import { PatchDetailDialog } from './patch-detail-dialog'
 import { PatchGrid } from '~/features/patch-grid/patch-grid'
@@ -30,6 +31,7 @@ export function NightView(props: { nightId: string }) {
   const [detailOpen, setDetailOpen] = useState(false)
   const [detailPatchId, setDetailPatchId] = useState<string | null>(null)
   const selected = useStore(selectedPatchIdsStore)
+  const { setConfirmDialog } = useConfirmDialog()
 
   const night = nights[nightId]
 
@@ -100,8 +102,23 @@ export function NightView(props: { nightId: string }) {
 
   async function onResetToAuto() {
     if (selectedDetectionIds.length === 0) return
-    await resetDetections({ detectionIds: selectedDetectionIds })
-    clearPatchSelection()
+
+    setConfirmDialog({
+      content: (
+        <div>
+          <div className='text-ink-primary'>Reset selected items to auto?</div>
+          <div className='mt-8 text-ink-secondary text-13'>This will remove your identifications and revert to the automatic labels.</div>
+        </div>
+      ),
+      confirmText: 'Reset to auto',
+      confirmVariant: 'destructive',
+      cancelText: 'Cancel',
+      closeAfterConfirm: true,
+      onConfirm: async () => {
+        await resetDetections({ detectionIds: selectedDetectionIds })
+        clearPatchSelection()
+      },
+    })
   }
 
   function onOpenPatchDetail(id: string) {
