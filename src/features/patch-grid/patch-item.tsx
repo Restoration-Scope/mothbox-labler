@@ -1,4 +1,4 @@
-import { memo } from 'react'
+import { memo, useState } from 'react'
 import { useStore } from '@nanostores/react'
 import { detectionStoreById, detectionsStore } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
@@ -20,9 +20,12 @@ import { Button } from '~/components/ui/button'
 import { ZoomInIcon } from 'lucide-react'
 import type { BadgeVariants } from '~/components/ui/badge'
 import { getClusterVariant } from '~/utils/colors'
-import { EllipsisVertical } from 'lucide-react'
+import { MoreVertical } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
-import { setMorphoCover } from '~/stores/morphospecies/covers'
+import { setMorphoCover, normalizeMorphoKey } from '~/stores/morphospecies/covers'
+import { nightSummariesStore } from '~/stores/entities/night-summaries'
+import { Row } from '~/styles'
+import { toast } from 'sonner'
 
 export type PatchItemProps = {
   id: string
@@ -38,16 +41,26 @@ function PatchItemImpl(props: PatchItemProps) {
   const { id, index, compact } = props
   const patch = useStore(patchStoreById(id))
   const detection = useStore(detectionStoreById(id))
+  const summaries = useStore(nightSummariesStore)
   const detections = useStore(detectionsStore)
   const hoveredTopClusterId = useStore(selectedClusterIdStore)
   const hoveredSubClusterId = useStore(selectedSubClusterIdStore)
   const selected = useStore(selectedPatchIdsStore)
   const label = detection?.label || 'Unlabeled'
-  const rank = detection?.isMorpho ? 'morphospecies' : detection?.taxon?.taxonRank
+  const rank = typeof detection?.morphospecies === 'string' && !!detection?.morphospecies ? 'morphospecies' : detection?.taxon?.taxonRank
+  const morphoKeyForDetection = (detection?.morphospecies || '').trim() ? normalizeMorphoKey(detection?.morphospecies || '') : ''
+  const isMorphoBySummary = !!(
+    patch?.nightId &&
+    morphoKeyForDetection &&
+    (summaries?.[patch.nightId] as any)?.morphoCounts?.[morphoKeyForDetection]
+  )
+  const isMorphoEffective = !!((typeof detection?.morphospecies === 'string' && !!detection?.morphospecies) || isMorphoBySummary)
   const clusterId = typeof detection?.clusterId === 'number' ? detection.clusterId : undefined
   const isSelected = selected?.has?.(id)
 
   const url = useObjectUrl(patch?.imageFile?.file)
+
+  const [controlsPinned, setControlsPinned] = useState(false)
 
   function onToggle() {
     if (!id) return
@@ -63,10 +76,11 @@ function PatchItemImpl(props: PatchItemProps) {
 
   function onSetMorphoCover(e: React.MouseEvent) {
     e.stopPropagation()
-    const morphoKey = (detection?.isMorpho ? detection?.label || '' : '').trim()
+    const morphoKey = (typeof detection?.morphospecies === 'string' ? detection?.morphospecies || '' : '').trim()
     if (!morphoKey) return
     if (!patch?.nightId || !patch?.id) return
     void setMorphoCover({ label: morphoKey, nightId: patch.nightId, patchId: patch.id })
+    toast.success('Image will be shown as morphospecies cover')
   }
 
   const clusterVariant: BadgeVariants['variant'] | undefined =
@@ -146,39 +160,35 @@ function PatchItemImpl(props: PatchItemProps) {
         <ClusterRow clusterId={clusterId} clusterVariant={clusterVariant} onClickTop={onSelectCluster} onClickSub={onSelectSubCluster} />
       )}
 
-      {!compact && (
-        <Button
-          icon={ZoomInIcon}
-          size='icon-sm'
-          className='absolute top-8 z-5 right-8 opacity-0 group-hover:opacity-100'
-          onMouseDown={(e) => {
-            e.stopPropagation()
-          }}
-          onClick={onClickZoom}
-          aria-label='Open details'
-        />
-      )}
+      <Row className={cn('absolute top-8 right-8 z-5 gap-4', controlsPinned ? 'opacity-100' : 'opacity-0 group-hover:opacity-100')}>
+        {!compact && (
+          <Button
+            icon={ZoomInIcon}
+            size='icon-sm'
+            onMouseDown={(e) => {
+              e.stopPropagation()
+            }}
+            onClick={onClickZoom}
+            aria-label='Open details'
+          />
+        )}
 
-      {!compact && detection?.isMorpho && (
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size='icon-sm'
-              variant='ghostOnImage'
-              className='absolute top-8 right-48 z-5 opacity-0 group-hover:opacity-100'
-              onMouseDown={(e) => e.stopPropagation()}
-              aria-label='More actions'
-            >
-              <EllipsisVertical size={16} />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent side='bottom' align='end' className='min-w-[220px] p-4'>
-            <DropdownMenuItem onClick={onSetMorphoCover} onSelect={(e) => e.preventDefault()} className='text-13'>
-              Use this image as morphospecies cover
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
-      )}
+        {!compact && isMorphoEffective && (
+          <DropdownMenu onOpenChange={setControlsPinned}>
+            <DropdownMenuTrigger asChild>
+              <Button size='icon-sm' onMouseDown={(e) => e.stopPropagation()} aria-label='More actions'>
+                <MoreVertical size={16} />
+              </Button>
+            </DropdownMenuTrigger>
+
+            <DropdownMenuContent side='bottom' align='end' className='min-w-[220px] p-4'>
+              <DropdownMenuItem onClick={onSetMorphoCover} className='text-13'>
+                Use this image as morphospecies cover
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
+      </Row>
       <div
         className={cn(
           'absolute pointer-events-none inset-0 ring-inset rounded-md ring-1 ring-black/10',
