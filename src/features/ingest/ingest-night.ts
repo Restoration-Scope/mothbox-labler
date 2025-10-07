@@ -128,6 +128,7 @@ export async function overlayNightUserDetections(params: {
           identifiedAt,
           clusterId: (safeNumber((shape as any)?.clusterID) as any) ?? (existing as any)?.clusterId,
           isError: isError ? true : undefined,
+          morphospecies: !isError && !taxon?.scientificName ? safeLabel(shape?.label) ?? (existing as any)?.morphospecies : undefined,
         }
         detections[detectionId] = next
       }
