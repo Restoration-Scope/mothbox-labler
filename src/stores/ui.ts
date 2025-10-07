@@ -16,6 +16,15 @@ export function setSelectedClusterId(params: { clusterId: number | null }) {
   selectedClusterIdStore.set(next)
 }
 
+// UI: hovered/previewed sub-cluster id (exact numeric cluster id)
+export const selectedSubClusterIdStore = atom<number | null>(null)
+
+export function setSelectedSubClusterId(params: { clusterId: number | null }) {
+  const { clusterId } = params || {}
+  const next = typeof clusterId === 'number' ? clusterId : null
+  selectedSubClusterIdStore.set(next)
+}
+
 export function togglePatchSelection(params: { patchId: string }) {
   const { patchId } = params
 
