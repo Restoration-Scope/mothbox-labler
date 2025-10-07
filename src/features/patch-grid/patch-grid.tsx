@@ -215,6 +215,9 @@ export function PatchGrid(props: PatchGridProps) {
     },
   })
 
+  // Preserve scroll position on minor list changes (e.g., identifying items)
+  // Only reset scroll when the viewing context changes (night, bucket, or selected taxon)
+  const lastContextRef = useRef<string>(`${nightId}|${selectedBucket || ''}|${selectedTaxon?.rank || ''}:${selectedTaxon?.name || ''}`)
   useEffect(() => {
     const count = orderedIds.length
     if (count === prevCountRef.current) return
@@ -224,14 +227,20 @@ export function PatchGrid(props: PatchGridProps) {
     setAnchorIndex(null)
     setFocusIndex(0)
 
-    const el = containerRef.current
-    if (el) el.scrollTo({ top: 0 })
+    const currentContext = `${nightId}|${selectedBucket || ''}|${selectedTaxon?.rank || ''}:${selectedTaxon?.name || ''}`
+    const contextChanged = currentContext !== lastContextRef.current
+    lastContextRef.current = currentContext
 
-    rowVirtualizer.scrollToIndex(0, { align: 'start' })
-    rowVirtualizer.scrollToOffset(0)
-    const totalSize = rowVirtualizer.getTotalSize()
+    if (contextChanged) {
+      const el = containerRef.current
+      if (el) el.scrollTo({ top: 0 })
+      rowVirtualizer.scrollToIndex(0, { align: 'start' })
+      rowVirtualizer.scrollToOffset(0)
+      const totalSize = rowVirtualizer.getTotalSize()
+    }
+
     prevCountRef.current = count
-  }, [orderedIds.length, rowVirtualizer, columns, rowHeight])
+  }, [orderedIds.length, rowVirtualizer, columns, rowHeight, nightId, selectedBucket, selectedTaxon?.rank, selectedTaxon?.name])
 
   useEffect(() => {
     const el = containerRef.current
