@@ -1,8 +1,11 @@
 import { atom, computed } from 'nanostores'
 import { scheduleSaveUserDetections } from '~/features/folder-processing/files.writer'
+import { nightSummariesStore, type NightSummaryEntity } from '~/stores/entities/night-summaries'
 import type { TaxonRecord } from '~/features/species-identification/species-list.store'
+import { speciesListsStore } from '~/features/species-identification/species-list.store'
 import { photosStore, type PhotoEntity } from '~/stores/entities/photos'
 import { parseBotDetectionJsonSafely, extractPatchFilename } from '~/features/ingest/ingest-json'
+import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 
 export type DetectionEntity = {
   id: string
@@ -20,6 +23,8 @@ export type DetectionEntity = {
   isError?: boolean
   clusterId?: number
   isMorpho?: boolean
+  speciesListId?: string
+  speciesListDOI?: string
 }
 
 export const detectionsStore = atom<Record<string, DetectionEntity>>({})
@@ -37,6 +42,8 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
   if (!finalLabel) return
 
   const current = detectionsStore.get() || {}
+  const selectionByProject = projectSpeciesSelectionStore.get() || {}
+  const speciesLists = speciesListsStore.get() || {}
   const updated: Record<string, DetectionEntity> = { ...current }
   for (const id of detectionIds) {
     const existing = current?.[id]
@@ -52,9 +59,9 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
       nextTaxon = taxon
     } else if (!isError && trimmed) {
       const prev: Partial<TaxonRecord> = existing?.taxon ?? {}
-      const hasFamilyOrGenus = !!prev?.family || !!prev?.genus
-      if (!hasFamilyOrGenus) {
-        // Do not assign morphospecies when no family or genus context
+      const hasOrderFamilyOrGenus = !!prev?.order || !!prev?.family || !!prev?.genus
+      if (!hasOrderFamilyOrGenus) {
+        // Do not assign morphospecies when no higher taxonomic context
         // Keep detection unchanged for this id
         continue
       }
@@ -73,6 +80,10 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
       nextTaxon = undefined
     }
 
+    const projectId = getProjectIdFromNightId(existing?.nightId)
+    const speciesListId = projectId ? selectionByProject?.[projectId] : undefined
+    const speciesListDOI = speciesListId ? (speciesLists?.[speciesListId]?.doi as string | undefined) : undefined
+
     const next: DetectionEntity = {
       ...existing,
       label: isError ? 'ERROR' : finalLabel,
@@ -81,6 +92,8 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
       taxon: nextTaxon,
       isError,
       isMorpho: !hasTaxon && !isError && !!trimmed,
+      speciesListId: speciesListId || existing?.speciesListId,
+      speciesListDOI: speciesListDOI || existing?.speciesListDOI,
     }
     updated[id] = next
   }
@@ -91,6 +104,8 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
     const n = updated?.[id]?.nightId
     if (n) touchedNightIds.add(n)
   }
+  // Update summaries in-memory immediately for instant UI feedback
+  updateNightSummariesInMemory({ nightIds: touchedNightIds, detections: updated })
   for (const nightId of touchedNightIds) scheduleSaveUserDetections({ nightId })
 }
 
@@ -108,11 +123,13 @@ export function acceptDetections(params: { detectionIds: string[] }) {
     updated[id] = { ...existing, detectedBy: 'user', identifiedAt }
   }
   detectionsStore.set(updated)
+  // Update summaries in-memory immediately for instant UI feedback
   const touchedNightIds = new Set<string>()
   for (const id of detectionIds) {
     const n = updated?.[id]?.nightId
     if (n) touchedNightIds.add(n)
   }
+  updateNightSummariesInMemory({ nightIds: touchedNightIds, detections: updated })
   for (const nightId of touchedNightIds) scheduleSaveUserDetections({ nightId })
 }
 
@@ -173,6 +190,8 @@ export async function resetDetections(params: { detectionIds: string[] }) {
           identifiedAt: undefined,
           isError: undefined,
           isMorpho: undefined,
+          speciesListId: undefined,
+          speciesListDOI: undefined,
         }
         updated[id] = next
       } else {
@@ -183,6 +202,8 @@ export async function resetDetections(params: { detectionIds: string[] }) {
           identifiedAt: undefined,
           isError: undefined,
           isMorpho: undefined,
+          speciesListId: undefined,
+          speciesListDOI: undefined,
         }
         updated[id] = next
       }
@@ -190,6 +211,8 @@ export async function resetDetections(params: { detectionIds: string[] }) {
   }
 
   detectionsStore.set(updated)
+  // Update summaries in-memory immediately for instant UI feedback
+  updateNightSummariesInMemory({ nightIds: touchedNightIds, detections: updated })
   for (const nightId of touchedNightIds) scheduleSaveUserDetections({ nightId })
 }
 
@@ -254,4 +277,55 @@ function deriveTaxonFromShape(shape: any) {
     species,
   } as any
   return taxon
+}
+
+function updateNightSummariesInMemory(params: { nightIds: Set<string>; detections: Record<string, DetectionEntity> }) {
+  const { nightIds, detections } = params
+
+  if (!nightIds || nightIds.size === 0) return
+
+  for (const nightId of nightIds) {
+    if (!nightId) continue
+
+    const detectionsForNight = Object.values(detections || {}).filter((d) => (d as any)?.nightId === nightId)
+
+    const totalDetections = detectionsForNight.length
+    const totalIdentified = detectionsForNight.filter((d) => (d as any)?.detectedBy === 'user').length
+
+    const morphoCounts: Record<string, number> = {}
+    const morphoPreviewPatchIds: Record<string, string> = {}
+
+    for (const d of detectionsForNight) {
+      const isUser = (d as any)?.detectedBy === 'user'
+      const isMorpho = (d as any)?.isMorpho === true
+      const label = typeof (d as any)?.label === 'string' ? ((d as any)?.label as string) : ''
+      const key = isUser && isMorpho ? (label || '').trim().toLowerCase() : ''
+      if (!key) continue
+      morphoCounts[key] = (morphoCounts[key] || 0) + 1
+      if (!morphoPreviewPatchIds[key] && (d as any)?.patchId) morphoPreviewPatchIds[key] = String((d as any)?.patchId)
+    }
+
+    const summary: NightSummaryEntity = {
+      nightId,
+      totalDetections,
+      totalIdentified,
+      updatedAt: Date.now(),
+      morphoCounts,
+      morphoPreviewPatchIds,
+    }
+
+    const currentSummaries = nightSummariesStore.get() || {}
+    nightSummariesStore.set({ ...currentSummaries, [nightId]: summary })
+  }
+}
+
+function getProjectIdFromNightId(nightId?: string | null): string | undefined {
+  const id = (nightId ?? '').trim()
+  if (!id) return undefined
+
+  const parts = id.split('/').filter(Boolean)
+  if (!parts.length) return undefined
+
+  const projectId = parts[0]
+  return projectId
 }

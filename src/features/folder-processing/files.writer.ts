@@ -143,6 +143,7 @@ function buildUserIdentifiedJson(params: { baseName: string; detections: Detecti
       family: (d as any)?.isError ? null : (d as any)?.taxon?.family,
       genus: (d as any)?.isError ? null : (d as any)?.taxon?.genus,
       species: (d as any)?.isError ? null : (d as any)?.taxon?.species,
+      species_list: (d as any)?.speciesListDOI || undefined,
       is_error: (d as any)?.isError ? true : undefined,
       identifier_human: d?.detectedBy === 'user' ? human : undefined,
       timestamp_ID_human: d?.identifiedAt ?? Date.now(),
