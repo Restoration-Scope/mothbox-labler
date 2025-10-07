@@ -3,6 +3,7 @@ import { buildNightIndexes } from './files.index'
 import { ingestSpeciesListsFromFiles } from '~/features/species-identification/species.ingest'
 import { loadProjectSpeciesSelection } from '~/stores/species/project-species-list'
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
+import { loadMorphoCovers } from '~/stores/morphospecies/covers'
 
 export function applyIndexedFilesState(params: {
   indexed: Array<{ file?: File; handle?: unknown; path: string; name: string; size: number }>
@@ -20,6 +21,7 @@ export function applyIndexedFilesState(params: {
   // Ingest species lists from either File or Handle entries
   void ingestSpeciesListsFromFiles({ files: indexed })
   void loadProjectSpeciesSelection()
+  void loadMorphoCovers()
 }
 
 export function preloadNightSummariesFromIndexed(

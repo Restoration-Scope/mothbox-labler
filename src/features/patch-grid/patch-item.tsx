@@ -1,16 +1,19 @@
 import { memo } from 'react'
 import { useStore } from '@nanostores/react'
-import { detectionStoreById } from '~/stores/entities/detections'
+import { detectionStoreById, detectionsStore } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { Badge } from '~/components/ui/badge'
 import { TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
-import { selectedPatchIdsStore, togglePatchSelection } from '~/stores/ui'
+import { selectedPatchIdsStore, togglePatchSelection, setSelection, selectedClusterIdStore, setSelectedClusterId } from '~/stores/ui'
 import { cn } from '~/utils/cn'
 import { useObjectUrl } from '~/utils/use-object-url'
 import { Button } from '~/components/ui/button'
 import { ZoomInIcon } from 'lucide-react'
 import type { BadgeVariants } from '~/components/ui/badge'
 import { getClusterVariant } from '~/utils/colors'
+import { EllipsisVertical } from 'lucide-react'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
+import { setMorphoCover } from '~/stores/morphospecies/covers'
 
 export type PatchItemProps = {
   id: string
@@ -26,6 +29,7 @@ function PatchItemImpl(props: PatchItemProps) {
   const { id, index, compact } = props
   const patch = useStore(patchStoreById(id))
   const detection = useStore(detectionStoreById(id))
+  const detections = useStore(detectionsStore)
   const selected = useStore(selectedPatchIdsStore)
   const label = detection?.label || 'Unlabeled'
   const rank = detection?.isMorpho ? 'morphospecies' : detection?.taxon?.taxonRank
@@ -46,12 +50,38 @@ function PatchItemImpl(props: PatchItemProps) {
     if (open) open(id)
   }
 
+  function onSetMorphoCover(e: React.MouseEvent) {
+    e.stopPropagation()
+    const morphoKey = (detection?.isMorpho ? detection?.label || '' : '').trim()
+    if (!morphoKey) return
+    if (!patch?.nightId || !patch?.id) return
+    void setMorphoCover({ label: morphoKey, nightId: patch.nightId, patchId: patch.id })
+  }
+
   const clusterVariant: BadgeVariants['variant'] | undefined =
     props?.clusterVariant ?? (typeof clusterId === 'number' ? getClusterVariant(clusterId) : undefined)
 
+  function onSelectCluster() {
+    const nightId = patch?.nightId
+
+    if (typeof clusterId !== 'number') return
+    if (!nightId) return
+
+    const all = Object.values(detections || {})
+
+    const ids = all
+      .filter((d) => d?.nightId === nightId && typeof d?.clusterId === 'number' && d?.clusterId === clusterId)
+      .map((d) => (d as any)?.id)
+      .filter((x): x is string => typeof x === 'string' && !!x)
+
+    if (ids.length === 0) return
+
+    setSelection({ nightId, patchIds: ids })
+  }
+
   return (
     <div
-      className={cn('group w-full relative bg-neutral-100 rounded-md cursor-pointer outline-none')}
+      className={cn('group w-full select-none relative bg-neutral-100 rounded-md cursor-pointer outline-none')}
       tabIndex={0}
       data-index={index}
       data-id={id}
@@ -61,11 +91,14 @@ function PatchItemImpl(props: PatchItemProps) {
       role='button'
       aria-pressed={isSelected}
     >
-      {!compact && typeof clusterId === 'number' && <ClusterRow clusterId={clusterId} clusterVariant={clusterVariant} />}
+      {!compact && typeof clusterId === 'number' && (
+        <ClusterRow clusterId={clusterId} clusterVariant={clusterVariant} onClick={onSelectCluster} />
+      )}
 
       {!compact && (
         <Button
           icon={ZoomInIcon}
+          size='icon-sm'
           className='absolute top-8 z-5 right-8 opacity-0 group-hover:opacity-100'
           onMouseDown={(e) => {
             e.stopPropagation()
@@ -73,6 +106,27 @@ function PatchItemImpl(props: PatchItemProps) {
           onClick={onClickZoom}
           aria-label='Open details'
         />
+      )}
+
+      {!compact && detection?.isMorpho && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button
+              size='icon-sm'
+              variant='ghostOnImage'
+              className='absolute top-8 right-48 z-5 opacity-0 group-hover:opacity-100'
+              onMouseDown={(e) => e.stopPropagation()}
+              aria-label='More actions'
+            >
+              <EllipsisVertical size={16} />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent side='bottom' align='end' className='min-w-[220px] p-4'>
+            <DropdownMenuItem onClick={onSetMorphoCover} onSelect={(e) => e.preventDefault()} className='text-13'>
+              Use this image as morphospecies cover
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       )}
       <div
         className={cn(
@@ -118,11 +172,45 @@ function TaxonRankRow(props: { rank: string | undefined; label: string | undefin
   )
 }
 
-function ClusterRow(props: { clusterId: number; clusterVariant: BadgeVariants['variant'] }) {
-  const { clusterId, clusterVariant } = props
+function ClusterRow(props: { clusterId: number; clusterVariant: BadgeVariants['variant']; onClick?: () => void }) {
+  const { clusterId, clusterVariant, onClick } = props
+  const hoveredClusterId = useStore(selectedClusterIdStore)
+  const isPreview = typeof hoveredClusterId === 'number' && hoveredClusterId === clusterId
+
+  if (clusterId === -1) return null
+
   return (
     <div className='h-[22px]'>
-      <Badge size='xsm' className='h-16 mx-4' variant={clusterVariant} title='Cluster ID'>
+      <Badge
+        size='xsm'
+        className={cn(
+          'h-16 mx-4 cursor-pointer',
+          'hover:ring-2 hover:ring-black/60 hover:ring-inset',
+          isPreview && 'ring-2 ring-black/60 ring-inset',
+        )}
+        variant={clusterVariant}
+        title='Cluster ID'
+        role='button'
+        tabIndex={0}
+        onMouseDown={(e) => {
+          e.stopPropagation()
+        }}
+        onMouseEnter={() => setSelectedClusterId({ clusterId })}
+        onMouseLeave={() => setSelectedClusterId({ clusterId: null })}
+        onFocus={() => setSelectedClusterId({ clusterId })}
+        onBlur={() => setSelectedClusterId({ clusterId: null })}
+        onClick={() => {
+          if (onClick) onClick()
+        }}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault()
+            e.stopPropagation()
+            if (onClick) onClick()
+          }
+        }}
+        aria-label={`Select cluster C${clusterId}`}
+      >
         C{clusterId}
       </Badge>
     </div>

@@ -6,6 +6,7 @@ import { nightsStore } from '~/stores/entities/4.nights'
 import { patchesStore } from '~/stores/entities/5.patches'
 import { useObjectUrl } from '~/utils/use-object-url'
 import { patchFileMapByNightStore, type IndexedFile } from '~/features/folder-processing/files.state'
+import { morphoCoversStore, normalizeMorphoKey } from '~/stores/morphospecies/covers'
 
 export type MorphoSpeciesDetailsDialogProps = PropsWithChildren<{
   morphoKey: string
@@ -19,11 +20,16 @@ export function MorphoSpeciesDetailsDialog(props: MorphoSpeciesDetailsDialogProp
   const nights = useStore(nightsStore)
   const patches = useStore(patchesStore)
   const patchMapByNight = useStore(patchFileMapByNightStore)
+  const covers = useStore(morphoCoversStore)
 
   const usage = useMemo(() => {
     const nightIds: string[] = []
     const projectIds = new Set<string>()
     const previewPairs: Array<{ nightId: string; patchId: string }> = []
+
+    const override = covers?.[normalizeMorphoKey(morphoKey)]
+    if (override?.nightId && override?.patchId) previewPairs.push({ nightId: override.nightId, patchId: override.patchId })
+
     for (const [nightId, s] of Object.entries(summaries ?? {})) {
       const count = (s as any)?.morphoCounts?.[morphoKey]
       if (!count) continue
@@ -34,7 +40,7 @@ export function MorphoSpeciesDetailsDialog(props: MorphoSpeciesDetailsDialogProp
       if (previewId) previewPairs.push({ nightId, patchId: String(previewId) })
     }
     return { nightIds, projectIds: Array.from(projectIds), previewPairs }
-  }, [summaries, nights, morphoKey])
+  }, [summaries, nights, morphoKey, covers])
 
   const [previewFile, setPreviewFile] = useState<File | undefined>(undefined)
 

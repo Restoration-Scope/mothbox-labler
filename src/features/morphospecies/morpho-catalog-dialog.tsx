@@ -14,6 +14,7 @@ import { mapRankToVariant } from '~/utils/ranks'
 import { colorVariantsMap } from '~/utils/colors'
 import { cn } from '~/utils/cn'
 import { useRouterState } from '@tanstack/react-router'
+import { morphoCoversStore, normalizeMorphoKey } from '~/stores/morphospecies/covers'
 
 export type MorphoCatalogDialogProps = {
   open: boolean
@@ -325,11 +326,6 @@ function buildContextByMorphoKey(params: { detections?: Record<string, any>; all
   return map
 }
 
-function normalizeMorphoKey(label: string) {
-  const res = (label ?? '').trim().toLowerCase()
-  return res
-}
-
 function extractRouteIds(pathname: string) {
   const parts = (pathname || '').replace(/^\/+/, '').split('/').filter(Boolean)
   // Expect routes like /projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId
@@ -360,9 +356,14 @@ function useMorphoPreviewUrl(params: { morphoKey: string }) {
   const nights = useStore(nightsStore)
   const patches = useStore(patchesStore)
   const patchMapByNight = useStore(patchFileMapByNightStore)
+  const covers = useStore(morphoCoversStore)
 
   const previewPairs = useMemo(() => {
     const pairs: Array<{ nightId: string; patchId: string }> = []
+
+    const override = covers?.[normalizeMorphoKey(morphoKey)]
+    if (override?.nightId && override?.patchId) pairs.push({ nightId: override.nightId, patchId: override.patchId })
+
     for (const [nightId, s] of Object.entries(summaries ?? {})) {
       const countForKey = (s as any)?.morphoCounts?.[morphoKey]
       if (!countForKey) continue
@@ -371,7 +372,7 @@ function useMorphoPreviewUrl(params: { morphoKey: string }) {
       if (pid) pairs.push({ nightId, patchId: String(pid) })
     }
     return pairs
-  }, [summaries, nights, morphoKey])
+  }, [summaries, nights, morphoKey, covers])
 
   const [previewFile, setPreviewFile] = useState<File | undefined>(undefined)
 

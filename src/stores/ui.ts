@@ -7,6 +7,15 @@ export const pickerErrorStore = atom<string | null>(null)
 export const selectedPatchIdsStore = atom<Set<string>>(new Set())
 export const selectionNightIdStore = atom<string | null>(null)
 
+// UI: hovered/previewed cluster id for selection preview
+export const selectedClusterIdStore = atom<number | null>(null)
+
+export function setSelectedClusterId(params: { clusterId: number | null }) {
+  const { clusterId } = params || {}
+  const next = typeof clusterId === 'number' ? clusterId : null
+  selectedClusterIdStore.set(next)
+}
+
 export function togglePatchSelection(params: { patchId: string }) {
   const { patchId } = params
 
