@@ -159,7 +159,9 @@ async function writeTextToClipboard(text: string): Promise<boolean> {
       await navigator.clipboard.writeText(text)
       return true
     }
-  } catch {}
+  } catch {
+    console.error('Error writing text to clipboard')
+  }
 
   try {
     const textarea = document.createElement('textarea')
