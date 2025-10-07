@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useStore } from '@nanostores/react'
 import { Button } from '~/components/ui/button'
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
+import { EllipsisVertical } from 'lucide-react'
+import { openGlobalDialog, closeGlobalDialog } from '~/components/dialogs/global-dialog'
+import { morphoLinksStore } from '~/stores/morphospecies/links'
+import { INaturalistLogo } from '~/assets/iNaturalist-logo'
 import { Dialog, DialogContent, DialogTitle } from '~/components/ui/dialog'
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
 import { nightsStore } from '~/stores/entities/4.nights'
@@ -15,6 +20,8 @@ import { colorVariantsMap } from '~/utils/colors'
 import { cn } from '~/utils/cn'
 import { useRouterState } from '@tanstack/react-router'
 import { morphoCoversStore, normalizeMorphoKey } from '~/stores/morphospecies/covers'
+import { setMorphoLink } from '~/stores/morphospecies/links'
+import { Column, Row } from '~/styles'
 
 export type MorphoCatalogDialogProps = {
   open: boolean
@@ -117,9 +124,9 @@ export function MorphoCatalogDialog(props: MorphoCatalogDialogProps) {
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent align='vhSide' className='max-w-[900px] col justify-start '>
-        <div>
-          <div className='flex items-center gap-20'>
+      <DialogContent align='vhSide' className='max-w-[900px] col justify-start !p-0 gap-0 '>
+        <Column className='border-b p-16 gap-12'>
+          <Row className='items-center gap-20'>
             <h3 className='!text-16 font-medium'>Morphospecies</h3>
             <ScopeFilters
               scope={usageScope}
@@ -130,26 +137,26 @@ export function MorphoCatalogDialog(props: MorphoCatalogDialogProps) {
               hasNight={!!(projectId && siteId && deploymentId && nightId)}
               counts={scopeCounts}
             />
-          </div>
-        </div>
+          </Row>
 
-        <div className='mt-12 flex items-center gap-8'>
-          {filters.map((f) => (
-            <RankFilterButton
-              key={f.key}
-              rank={f.rank}
-              label={f.label}
-              count={f.count}
-              active={rankFilter === f.key}
-              onClick={() => setRankFilter(f.key)}
-            />
-          ))}
-        </div>
+          <Row className='items-center gap-8'>
+            {filters.map((f) => (
+              <RankFilterButton
+                key={f.key}
+                rank={f.rank}
+                label={f.label}
+                count={f.count}
+                active={rankFilter === f.key}
+                onClick={() => setRankFilter(f.key)}
+              />
+            ))}
+          </Row>
+        </Column>
 
         {!filtered.length ? (
           <p className='mt-12 text-sm text-neutral-500'>No morphospecies found.</p>
         ) : (
-          <ul className='mt-12 grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-12 max-h-[60vh] overflow-y-auto pr-8'>
+          <ul className='grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] p-16 gap-12 overflow-y-auto'>
             {filtered.map((it) => (
               <MorphoCard key={it.key} morphoKey={it.key} count={it.count} />
             ))}
@@ -157,6 +164,41 @@ export function MorphoCatalogDialog(props: MorphoCatalogDialogProps) {
         )}
       </DialogContent>
     </Dialog>
+  )
+}
+function INatLinkDialogContent(props: { morphoKey: string }) {
+  const { morphoKey } = props
+  const links = useStore(morphoLinksStore)
+  const current = links?.[normalizeMorphoKey(morphoKey)] || ''
+  const [value, setValue] = useState<string>(current)
+
+  function onSave() {
+    if (!morphoKey) return
+    void setMorphoLink({ morphoKey, url: value })
+    closeGlobalDialog()
+  }
+
+  return (
+    <div className='w-[480px]'>
+      <h3 className='text-16 font-medium'>Add iNaturalist link</h3>
+      <p className='mt-8 text-13 text-neutral-600'>Morphospecies: {morphoKey}</p>
+      <div className='mt-12'>
+        <input
+          className='w-full rounded border px-8 py-6 text-13 outline-none ring-1 ring-inset ring-black/10 focus:ring-black/30'
+          placeholder='https://www.inaturalist.org/taxa/...'
+          value={value}
+          onChange={(e) => setValue(e.target.value)}
+        />
+      </div>
+      <div className='mt-12 flex justify-end gap-8'>
+        <Button size='xsm' variant='ghost' onClick={() => closeGlobalDialog()}>
+          Cancel
+        </Button>
+        <Button size='xsm' variant='primary' onClick={onSave}>
+          Save
+        </Button>
+      </div>
+    </div>
   )
 }
 function ScopeFilters(props: {
@@ -249,23 +291,34 @@ type MorphoCardProps = { morphoKey: string; count: number }
 function MorphoCard(props: MorphoCardProps) {
   const { morphoKey, count } = props
   const previewUrl = useMorphoPreviewUrl({ morphoKey })
+  const links = useStore(morphoLinksStore)
+  const link = links?.[normalizeMorphoKey(morphoKey)]
 
   return (
     <li className='rounded-md border bg-white p-12'>
       {previewUrl ? (
-        <div className='-mt-4 -mx-4 mb-8'>
-          <img src={previewUrl} alt={morphoKey} className='w-full h-[200px] object-contain rounded border' />
+        <div className='-mt-12 -mx-12 mb-8'>
+          <img src={previewUrl} alt={morphoKey} className='w-full h-[200px] object-contain rounded' />
         </div>
       ) : null}
       <div className='flex items-center gap-8'>
         <span className='font-medium text-ink-primary truncate'>{displayFromKey(morphoKey)}</span>
         <span className='ml-auto text-12 text-neutral-600'>{count}</span>
       </div>
-      <div className='mt-8'>
+
+      <Row className='mt-8 gap-4 justify-end'>
+        {link && (
+          <Button size='xsm' onClick={() => window.open(link, '_blank')} aria-label='Open iNaturalist'>
+            <INaturalistLogo height={16} className=' fill-[#86A91D]' />
+          </Button>
+        )}
+
         <MorphoSpeciesDetailsDialog morphoKey={morphoKey}>
           <Button size='xsm'>View usage</Button>
         </MorphoSpeciesDetailsDialog>
-      </div>
+
+        <MorphoCardActions morphoKey={morphoKey} />
+      </Row>
     </li>
   )
 }
@@ -273,6 +326,34 @@ function MorphoCard(props: MorphoCardProps) {
 function displayFromKey(key: string) {
   const res = key
   return res
+}
+
+function MorphoCardActions(props: { morphoKey: string }) {
+  const { morphoKey } = props
+  return (
+    <DropdownMenu>
+      <DropdownMenuTrigger asChild>
+        <Button size='icon-sm' className='-mr-4' aria-label='More actions'>
+          <EllipsisVertical size={16} />
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent side='bottom' align='end' className='min-w-[220px] p-4'>
+        <DropdownMenuItem
+          className='text-13'
+          onSelect={(e) => e.preventDefault()}
+          onClick={() =>
+            openGlobalDialog({
+              component: INatLinkDialogContent as any,
+              props: { morphoKey },
+              align: 'center',
+            })
+          }
+        >
+          Add iNaturalist link
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
+  )
 }
 
 // Data hooks and helpers
@@ -310,9 +391,9 @@ function buildContextByMorphoKey(params: { detections?: Record<string, any>; all
   for (const d of Object.values(detections ?? {})) {
     const det = d as any
     if (det?.detectedBy !== 'user') continue
-    if (det?.isMorpho !== true) continue
+    if (typeof det?.morphospecies !== 'string' || !det?.morphospecies) continue
     if (allowedNightIds && det?.nightId && !allowedNightIds.has(det.nightId)) continue
-    const label = (det?.label ?? '').trim()
+    const label = (det?.morphospecies ?? '').trim()
     if (!label) continue
     const key = normalizeMorphoKey(label)
     const prev = map.get(key) || { hasOrder: false, hasFamily: false, hasGenus: false }

@@ -5,6 +5,7 @@ import { useAppLoading } from '~/features/folder-processing/files-queries'
 import { Toaster } from 'sonner'
 import { UserInitialsDialog } from '~/components/user-initials-dialog'
 import { ConfirmDialog } from '~/components/dialogs/ConfirmDialog'
+import { GlobalDialog } from '~/components/dialogs/global-dialog'
 
 export function RootLayout() {
   const { isLoading } = useAppLoading()
@@ -19,6 +20,7 @@ export function RootLayout() {
 
       <UserInitialsDialog />
       <ConfirmDialog />
+      <GlobalDialog />
     </div>
   )
 }
