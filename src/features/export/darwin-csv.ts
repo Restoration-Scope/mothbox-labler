@@ -32,8 +32,10 @@ const DARWIN_COLUMNS = [
   'genus',
   'species',
   'taxonID',
+  'taxonKey',
   'commonName',
   'scientificName',
+  'species_list',
   'filepath',
   'mothbox',
   'software',
@@ -138,7 +140,9 @@ function buildDarwinRowObject(params: {
   const genus = detection?.taxon?.genus || ''
   const species = ''
   const taxonID = String((detection as any)?.taxon?.taxonID || '')
+  const taxonKey = String((detection as any)?.taxon?.acceptedTaxonKey ?? (detection as any)?.taxon?.taxonID ?? '')
   const commonName = detection?.taxon?.vernacularName || ''
+  const species_list = String((detection as any)?.speciesListDOI || '')
 
   const datasetID = nightId.replaceAll('/', '_')
   const parentEventID = datasetID
@@ -174,8 +178,10 @@ function buildDarwinRowObject(params: {
     genus,
     species,
     taxonID,
+    taxonKey,
     commonName,
     scientificName,
+    species_list,
     filepath,
     mothbox,
     software,
