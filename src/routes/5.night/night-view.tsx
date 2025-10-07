@@ -228,7 +228,12 @@ function buildTaxonomyTreeForNight(params: { detections: Record<string, any>; ni
     if (path.length === 0) continue
     let currentLevel = roots
     for (const seg of path) {
-      const node = ensureChild(currentLevel, seg.rank, seg.name, seg.rank === 'species' ? (d as any)?.isMorpho === true : undefined)
+      const node = ensureChild(
+        currentLevel,
+        seg.rank,
+        seg.name,
+        seg.rank === 'species' ? typeof (d as any)?.morphospecies === 'string' && !!(d as any)?.morphospecies : undefined,
+      )
       if (!node.children) node.children = []
       currentLevel = node.children
     }
