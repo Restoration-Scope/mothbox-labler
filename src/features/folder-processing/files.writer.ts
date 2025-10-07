@@ -4,6 +4,7 @@ import { idbGet } from '~/utils/index-db'
 import { nightSummariesStore, type NightSummaryEntity } from '~/stores/entities/night-summaries'
 import { ensureReadWritePermission, persistenceConstants } from './files.persistence'
 import { userSessionStore } from '~/stores/ui'
+import { morphoLinksStore } from '~/stores/morphospecies/links'
 
 type FileSystemDirectoryHandleLike = {
   getDirectoryHandle?: (name: string, options?: { create?: boolean }) => Promise<FileSystemDirectoryHandleLike>
@@ -95,9 +96,8 @@ export async function exportUserDetectionsForNight(params: { nightId: string }) 
   const morphoPreviewPatchIds: Record<string, string> = {}
   for (const d of detectionsForNight) {
     const isUser = (d as any)?.detectedBy === 'user'
-    const isMorpho = (d as any)?.isMorpho === true
-    const label = typeof (d as any)?.label === 'string' ? ((d as any)?.label as string) : ''
-    const key = isUser && isMorpho ? normalizeMorphoKey(label) : ''
+    const morpho = typeof (d as any)?.morphospecies === 'string' ? ((d as any)?.morphospecies as string) : ''
+    const key = isUser && morpho ? normalizeMorphoKey(morpho) : ''
     if (!key) continue
     morphoCounts[key] = (morphoCounts[key] || 0) + 1
     if (!morphoPreviewPatchIds[key] && (d as any)?.patchId) morphoPreviewPatchIds[key] = String((d as any)?.patchId)
@@ -120,6 +120,28 @@ export async function exportUserDetectionsForNight(params: { nightId: string }) 
       const pathParts = nightDiskPath.split('/').filter(Boolean)
       await writeJson(root, [...pathParts, 'night_summary.json'], summary)
     }
+  }
+}
+
+export async function writeMorphoLinksToDisk() {
+  try {
+    const root = (await idbGet(
+      persistenceConstants.IDB_NAME,
+      persistenceConstants.IDB_STORE,
+      'projectsRoot',
+    )) as FileSystemDirectoryHandleLike | null
+
+    if (!root) return
+
+    const granted = await ensureReadWritePermission(root as any)
+    if (!granted) return
+
+    const links = morphoLinksStore.get() || {}
+
+    // Persist a single file under the projects root
+    await writeJson(root, ['morpho_links.json'], links)
+  } catch {
+    // ignore write errors
   }
 }
 

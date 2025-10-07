@@ -4,6 +4,9 @@ import { ingestSpeciesListsFromFiles } from '~/features/species-identification/s
 import { loadProjectSpeciesSelection } from '~/stores/species/project-species-list'
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
 import { loadMorphoCovers } from '~/stores/morphospecies/covers'
+import { loadMorphoLinks } from '~/stores/morphospecies/links'
+import { morphoLinksStore } from '~/stores/morphospecies/links'
+import { indexedFilesStore } from './files.state'
 
 export function applyIndexedFilesState(params: {
   indexed: Array<{ file?: File; handle?: unknown; path: string; name: string; size: number }>
@@ -17,11 +20,13 @@ export function applyIndexedFilesState(params: {
   buildNightIndexes({ files: indexed })
 
   preloadNightSummariesFromIndexed(indexed)
+  preloadMorphoLinksFromIndexed(indexed)
 
   // Ingest species lists from either File or Handle entries
   void ingestSpeciesListsFromFiles({ files: indexed })
   void loadProjectSpeciesSelection()
   void loadMorphoCovers()
+  void loadMorphoLinks()
 }
 
 export function preloadNightSummariesFromIndexed(
@@ -80,6 +85,31 @@ export function preloadNightSummariesFromIndexed(
     if (Object.keys(summaries).length) {
       const current = nightSummariesStore.get() || {}
       nightSummariesStore.set({ ...current, ...summaries })
+    }
+  } catch {
+    return
+  }
+}
+
+export function preloadMorphoLinksFromIndexed(indexed: Array<{ file?: File; handle?: unknown; path: string; name: string; size: number }>) {
+  try {
+    let found: Array<{ entry: { file?: File; handle?: unknown; path: string; name: string; size: number } }> = []
+    for (const it of indexed) {
+      const lower = (it?.name ?? '').toLowerCase()
+      if (lower === 'morpho_links.json') found.push({ entry: it })
+    }
+    if (!found.length) return
+
+    for (const { entry } of found) {
+      void ensureTextFromIndexedEntry(entry as any)
+        .then((txt) => JSON.parse(txt))
+        .then((json) => {
+          if (json && typeof json === 'object') {
+            const current = morphoLinksStore.get() || {}
+            morphoLinksStore.set({ ...current, ...(json as Record<string, string>) })
+          }
+        })
+        .catch(() => {})
     }
   } catch {
     return
