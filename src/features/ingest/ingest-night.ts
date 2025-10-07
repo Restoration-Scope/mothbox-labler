@@ -105,16 +105,21 @@ export async function overlayNightUserDetections(params: {
         if (!patchFileName) continue
         const detectionId = patchFileName
         const existing = detections[detectionId]
-        const taxon = deriveTaxonFromShape(shape)
+        const isError = (shape as any)?.is_error === true || String((shape as any)?.label || '').toUpperCase() === 'ERROR'
+        const taxon = isError ? undefined : deriveTaxonFromShape(shape)
         const identifiedAt =
-          typeof (shape as any)?.human_identified_at === 'number' ? (shape as any).human_identified_at : (existing as any)?.identifiedAt
+          typeof (shape as any)?.timestamp_ID_human === 'number'
+            ? (shape as any).timestamp_ID_human
+            : typeof (shape as any)?.human_identified_at === 'number'
+            ? (shape as any).human_identified_at
+            : (existing as any)?.identifiedAt
         const next: DetectionEntity = {
           id: detectionId,
           patchId: detectionId,
           photoId: (existing as any)?.photoId || (photo as any).id,
           nightId: (photo as any).nightId,
-          label: taxon?.scientificName || safeLabel(shape?.label) || (existing as any)?.label,
-          taxon: (taxon as any) ?? (existing as any)?.taxon,
+          label: isError ? 'ERROR' : taxon?.scientificName || safeLabel(shape?.label) || (existing as any)?.label,
+          taxon: (taxon as any) ?? (isError ? undefined : (existing as any)?.taxon),
           score: (safeNumber(shape?.score) as any) ?? (existing as any)?.score,
           direction: (safeNumber(shape?.direction) as any) ?? (existing as any)?.direction,
           shapeType: (safeLabel(shape?.shape_type) as any) ?? (existing as any)?.shapeType,
@@ -122,6 +127,7 @@ export async function overlayNightUserDetections(params: {
           detectedBy: 'user',
           identifiedAt,
           clusterId: (safeNumber((shape as any)?.clusterID) as any) ?? (existing as any)?.clusterId,
+          isError: isError ? true : undefined,
         }
         detections[detectionId] = next
       }
