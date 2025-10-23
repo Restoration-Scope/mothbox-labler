@@ -6,7 +6,6 @@ import { nightSummariesStore } from '~/stores/entities/night-summaries'
 import { loadMorphoCovers } from '~/stores/morphospecies/covers'
 import { loadMorphoLinks } from '~/stores/morphospecies/links'
 import { morphoLinksStore } from '~/stores/morphospecies/links'
-import { indexedFilesStore } from './files.state'
 
 export function applyIndexedFilesState(params: {
   indexed: Array<{ file?: File; handle?: unknown; path: string; name: string; size: number }>

@@ -42,7 +42,7 @@ export function GlobalDialog() {
 
   return (
     <Dialog open={!!dialogData} onOpenChange={onOpenChange}>
-      <DialogContent align={align} onClose={closeGlobalDialog} variant='bare' className={dialogData.className}>
+      <DialogContent align={align} onClose={closeGlobalDialog} className={dialogData.className}>
         <Component {...(dialogData.props as any)} />
       </DialogContent>
     </Dialog>
