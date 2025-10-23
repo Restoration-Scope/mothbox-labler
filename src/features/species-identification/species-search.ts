@@ -112,12 +112,29 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
       const ai = ar != null ? rankOrder[ar] ?? 99 : 99
       const bi = br != null ? rankOrder[br] ?? 99 : 99
       if (ai !== bi) return ai - bi
+      // Prefer records whose taxonRank exactly equals the matched rank (e.g., ORDER row for "Hemiptera")
+      const aRankMatches = (a?.taxonRank ?? '').toLowerCase() === (ar ?? '')
+      const bRankMatches = (b?.taxonRank ?? '').toLowerCase() === (br ?? '')
+      if (aRankMatches && !bRankMatches) return -1
+      if (!aRankMatches && bRankMatches) return 1
       return (a?.scientificName || '').localeCompare(b?.scientificName || '')
     }
     return 0
   })
 
-  const take = Math.max(limit, exactMatches.length)
+  const take = limit
+
+  let finalResults = combined.slice(0, take)
+
+  if (finalResults.length === 0 && (list?.records?.length ?? 0) > 0 && trimmed.length >= 4) {
+    const approx = approximateSearch({
+      records: (list?.records as TaxonRecord[]) ?? [],
+      query: trimmed,
+      limit: take,
+      maxDistance: 2,
+    })
+    if (approx.length) finalResults = approx
+  }
 
   if (trimmed)
     console.log('🌀 species.search', {
@@ -128,7 +145,7 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
       resultCount: combined.length,
     })
 
-  return combined.slice(0, take)
+  return finalResults
 }
 
 function addExact(index: Record<string, TaxonRecord[]>, value: string | undefined, ref: TaxonRecord) {
@@ -150,4 +167,103 @@ function dedupeByKey(records: TaxonRecord[]): TaxonRecord[] {
     result.push(r)
   }
   return result
+}
+
+// Fallback approximate matching for misspellings (e.g., 'hempitera' -> 'Hemiptera').
+// This runs only when primary fuzzy search yields no results.
+type ApproxParams = { records: TaxonRecord[]; query: string; limit: number; maxDistance: number }
+
+function approximateSearch(params: ApproxParams) {
+  const { records, query, limit, maxDistance } = params
+  const q = (query || '').trim().toLowerCase()
+  if (!q) return [] as TaxonRecord[]
+
+  const rankOrder: Record<string, number> = {
+    genus: 0,
+    species: 1,
+    family: 2,
+    order: 3,
+    class: 4,
+    phylum: 5,
+    kingdom: 6,
+  }
+
+  type Candidate = { rec: TaxonRecord; distance: number; rank?: keyof typeof rankOrder }
+  const out: Candidate[] = []
+
+  for (const rec of records) {
+    let best: Candidate | undefined
+    for (const rank of ['species', 'genus', 'family', 'order', 'class', 'phylum', 'kingdom'] as const) {
+      const val = String((rec as any)?.[rank] || '')
+        .trim()
+        .toLowerCase()
+      if (!val) continue
+      const d = damerauLevenshtein(q, val, maxDistance)
+      if (d > maxDistance) continue
+      if (!best || d < best.distance || (d === best.distance && (rankOrder[rank] ?? 99) < (rankOrder[best.rank || 'genus'] ?? 99))) {
+        best = { rec, distance: d, rank }
+      }
+    }
+    if (!best && (rec?.scientificName || rec?.vernacularName)) {
+      const val = String(rec.scientificName || rec.vernacularName || '')
+        .trim()
+        .toLowerCase()
+      if (val) {
+        const d = damerauLevenshtein(q, val, maxDistance)
+        if (d <= maxDistance) best = { rec, distance: d }
+      }
+    }
+    if (best) out.push(best)
+  }
+
+  out.sort((a, b) => {
+    if (a.distance !== b.distance) return a.distance - b.distance
+    const ar = a.rank ? rankOrder[a.rank] ?? 99 : 99
+    const br = b.rank ? rankOrder[b.rank] ?? 99 : 99
+    if (ar !== br) return ar - br
+    return (a.rec?.scientificName || '').localeCompare(b.rec?.scientificName || '')
+  })
+
+  return out.slice(0, limit).map((c) => c.rec)
+}
+
+// Damerau–Levenshtein with early exit when distance exceeds max
+function damerauLevenshtein(a: string, b: string, max: number) {
+  const al = a.length
+  const bl = b.length
+  if (a === b) return 0
+  if (!al) return Math.min(bl, max + 1)
+  if (!bl) return Math.min(al, max + 1)
+
+  const prev = new Array<number>(bl + 1)
+  const curr = new Array<number>(bl + 1)
+  const prev2 = new Array<number>(bl + 1)
+
+  for (let j = 0; j <= bl; j++) prev[j] = j
+
+  for (let i = 1; i <= al; i++) {
+    curr[0] = i
+    let rowMin = curr[0]
+    const ai = a.charCodeAt(i - 1)
+    for (let j = 1; j <= bl; j++) {
+      const bj = b.charCodeAt(j - 1)
+      const cost = ai === bj ? 0 : 1
+      let val = Math.min(
+        prev[j] + 1, // deletion
+        curr[j - 1] + 1, // insertion
+        prev[j - 1] + cost, // substitution
+      )
+      if (i > 1 && j > 1 && ai === b.charCodeAt(j - 2) && a.charCodeAt(i - 2) === bj) {
+        val = Math.min(val, prev2[j - 2] + 1) // transposition
+      }
+      curr[j] = val
+      if (val < rowMin) rowMin = val
+    }
+    if (rowMin > max) return max + 1
+    for (let j = 0; j <= bl; j++) {
+      prev2[j] = prev[j]
+      prev[j] = curr[j]
+    }
+  }
+  return prev[bl]
 }
