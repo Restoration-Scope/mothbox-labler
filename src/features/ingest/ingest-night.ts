@@ -106,7 +106,20 @@ export async function overlayNightUserDetections(params: {
         const detectionId = patchFileName
         const existing = detections[detectionId]
         const isError = (shape as any)?.is_error === true || String((shape as any)?.label || '').toUpperCase() === 'ERROR'
-        const taxon = isError ? undefined : deriveTaxonFromShape(shape)
+        const taxonBase = isError ? undefined : deriveTaxonFromShape(shape)
+        // Rehydrate identifiers and metadata if present in user JSON
+        const taxon = isError
+          ? undefined
+          : taxonBase
+          ? {
+              ...taxonBase,
+              taxonID: (shape as any)?.taxonID ?? (taxonBase as any)?.taxonID,
+              acceptedTaxonKey: (shape as any)?.acceptedTaxonKey ?? (taxonBase as any)?.acceptedTaxonKey,
+              acceptedScientificName: (shape as any)?.acceptedScientificName ?? (taxonBase as any)?.acceptedScientificName,
+              vernacularName: (shape as any)?.vernacularName ?? (taxonBase as any)?.vernacularName,
+              taxonRank: (shape as any)?.taxonRank ?? (taxonBase as any)?.taxonRank,
+            }
+          : undefined
         const identifiedAt =
           typeof (shape as any)?.timestamp_ID_human === 'number'
             ? (shape as any).timestamp_ID_human
@@ -129,6 +142,8 @@ export async function overlayNightUserDetections(params: {
           clusterId: (safeNumber((shape as any)?.clusterID) as any) ?? (existing as any)?.clusterId,
           isError: isError ? true : undefined,
           morphospecies: !isError && !taxon?.scientificName ? safeLabel(shape?.label) ?? (existing as any)?.morphospecies : undefined,
+          // Rehydrate species list DOI if present in overlay JSON
+          speciesListDOI: (shape as any)?.species_list ?? (existing as any)?.speciesListDOI,
         }
         detections[detectionId] = next
       }

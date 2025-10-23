@@ -1,7 +1,7 @@
 import { speciesListsStore, type SpeciesList, type TaxonRecord } from './species-list.store'
 import { invalidateSpeciesIndexForListId } from './species-search'
-import { csvToObjects } from '~/utils/csv'
-import type { IndexedFile as FolderIndexedFile } from '~/features/folder-processing/files.state'
+import { csvToObjects } from '../../utils/csv'
+import type { IndexedFile as FolderIndexedFile } from '../folder-processing/files.state'
 
 export type IndexedFile = FolderIndexedFile
 
@@ -100,21 +100,26 @@ const NUMERIC_ID_KEYS = {
 function mapRowToTaxonRecord(row: any): TaxonRecord {
   const lower = buildLowerKeyMap(row)
 
-  const genus = getStringCI(lower, FIELD_KEYS.genus as unknown as string[])
-  const family = getStringCI(lower, FIELD_KEYS.family as unknown as string[])
-  const order = getStringCI(lower, FIELD_KEYS.order as unknown as string[])
-  const species = getStringCI(lower, FIELD_KEYS.species as unknown as string[])
+  const genusRaw = getStringCI(lower, FIELD_KEYS.genus as unknown as string[])
+  const familyRaw = getStringCI(lower, FIELD_KEYS.family as unknown as string[])
+  const orderRaw = getStringCI(lower, FIELD_KEYS.order as unknown as string[])
+  const speciesRaw = getStringCI(lower, FIELD_KEYS.species as unknown as string[])
 
-  let scientificName = getStringCI(lower, FIELD_KEYS.scientificName as unknown as string[]) || ''
+  const genus = normalizeTaxonValue(genusRaw)
+  const family = normalizeTaxonValue(familyRaw)
+  const order = normalizeTaxonValue(orderRaw)
+  const species = normalizeTaxonValue(speciesRaw)
+
+  let scientificName = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.scientificName as unknown as string[])) || ''
   if (!scientificName) scientificName = species || genus || family || order || ''
 
   const record: TaxonRecord = {
     taxonID: getFirstDefined(row, lower, NUMERIC_ID_KEYS.taxonID) as any,
     scientificName,
     taxonRank: getStringCI(lower, FIELD_KEYS.taxonRank as unknown as string[]),
-    kingdom: getStringCI(lower, FIELD_KEYS.kingdom as unknown as string[]),
-    phylum: getStringCI(lower, FIELD_KEYS.phylum as unknown as string[]),
-    class: getStringCI(lower, FIELD_KEYS.class as unknown as string[]),
+    kingdom: normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.kingdom as unknown as string[])),
+    phylum: normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.phylum as unknown as string[])),
+    class: normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.class as unknown as string[])),
     order,
     family,
     genus,
@@ -190,4 +195,12 @@ function getStringCI(lowerMap: LowerKeyMap, keys: string[]) {
     if (typeof v === 'string' && v.trim()) return v.trim()
   }
   return undefined
+}
+
+function normalizeTaxonValue(value: string | undefined) {
+  const v = (value ?? '').trim()
+  if (!v) return undefined
+  const lower = v.toLowerCase()
+  if (lower === 'na' || lower === 'n/a' || lower === 'null' || lower === 'undefined' || lower === 'na na') return undefined
+  return v
 }

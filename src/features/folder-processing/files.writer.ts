@@ -165,6 +165,12 @@ function buildUserIdentifiedJson(params: { baseName: string; detections: Detecti
       family: (d as any)?.isError ? null : (d as any)?.taxon?.family,
       genus: (d as any)?.isError ? null : (d as any)?.taxon?.genus,
       species: (d as any)?.isError ? null : (d as any)?.taxon?.species,
+      // Persist identifiers and helpful metadata to retain linkage with species lists
+      taxonID: (d as any)?.isError ? undefined : (d as any)?.taxon?.taxonID,
+      acceptedTaxonKey: (d as any)?.isError ? undefined : (d as any)?.taxon?.acceptedTaxonKey,
+      acceptedScientificName: (d as any)?.isError ? undefined : (d as any)?.taxon?.acceptedScientificName,
+      vernacularName: (d as any)?.isError ? undefined : (d as any)?.taxon?.vernacularName,
+      taxonRank: (d as any)?.isError ? undefined : (d as any)?.taxon?.taxonRank,
       species_list: (d as any)?.speciesListDOI || undefined,
       is_error: (d as any)?.isError ? true : undefined,
       identifier_human: d?.detectedBy === 'user' ? human : undefined,
