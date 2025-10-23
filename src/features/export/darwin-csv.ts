@@ -89,7 +89,8 @@ export async function exportNightDarwinCSV(params: { nightId: string }): Promise
   if (!generated) return false
   const { csv, nightDiskPath } = generated
 
-  const pathParts = [...nightDiskPath.split('/').filter(Boolean), 'darwin_export.csv']
+  const fileName = buildNightExportFileName({ nightId })
+  const pathParts = [...nightDiskPath.split('/').filter(Boolean), fileName]
   await fsaaWriteText(root, pathParts, csv)
   console.log('✅ exportNightDarwinCSV: written file', { path: pathParts.join('/') })
   return true
@@ -153,6 +154,25 @@ export async function copyNightFolderPathToClipboard(params: { nightId: string }
   return ok
 }
 
+export async function copyNightExportFilePathToClipboard(params: { nightId: string }): Promise<boolean> {
+  const { nightId } = params
+  if (!nightId) return false
+
+  const allPhotos = photosStore.get() || {}
+  const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
+  if (!photos.length) return false
+
+  const nightDiskPath = getNightDiskPathFromAnyPhoto({ photos })
+  if (!nightDiskPath) return false
+
+  const fileName = buildNightExportFileName({ nightId })
+  const fullPath = [...nightDiskPath.split('/').filter(Boolean), fileName].join('/')
+
+  const ok = await writeTextToClipboard(fullPath)
+  console.log(ok ? '📋 Copied export file path' : '🚨 Failed to copy export file path', { fullPath })
+  return ok
+}
+
 async function writeTextToClipboard(text: string): Promise<boolean> {
   try {
     if (typeof navigator?.clipboard?.writeText === 'function') {
@@ -205,6 +225,42 @@ export async function generateNightDarwinCSVString(params: { nightId: string }):
 
   const csv = objectsToCSV({ objects: rowObjs as any[], headers: [...(DARWIN_COLUMNS as readonly string[])] as string[] })
   return { csv, nightDiskPath }
+}
+
+function buildNightExportFileName(params: { nightId: string }): string {
+  const { nightId } = params
+  const parts = (nightId || '').split('/').filter(Boolean)
+  // Expected: [project, site?, deployment, night]
+  const project = parts[0] || 'dataset'
+  const deployment = parts.length >= 4 ? parts[2] : parts[1] || 'deployment'
+  const night = parts[parts.length - 1] || 'night'
+
+  const datasetName = sanitizeForFileName(project)
+  const deploymentName = sanitizeForFileName(deployment)
+  const nightName = sanitizeForFileName(night)
+  const today = formatTodayYyyyMm_Dd()
+
+  const fileName = `${datasetName}_${deploymentName}_${nightName}_exported-${today}.csv`
+  return fileName
+}
+
+function sanitizeForFileName(input: string): string {
+  const trimmed = (input ?? '').trim()
+  if (!trimmed) return 'unnamed'
+  // Replace spaces with underscore and strip characters that are problematic in file names
+  const replaced = trimmed.replace(/\s+/g, '_')
+  const cleaned = replaced.replace(/[^a-zA-Z0-9._-]/g, '_')
+  return cleaned
+}
+
+function formatTodayYyyyMm_Dd(): string {
+  const d = new Date()
+  const yyyy = String(d.getFullYear())
+  const MM = String(d.getMonth() + 1).padStart(2, '0')
+  const DD = String(d.getDate()).padStart(2, '0')
+  // Spec: YYYY-MM_DD
+  const res = `${yyyy}-${MM}_${DD}`
+  return res
 }
 
 function buildDarwinRowObject(params: {
