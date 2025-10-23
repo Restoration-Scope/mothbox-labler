@@ -6,21 +6,24 @@ import { Toaster } from 'sonner'
 import { UserInitialsDialog } from '~/components/user-initials-dialog'
 import { ConfirmDialog } from '~/components/dialogs/ConfirmDialog'
 import { GlobalDialog } from '~/components/dialogs/global-dialog'
+import { TooltipProvider } from '~/components/ui/tooltip'
 
 export function RootLayout() {
   const { isLoading } = useAppLoading()
   return (
-    <div className='min-h-screen max-h-screen flex flex-col overflow-hidden bg-neutral-50 text-neutral-900'>
-      <Nav />
+    <TooltipProvider>
+      <div className='min-h-screen max-h-screen flex flex-col overflow-hidden bg-neutral-50 text-neutral-900'>
+        <Nav />
 
-      <main className='flex flex-col flex-1 w-full h-full overflow-hidden'>
-        {isLoading ? <CenteredLoader>🌀 Loading projects folder</CenteredLoader> : <Outlet />}
-      </main>
-      <Toaster />
+        <main className='flex flex-col flex-1 w-full h-full overflow-hidden'>
+          {isLoading ? <CenteredLoader>🌀 Loading projects folder</CenteredLoader> : <Outlet />}
+        </main>
+        <Toaster />
 
-      <UserInitialsDialog />
-      <ConfirmDialog />
-      <GlobalDialog />
-    </div>
+        <UserInitialsDialog />
+        <ConfirmDialog />
+        <GlobalDialog />
+      </div>
+    </TooltipProvider>
   )
 }

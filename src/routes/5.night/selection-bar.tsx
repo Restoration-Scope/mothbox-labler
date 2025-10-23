@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { useHotkeys } from 'react-hotkeys-hook'
 import { KeyShortcuts } from '~/components/atomic/Kbd'
+import { Tooltip } from '~/components/ui-custom/tooltip'
 import { Button } from '~/components/ui/button'
 import { cn } from '~/utils/cn'
 
@@ -72,24 +73,26 @@ export function SelectionBar(props: SelectionBarProps) {
       <div className='flex items-center gap-x-12'>
         <div className='text-13 text-neutral-700'>{label}</div>
         <div className='h-16 w-px bg-neutral-200' />
-        <ActionButton label='Identify' keys={['d']} onClick={onIdentify} />
-        <ActionButton label='Accept' keys={['a']} onClick={onAccept} />
-        <ActionButton label='Unselect' keys={['u']} onClick={onUnselect} />
-        <ActionButton label='Select All' keys={['shift', 'a']} onClick={onSelectAll} />
+        <ActionButton label='Identify' keys={['D']} onClick={onIdentify} />
+        <ActionButton label='Accept' keys={['A']} onClick={onAccept} tooltip='Accept selected identifications' />
+        <ActionButton label='Unselect' keys={['U']} onClick={onUnselect} />
+        <ActionButton label='Select All' keys={['⇧', 'A']} onClick={onSelectAll} />
         {onResetToAuto ? <ActionButton label='Reset' onClick={onResetToAuto} /> : null}
       </div>
     </div>
   )
 }
 
-type ActionButtonProps = { label: string; keys?: string[]; onClick: () => void }
+type ActionButtonProps = { label: string; keys?: string[]; onClick: () => void; tooltip?: string }
 
 function ActionButton(props: ActionButtonProps) {
-  const { label, keys, onClick } = props
+  const { label, keys, onClick, tooltip } = props
   return (
-    <Button size='sm' variant='outline' className='flex items-center gap-x-8' onClick={onClick}>
-      <span>{label}</span>
-      {keys && keys.length > 0 ? <KeyShortcuts keys={keys} /> : null}
-    </Button>
+    <Tooltip content={tooltip}>
+      <Button size='sm' variant='outline' className='flex items-center gap-x-8' onClick={onClick}>
+        <span>{label}</span>
+        {keys && keys.length > 0 ? <KeyShortcuts keys={keys} /> : null}
+      </Button>
+    </Tooltip>
   )
 }

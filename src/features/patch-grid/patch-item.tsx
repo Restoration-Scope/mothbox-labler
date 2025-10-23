@@ -24,7 +24,7 @@ import { MoreVertical } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
 import { setMorphoCover, normalizeMorphoKey } from '~/stores/morphospecies/covers'
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
-import { Row } from '~/styles'
+import { Column, Row } from '~/styles'
 import { toast } from 'sonner'
 
 export type PatchItemProps = {
@@ -145,7 +145,7 @@ function PatchItemImpl(props: PatchItemProps) {
   }
 
   return (
-    <div
+    <Column
       className={cn('group w-full select-none relative bg-neutral-100 rounded-md cursor-pointer outline-none')}
       tabIndex={0}
       data-index={index}
@@ -205,28 +205,30 @@ function PatchItemImpl(props: PatchItemProps) {
         )}
       />
       {url ? (
-        <img
-          src={url}
-          alt={patch?.name ?? 'patch'}
-          className='aspect-square w-full object-contain rounded-t-[5px]'
-          onDragStart={(e) => e.preventDefault()}
-          decoding='async'
-          loading='lazy'
-          onLoad={() => {
-            if (!id) return
-            props?.onImageLoad?.(id)
-          }}
-          onError={() => {
-            if (!id) return
-            props?.onImageError?.(id)
-          }}
-        />
+        <div className='flex-1'>
+          <img
+            src={url}
+            alt={patch?.name ?? 'patch'}
+            className='aspect-square w-full object-contain rounded-t-[5px]'
+            onDragStart={(e) => e.preventDefault()}
+            decoding='async'
+            loading='lazy'
+            onLoad={() => {
+              if (!id) return
+              props?.onImageLoad?.(id)
+            }}
+            onError={() => {
+              if (!id) return
+              props?.onImageError?.(id)
+            }}
+          />
+        </div>
       ) : (
         <div className='aspect-square w-full ' />
       )}
 
       {!compact && <TaxonRankRow rank={rank} label={label} />}
-    </div>
+    </Column>
   )
 }
 

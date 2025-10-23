@@ -1,6 +1,7 @@
 import React, { PropsWithChildren } from 'react'
 import { Row } from '~/styles'
 import { cn } from '~/utils/cn'
+import { Kbd as BaseKbd } from '~/components/ui/kbd'
 
 type Props = PropsWithChildren<{ className?: string; dark?: boolean }>
 
@@ -8,7 +9,7 @@ export function Kbd(props: Props) {
   const { children, className, dark } = props
 
   return (
-    <kbd
+    <BaseKbd
       className={cn(
         'h-22 min-w-[18px] rounded-sm border border-b-2 border-secondary-foreground/10 bg-secondary px-[6px] text-center font-mono text-[10px] font-medium text-ink-600',
         dark && 'border-white/10 bg-white/20 text-white/60',
@@ -16,7 +17,7 @@ export function Kbd(props: Props) {
       )}
     >
       {children}
-    </kbd>
+    </BaseKbd>
   )
 }
 
@@ -57,7 +58,7 @@ export function KeyShortcuts(props: { keys: string[]; plain?: boolean }) {
   return (
     <Row className='items-center gap-x-4'>
       {keys.map((key, index) => (
-        <Kbd key={`${key}-${index}`}>{getKeySymbol(key)}</Kbd>
+        <BaseKbd key={`${key}-${index}`}>{key}</BaseKbd>
       ))}
     </Row>
   )

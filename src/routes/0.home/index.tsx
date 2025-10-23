@@ -27,11 +27,6 @@ export function Home() {
   return (
     <Row className='p-20 pt-12 h-full min-h-0 items-start gap-16 overflow-y-auto'>
       <div className='w-[240px] sticky top-0'>
-        <div className='mb-12'>
-          <Button size='xsm' to={'/morphospecies'}>
-            Morphospecies
-          </Button>
-        </div>
         <HomeSummaryPanel
           className=''
           projects={projects}

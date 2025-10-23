@@ -4,6 +4,7 @@ import { Sites } from './routes/2.sites'
 import { Deployments } from './routes/3.deployments'
 import { Nights } from './routes/4.nights'
 import { Night } from './routes/5.night'
+import { TestIdentification } from './routes/test-identification'
 import { RootLayout } from '~/root-layout'
 import { Home } from '~/routes/0.home'
 
@@ -47,7 +48,21 @@ export const nightRoute = createRoute({
   component: Night,
 })
 
-export const routeTree = rootRoute.addChildren([indexRoute, projectsRoute, sitesRoute, deploymentsRoute, nightsRoute, nightRoute])
+export const testIdentificationRoute = createRoute({
+  getParentRoute,
+  path: '/test-identification',
+  component: TestIdentification,
+})
+
+export const routeTree = rootRoute.addChildren([
+  indexRoute,
+  projectsRoute,
+  sitesRoute,
+  deploymentsRoute,
+  nightsRoute,
+  nightRoute,
+  testIdentificationRoute,
+])
 
 export const router = createRouter({
   routeTree,
