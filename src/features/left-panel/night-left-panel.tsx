@@ -5,7 +5,7 @@ import { Button } from '~/components/ui/button'
 import { useParams } from '@tanstack/react-router'
 import { useStore } from '@nanostores/react'
 import { detectionsStore } from '~/stores/entities/detections'
-import { exportNightDarwinCSV, copyNightFolderPathToClipboard } from '~/features/export/darwin-csv'
+import { exportNightDarwinCSV, copyNightExportFilePathToClipboard } from '~/features/export/darwin-csv'
 import { toast } from 'sonner'
 import { exportNightSummaryRS } from '~/features/export/rs-summary'
 import { PatchSizeControl } from '~/components/atomic/patch-size-control'
@@ -65,7 +65,7 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
       <PatchSizeControl className='mb-16' />
 
       <TaxonomySection
-        title='Auto'
+        title='Machine identified'
         nodes={taxonomyAuto}
         bucket='auto'
         selectedTaxon={selectedTaxon}
@@ -76,7 +76,7 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
 
       <TaxonomySection
         className='mt-16'
-        title='Identified'
+        title='Human reviewed'
         nodes={taxonomyUser}
         bucket='user'
         selectedTaxon={selectedTaxon}
@@ -94,11 +94,11 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
             toast.promise(p, {
               loading: '💾 Exporting Darwin CSV…',
               success: () => ({
-                message: '✅ Darwin CSV exported',
+                message: '✅ Darwin CSV exported in the night folder',
                 action: {
-                  label: 'Copy folder path',
+                  label: 'Copy file path',
                   onClick: () => {
-                    void copyNightFolderPathToClipboard({ nightId })
+                    void copyNightExportFilePathToClipboard({ nightId })
                   },
                 },
               }),
