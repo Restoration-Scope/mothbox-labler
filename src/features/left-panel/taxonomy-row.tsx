@@ -5,7 +5,7 @@ import { Row } from '~/styles'
 import { getTaxonomyPrefix } from './taxonomy-prefix'
 
 export type TaxonomyRowProps = {
-  rank: 'order' | 'family' | 'genus' | 'species'
+  rank: 'class' | 'order' | 'family' | 'genus' | 'species'
   name: string
   count: number
   selected?: boolean

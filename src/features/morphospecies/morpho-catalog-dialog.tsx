@@ -18,7 +18,8 @@ import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-ba
 import { mapRankToVariant } from '~/utils/ranks'
 import { colorVariantsMap } from '~/utils/colors'
 import { cn } from '~/utils/cn'
-import { useRouterState } from '@tanstack/react-router'
+import { useRouter, useRouterState } from '@tanstack/react-router'
+import { toast } from 'sonner'
 import { morphoCoversStore, normalizeMorphoKey } from '~/stores/morphospecies/covers'
 import { setMorphoLink } from '~/stores/morphospecies/links'
 import { Column, Row } from '~/styles'
@@ -330,6 +331,10 @@ function displayFromKey(key: string) {
 
 function MorphoCardActions(props: { morphoKey: string }) {
   const { morphoKey } = props
+  const router = useRouter()
+  const route = useRouterState({ select: (s) => s.location })
+  const summaries = useStore(nightSummariesStore)
+  const detections = useStore(detectionsStore)
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -350,6 +355,48 @@ function MorphoCardActions(props: { morphoKey: string }) {
           }
         >
           Add iNaturalist link
+        </DropdownMenuItem>
+
+        <DropdownMenuItem
+          className='text-13'
+          onSelect={(e) => e.preventDefault()}
+          onClick={() => {
+            const label = getLabelForMorphoKey({ detections, morphoKey })
+            const search = { bucket: 'user' as const, rank: 'species' as const, name: label }
+
+            const { projectId, siteId, deploymentId, nightId } = extractRouteIds(route?.pathname || '')
+
+            if (projectId && siteId && deploymentId && nightId) {
+              router.navigate({
+                to: '/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId',
+                params: { projectId, siteId, deploymentId, nightId },
+                search,
+              })
+              return
+            }
+
+            const firstNightId = findFirstNightForMorphoKey({ summaries, morphoKey })
+            if (!firstNightId) {
+              toast.warning('No nights contain this morphospecies')
+              return
+            }
+            const parts = firstNightId.split('/')
+            const p = parts?.[0]
+            const s = parts?.[1]
+            const d = parts?.[2]
+            const n = parts?.[3]
+            if (!p || !s || !d || !n) {
+              toast.warning('Could not navigate to night')
+              return
+            }
+            router.navigate({
+              to: '/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId',
+              params: { projectId: p, siteId: s, deploymentId: d, nightId: n },
+              search,
+            })
+          }}
+        >
+          Load in night
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
@@ -405,6 +452,32 @@ function buildContextByMorphoKey(params: { detections?: Record<string, any>; all
     map.set(key, next)
   }
   return map
+}
+
+function getLabelForMorphoKey(params: { detections?: Record<string, any>; morphoKey: string }) {
+  const { detections, morphoKey } = params
+  const key = normalizeMorphoKey(morphoKey)
+  for (const d of Object.values(detections ?? {})) {
+    const det = d as any
+    if (det?.detectedBy !== 'user') continue
+    const raw = typeof det?.morphospecies === 'string' ? (det?.morphospecies as string) : ''
+    if (!raw) continue
+    if (normalizeMorphoKey(raw) !== key) continue
+    const label = (det?.taxon?.species as string) || raw
+    if (label) return label
+  }
+  return morphoKey
+}
+
+function findFirstNightForMorphoKey(params: { summaries?: Record<string, any>; morphoKey: string }) {
+  const { summaries, morphoKey } = params
+  const out: string[] = []
+  for (const [nid, s] of Object.entries(summaries ?? {})) {
+    const count = (s as any)?.morphoCounts?.[normalizeMorphoKey(morphoKey)]
+    if (count && count > 0) out.push(nid)
+  }
+  out.sort()
+  return out[0]
 }
 
 function extractRouteIds(pathname: string) {

@@ -32,7 +32,7 @@ async function persist() {
   }
 }
 
-export function makeKey(params: { bucket: 'auto' | 'user'; rank: 'order' | 'family' | 'genus'; path: string }) {
+export function makeKey(params: { bucket: 'auto' | 'user'; rank: 'class' | 'order' | 'family' | 'genus'; path: string }) {
   const { bucket, rank, path } = params
   const safePath = (path || '').trim()
   const key = `${bucket}|${rank}:${safePath}`

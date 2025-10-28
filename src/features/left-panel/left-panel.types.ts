@@ -4,7 +4,7 @@ export type NightWarnings = {
 }
 
 export type TaxonomyNode = {
-  rank: 'order' | 'family' | 'genus' | 'species'
+  rank: 'class' | 'order' | 'family' | 'genus' | 'species'
   name: string
   count: number
   children?: TaxonomyNode[]
@@ -17,9 +17,12 @@ export type NightLeftPanelProps = {
   totalPatches: number
   totalDetections: number
   totalIdentified?: number
-  selectedTaxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }
+  selectedTaxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
   selectedBucket?: 'auto' | 'user'
-  onSelectTaxon: (params: { taxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }; bucket: 'auto' | 'user' }) => void
+  onSelectTaxon: (params: {
+    taxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
+    bucket: 'auto' | 'user'
+  }) => void
   warnings?: NightWarnings
   className?: string
 }

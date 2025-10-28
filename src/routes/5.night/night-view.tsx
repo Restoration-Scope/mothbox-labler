@@ -1,5 +1,6 @@
 import { useStore } from '@nanostores/react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
+import { useRouter } from '@tanstack/react-router'
 import { ensureSpeciesListSelection } from '~/features/species-picker/species-picker.state'
 import { nightsStore } from '~/stores/entities/4.nights'
 import type { PatchEntity } from '~/stores/entities/5.patches'
@@ -16,11 +17,12 @@ import { PatchDetailDialog } from './patch-detail-dialog'
 import { PatchGrid } from '~/features/patch-grid/patch-grid'
 import { SelectionBar } from './selection-bar'
 
-type TaxonSelection = { rank: 'order' | 'family' | 'genus' | 'species'; name: string } | undefined
+type TaxonSelection = { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string } | undefined
 
 export function NightView(props: { nightId: string }) {
   const { nightId } = props
 
+  const router = useRouter()
   const nights = useStore(nightsStore)
   const patches = useStore(patchesStore)
   const detections = useStore(detectionsStore)
@@ -34,6 +36,25 @@ export function NightView(props: { nightId: string }) {
   const { setConfirmDialog } = useConfirmDialog()
 
   const night = nights[nightId]
+
+  // Sync selection with URL search params (bucket, rank, name)
+  const search = router.state.location.search as unknown as {
+    bucket?: 'auto' | 'user'
+    rank?: 'class' | 'order' | 'family' | 'genus' | 'species'
+    name?: string
+  }
+
+  useEffect(() => {
+    const nextBucket = search?.bucket === 'user' || search?.bucket === 'auto' ? search.bucket : undefined
+    if (nextBucket && nextBucket !== selectedBucket) setSelectedBucket(nextBucket)
+
+    const r = search?.rank
+    const n = (search?.name ?? '').trim()
+    const validRank = r === 'class' || r === 'order' || r === 'family' || r === 'genus' || r === 'species' ? r : undefined
+
+    if (validRank && n) setSelectedTaxon({ rank: validRank, name: n })
+    else if (!validRank || !n) setSelectedTaxon(undefined)
+  }, [search?.bucket, search?.rank, search?.name])
 
   const list = useMemo(() => Object.values(patches).filter((patch) => patch.nightId === nightId), [patches, nightId])
   const taxonomyAuto = useMemo(() => buildTaxonomyTreeForNight({ detections, nightId, bucket: 'auto' }), [detections, nightId])
@@ -171,7 +192,7 @@ export function NightView(props: { nightId: string }) {
 }
 
 type TaxonomyNode = {
-  rank: 'order' | 'family' | 'genus' | 'species'
+  rank: 'class' | 'order' | 'family' | 'genus' | 'species'
   name: string
   count: number
   children?: TaxonomyNode[]
@@ -212,7 +233,8 @@ function buildTaxonomyTreeForNight(params: { detections: Record<string, any>; ni
     const hasAnyLowerThanClass = hasOrder || hasFamily || hasGenus || hasSpecies
     const path: Array<{ rank: TaxonomyNode['rank']; name: string }> = []
     if (onlyUser) {
-      // For identified items, always anchor under O/F/G using placeholders when missing
+      // Identified: include class when present; use placeholders for lower ranks when deeper info exists
+      if (klass) path.push({ rank: 'class', name: klass })
       const orderName = hasAnyLowerThanClass ? order || UNASSIGNED_LABEL : undefined
       const familyName = hasFamily || hasGenus || hasSpecies ? family || UNASSIGNED_LABEL : undefined
       const genusName = hasGenus || hasSpecies ? genus || UNASSIGNED_LABEL : undefined
@@ -220,11 +242,9 @@ function buildTaxonomyTreeForNight(params: { detections: Record<string, any>; ni
       if (familyName) path.push({ rank: 'family', name: familyName })
       if (genusName) path.push({ rank: 'genus', name: genusName })
       if (hasSpecies && species) path.push({ rank: 'species', name: species })
-      // Special handling: if user identified only at class-level (e.g., Arachnida) with no lower ranks,
-      // group under a synthetic order node named after the class so it appears in the left panel.
-      if (!hasAnyLowerThanClass && klass) path.push({ rank: 'order', name: klass })
     } else {
-      // For auto, include only known ranks without placeholders
+      // Auto: include only known ranks without placeholders
+      if (klass) path.push({ rank: 'class', name: klass })
       if (order) path.push({ rank: 'order', name: order })
       if (family) path.push({ rank: 'family', name: family })
       if (genus) path.push({ rank: 'genus', name: genus })
@@ -276,7 +296,8 @@ function filterPatchesByTaxon(params: {
     const det = detections?.[p.id]
     const tax = det?.taxon
     let matches = false
-    if (selectedTaxon?.rank === 'order') matches = tax?.order === selectedTaxon?.name || tax?.class === selectedTaxon?.name
+    if (selectedTaxon?.rank === 'class') matches = tax?.class === selectedTaxon?.name
+    else if (selectedTaxon?.rank === 'order') matches = tax?.order === selectedTaxon?.name
     else if (selectedTaxon?.rank === 'family') matches = tax?.family === selectedTaxon?.name
     else if (selectedTaxon?.rank === 'genus') matches = tax?.genus === selectedTaxon?.name
     else if (selectedTaxon?.rank === 'species') matches = tax?.species === selectedTaxon?.name

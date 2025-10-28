@@ -15,9 +15,12 @@ export type TaxonomySectionProps = {
   title: string
   nodes?: TaxonomyNode[]
   bucket: 'auto' | 'user'
-  selectedTaxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }
+  selectedTaxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
   selectedBucket?: 'auto' | 'user'
-  onSelectTaxon: (params: { taxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }; bucket: 'auto' | 'user' }) => void
+  onSelectTaxon: (params: {
+    taxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
+    bucket: 'auto' | 'user'
+  }) => void
   emptyText: string
   className?: string
   errorsCount?: number
@@ -59,16 +62,27 @@ export function TaxonomySection(props: TaxonomySectionProps) {
           />
         ) : null}
 
-        {(nodes || []).map((orderNode) => (
-          <OrderNode
-            key={`order-${orderNode.name}`}
-            bucket={bucket}
-            orderNode={orderNode}
-            selectedTaxon={selectedTaxon}
-            selectedBucket={selectedBucket}
-            onSelectTaxon={onSelectTaxon}
-          />
-        ))}
+        {(nodes || []).map((node) =>
+          node.rank === 'class' ? (
+            <ClassNode
+              key={`class-${node.name}`}
+              bucket={bucket}
+              classNode={node}
+              selectedTaxon={selectedTaxon}
+              selectedBucket={selectedBucket}
+              onSelectTaxon={onSelectTaxon}
+            />
+          ) : (
+            <OrderNode
+              key={`order-${node.name}`}
+              bucket={bucket}
+              orderNode={node}
+              selectedTaxon={selectedTaxon}
+              selectedBucket={selectedBucket}
+              onSelectTaxon={onSelectTaxon}
+            />
+          ),
+        )}
 
         {bucket === 'user' && hasErrors ? (
           <CountsRow
@@ -113,15 +127,70 @@ function SectionMoreMenu(props: { bucket: 'auto' | 'user'; nodes?: TaxonomyNode[
     </DropdownMenu>
   )
 }
+function ClassNode(props: {
+  bucket: 'auto' | 'user'
+  classNode: TaxonomyNode
+  selectedTaxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
+  selectedBucket?: 'auto' | 'user'
+  onSelectTaxon: (params: {
+    taxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
+    bucket: 'auto' | 'user'
+  }) => void
+}) {
+  const { bucket, classNode, selectedTaxon, selectedBucket, onSelectTaxon } = props
+  const classKey = makeKey({ bucket, rank: 'class', path: `${classNode.name}` })
+  const classExpanded = isExpandedKey(classKey)
+  const hasChildren = !!(classNode.children && classNode.children.length)
+  return (
+    <div>
+      <TaxonomyRow
+        rank='class'
+        name={classNode.name}
+        count={classNode.count}
+        selected={selectedBucket === bucket && selectedTaxon?.rank === 'class' && selectedTaxon?.name === classNode.name}
+        onSelect={() => {
+          clearPatchSelection()
+          onSelectTaxon({ taxon: { rank: 'class', name: classNode.name }, bucket })
+        }}
+        canToggle={hasChildren}
+        expanded={classExpanded}
+        onToggleExpanded={() => toggleKey(classKey)}
+      />
+
+      {hasChildren && classExpanded ? (
+        <IndentedBranch>
+          {(classNode.children || []).map((orderNode, index) => (
+            <OrderNode
+              key={`order-${classNode.name}-${orderNode.name}`}
+              bucket={bucket}
+              orderNode={orderNode}
+              className={classNode.name}
+              isFirstOfClass={index === 0}
+              selectedTaxon={selectedTaxon}
+              selectedBucket={selectedBucket}
+              onSelectTaxon={onSelectTaxon}
+            />
+          ))}
+        </IndentedBranch>
+      ) : null}
+    </div>
+  )
+}
+
 function OrderNode(props: {
   bucket: 'auto' | 'user'
   orderNode: TaxonomyNode
-  selectedTaxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }
+  className?: string
+  isFirstOfClass?: boolean
+  selectedTaxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
   selectedBucket?: 'auto' | 'user'
-  onSelectTaxon: (params: { taxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }; bucket: 'auto' | 'user' }) => void
+  onSelectTaxon: (params: {
+    taxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
+    bucket: 'auto' | 'user'
+  }) => void
 }) {
-  const { bucket, orderNode, selectedTaxon, selectedBucket, onSelectTaxon } = props
-  const orderKey = makeKey({ bucket, rank: 'order', path: `${orderNode.name}` })
+  const { bucket, orderNode, className, isFirstOfClass, selectedTaxon, selectedBucket, onSelectTaxon } = props
+  const orderKey = makeKey({ bucket, rank: 'order', path: `${className ? `${className}/` : ''}${orderNode.name}` })
   const orderExpanded = isExpandedKey(orderKey)
   const hasChildren = !!(orderNode.children && orderNode.children.length)
   return (
@@ -135,6 +204,8 @@ function OrderNode(props: {
           clearPatchSelection()
           onSelectTaxon({ taxon: { rank: 'order', name: orderNode.name }, bucket })
         }}
+        withConnector={!!className}
+        isFirstChild={!!className && !!isFirstOfClass}
         canToggle={hasChildren}
         expanded={orderExpanded}
         onToggleExpanded={() => toggleKey(orderKey)}
@@ -144,7 +215,7 @@ function OrderNode(props: {
         <IndentedBranch>
           {(orderNode.children || []).map((familyNode, index) => (
             <FamilyNode
-              key={`family-${orderNode.name}-${familyNode.name}`}
+              key={`family-${className ? `${className}-` : ''}${orderNode.name}-${familyNode.name}`}
               bucket={bucket}
               orderName={orderNode.name}
               familyNode={familyNode}
@@ -165,9 +236,12 @@ function FamilyNode(props: {
   orderName: string
   familyNode: TaxonomyNode
   isFirstChild?: boolean
-  selectedTaxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }
+  selectedTaxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
   selectedBucket?: 'auto' | 'user'
-  onSelectTaxon: (params: { taxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }; bucket: 'auto' | 'user' }) => void
+  onSelectTaxon: (params: {
+    taxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
+    bucket: 'auto' | 'user'
+  }) => void
 }) {
   const { bucket, orderName, familyNode, isFirstChild, selectedTaxon, selectedBucket, onSelectTaxon } = props
   const familyPath = `${orderName}/${familyNode.name}`
@@ -219,9 +293,12 @@ function GenusNode(props: {
   familyName: string
   genusNode: TaxonomyNode
   isFirstChild?: boolean
-  selectedTaxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }
+  selectedTaxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
   selectedBucket?: 'auto' | 'user'
-  onSelectTaxon: (params: { taxon?: { rank: 'order' | 'family' | 'genus' | 'species'; name: string }; bucket: 'auto' | 'user' }) => void
+  onSelectTaxon: (params: {
+    taxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
+    bucket: 'auto' | 'user'
+  }) => void
 }) {
   const { bucket, orderName, familyName, genusNode, isFirstChild, selectedTaxon, selectedBucket, onSelectTaxon } = props
   const genusPath = `${orderName}/${familyName}/${genusNode.name}`
@@ -273,22 +350,50 @@ function GenusNode(props: {
 
 function allKeysFor(nodes: TaxonomyNode[], bucket: 'auto' | 'user'): string[] {
   const keys: string[] = []
-  for (const orderNode of nodes || []) {
-    if (orderNode.children && orderNode.children.length) {
-      const orderKey = makeKey({ bucket, rank: 'order', path: orderNode.name })
-      keys.push(orderKey)
-    }
-    for (const familyNode of orderNode.children || []) {
-      const familyPath = `${orderNode.name}/${familyNode.name}`
-      if (familyNode.children && familyNode.children.length) {
-        const familyKey = makeKey({ bucket, rank: 'family', path: familyPath })
-        keys.push(familyKey)
+  for (const node of nodes || []) {
+    if (node.rank === 'class') {
+      if (node.children && node.children.length) {
+        const classKey = makeKey({ bucket, rank: 'class', path: node.name })
+        keys.push(classKey)
       }
-      for (const genusNode of familyNode.children || []) {
-        const genusPath = `${familyPath}/${genusNode.name}`
-        if (genusNode.children && genusNode.children.length) {
-          const genusKey = makeKey({ bucket, rank: 'genus', path: genusPath })
-          keys.push(genusKey)
+      for (const orderNode of node.children || []) {
+        if (orderNode.children && orderNode.children.length) {
+          const orderKey = makeKey({ bucket, rank: 'order', path: `${node.name}/${orderNode.name}` })
+          keys.push(orderKey)
+        }
+        for (const familyNode of orderNode.children || []) {
+          const familyPath = `${orderNode.name}/${familyNode.name}`
+          if (familyNode.children && familyNode.children.length) {
+            const familyKey = makeKey({ bucket, rank: 'family', path: familyPath })
+            keys.push(familyKey)
+          }
+          for (const genusNode of familyNode.children || []) {
+            const genusPath = `${familyPath}/${genusNode.name}`
+            if (genusNode.children && genusNode.children.length) {
+              const genusKey = makeKey({ bucket, rank: 'genus', path: genusPath })
+              keys.push(genusKey)
+            }
+          }
+        }
+      }
+    } else {
+      const orderNode = node
+      if (orderNode.children && orderNode.children.length) {
+        const orderKey = makeKey({ bucket, rank: 'order', path: orderNode.name })
+        keys.push(orderKey)
+      }
+      for (const familyNode of orderNode.children || []) {
+        const familyPath = `${orderNode.name}/${familyNode.name}`
+        if (familyNode.children && familyNode.children.length) {
+          const familyKey = makeKey({ bucket, rank: 'family', path: familyPath })
+          keys.push(familyKey)
+        }
+        for (const genusNode of familyNode.children || []) {
+          const genusPath = `${familyPath}/${genusNode.name}`
+          if (genusNode.children && genusNode.children.length) {
+            const genusKey = makeKey({ bucket, rank: 'genus', path: genusPath })
+            keys.push(genusKey)
+          }
         }
       }
     }

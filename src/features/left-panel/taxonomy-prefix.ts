@@ -1,7 +1,12 @@
-export type TaxonRank = 'order' | 'family' | 'genus' | 'species'
+export type TaxonRank = 'class' | 'order' | 'family' | 'genus' | 'species'
 
 export function getTaxonomyPrefix(params: { rank: TaxonRank; isMorpho?: boolean }) {
   const { rank, isMorpho } = params
+
+  if (rank === 'class') {
+    const prefix = 'C'
+    return prefix
+  }
 
   if (rank === 'species' && isMorpho) {
     const prefix = 'M'
