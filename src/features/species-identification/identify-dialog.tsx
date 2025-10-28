@@ -53,6 +53,17 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     return filtered
   }, [recentOptions, query])
 
+  const morphoOptions = useMemo(() => {
+    const res = getMorphoOptions({ detections, projectId, query })
+    return res
+  }, [detections, projectId, query])
+
+  const morphoOptionsLimited = useMemo(() => {
+    const list = morphoOptions || []
+    const res = list.slice(0, MAX_SPECIES_UI_RESULTS)
+    return res
+  }, [morphoOptions])
+
   function handleSelect(label: string) {
     const value = (label ?? '').trim()
     if (!value) return
@@ -75,6 +86,8 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     onSubmit(value)
     onOpenChange(false)
   }
+
+  
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} className='max-w-[520px] !p-0'>
@@ -121,6 +134,20 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
             </CommandGroup>
           ) : null}
 
+          {morphoOptionsLimited?.length ? (
+            <CommandGroup heading='Morphospecies'>
+              {morphoOptionsLimited.map((r) => (
+                <SpeciesOptionRow
+                  key={'morpho:' + r.label}
+                  label={r.label}
+                  taxon={r.taxon}
+                  onSelect={() => handleSelect(r.label)}
+                  itemClassName='row gap-x-8 !py-8'
+                />
+              ))}
+            </CommandGroup>
+          ) : null}
+
           {speciesOptionsLimited?.length ? (
             <CommandGroup heading='Species'>
               {speciesOptionsLimited.map((t) => (
@@ -156,6 +183,8 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
               <CommandItem key='family' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
                 <span className='text-brand font-medium'>Add Family"{query}"</span>
               </CommandItem>
+
+              
 
               <CommandItem key='suborder' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
                 <span className='text-brand font-medium'>Add Suborder"{query}"</span>
@@ -296,5 +325,43 @@ function getRecentOptions(params: GetRecentOptionsParams) {
   }
 
   const res = unique
+  return res
+}
+
+type GetMorphoOptionsParams = {
+  detections?: Record<string, DetectionEntity>
+  projectId?: string
+  query: string
+}
+
+function getMorphoOptions(params: GetMorphoOptionsParams) {
+  const { detections, projectId, query } = params
+
+  const q = (query ?? '').trim().toLowerCase()
+  const map = new Map<string, { label: string; taxon?: TaxonRecord; count: number; last: number }>()
+
+  for (const d of Object.values(detections ?? {})) {
+    const det = d as DetectionEntity | undefined
+    if (!det) continue
+    if (det.detectedBy !== 'user') continue
+    const nightId = (det.nightId ?? '').trim()
+    if (projectId && nightId && !nightId.startsWith(projectId + '/')) continue
+    const raw = typeof det.morphospecies === 'string' ? det.morphospecies : ''
+    const label = (raw ?? '').trim()
+    if (!label) continue
+    if (q && !label.toLowerCase().includes(q)) continue
+    const key = label.toLowerCase()
+    const prev = map.get(key)
+    const count = (prev?.count ?? 0) + 1
+    const last = Math.max(prev?.last ?? 0, det.identifiedAt ?? 0)
+    const taxon = prev?.taxon || det.taxon
+    map.set(key, { label, taxon, count, last })
+  }
+
+  const arr = Array.from(map.values())
+    .sort((a, b) => b.last - a.last || b.count - a.count || a.label.localeCompare(b.label))
+    .map((it) => ({ label: it.label, taxon: it.taxon }))
+
+  const res = arr
   return res
 }
