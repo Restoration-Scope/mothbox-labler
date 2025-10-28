@@ -200,6 +200,7 @@ function buildTaxonomyTreeForNight(params: { detections: Record<string, any>; ni
     if ((onlyUser && detectedBy !== 'user') || (!onlyUser && detectedBy !== 'auto')) continue
     // Skip error items from taxonomy tree; they are shown as a separate "Errors" row
     if (onlyUser && (d as any)?.isError) continue
+    const klass = (d as any)?.taxon?.class as string | undefined
     const order = (d as any)?.taxon?.order as string | undefined
     const family = (d as any)?.taxon?.family as string | undefined
     const genus = (d as any)?.taxon?.genus as string | undefined
@@ -208,16 +209,20 @@ function buildTaxonomyTreeForNight(params: { detections: Record<string, any>; ni
     const hasGenus = !!genus
     const hasFamily = !!family
     const hasOrder = !!order
+    const hasAnyLowerThanClass = hasOrder || hasFamily || hasGenus || hasSpecies
     const path: Array<{ rank: TaxonomyNode['rank']; name: string }> = []
     if (onlyUser) {
       // For identified items, always anchor under O/F/G using placeholders when missing
-      const orderName = hasOrder || hasFamily || hasGenus || hasSpecies ? order || UNASSIGNED_LABEL : undefined
+      const orderName = hasAnyLowerThanClass ? order || UNASSIGNED_LABEL : undefined
       const familyName = hasFamily || hasGenus || hasSpecies ? family || UNASSIGNED_LABEL : undefined
       const genusName = hasGenus || hasSpecies ? genus || UNASSIGNED_LABEL : undefined
       if (orderName) path.push({ rank: 'order', name: orderName })
       if (familyName) path.push({ rank: 'family', name: familyName })
       if (genusName) path.push({ rank: 'genus', name: genusName })
       if (hasSpecies && species) path.push({ rank: 'species', name: species })
+      // Special handling: if user identified only at class-level (e.g., Arachnida) with no lower ranks,
+      // group under a synthetic order node named after the class so it appears in the left panel.
+      if (!hasAnyLowerThanClass && klass) path.push({ rank: 'order', name: klass })
     } else {
       // For auto, include only known ranks without placeholders
       if (order) path.push({ rank: 'order', name: order })
@@ -271,7 +276,7 @@ function filterPatchesByTaxon(params: {
     const det = detections?.[p.id]
     const tax = det?.taxon
     let matches = false
-    if (selectedTaxon?.rank === 'order') matches = tax?.order === selectedTaxon?.name
+    if (selectedTaxon?.rank === 'order') matches = tax?.order === selectedTaxon?.name || tax?.class === selectedTaxon?.name
     else if (selectedTaxon?.rank === 'family') matches = tax?.family === selectedTaxon?.name
     else if (selectedTaxon?.rank === 'genus') matches = tax?.genus === selectedTaxon?.name
     else if (selectedTaxon?.rank === 'species') matches = tax?.species === selectedTaxon?.name

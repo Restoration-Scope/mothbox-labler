@@ -87,7 +87,12 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     onOpenChange(false)
   }
 
-  
+  function handleSubmitClass() {
+    const value = (query ?? '').trim()
+    if (!value) return
+    const t: TaxonRecord = { scientificName: value, taxonRank: 'class', class: value }
+    handleSelectTaxon(t)
+  }
 
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} className='max-w-[520px] !p-0'>
@@ -184,7 +189,9 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
                 <span className='text-brand font-medium'>Add Family"{query}"</span>
               </CommandItem>
 
-              
+              <CommandItem key='class' onSelect={() => handleSubmitClass()} className='aria-selected:bg-brand/20 '>
+                <span className='text-brand font-medium'>Add Class"{query}"</span>
+              </CommandItem>
 
               <CommandItem key='suborder' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
                 <span className='text-brand font-medium'>Add Suborder"{query}"</span>
