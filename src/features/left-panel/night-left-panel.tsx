@@ -5,7 +5,7 @@ import { Button } from '~/components/ui/button'
 import { useParams } from '@tanstack/react-router'
 import { useStore } from '@nanostores/react'
 import { detectionsStore } from '~/stores/entities/detections'
-import { exportNightDarwinCSV, copyNightExportFilePathToClipboard } from '~/features/export/darwin-csv'
+import { exportNightDarwinCSV, copyNightExportFilePathToClipboard, copyNightFolderPathToClipboard } from '~/features/export/darwin-csv'
 import { toast } from 'sonner'
 import { exportNightSummaryRS } from '~/features/export/rs-summary'
 import { PatchSizeControl } from '~/components/atomic/patch-size-control'
@@ -87,25 +87,7 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
       />
 
       <div className='mt-auto pt-16'>
-        <Button
-          className='w-full'
-          onClick={() => {
-            const p = exportNightDarwinCSV({ nightId })
-            toast.promise(p, {
-              loading: '💾 Exporting Darwin CSV…',
-              success: () => ({
-                message: '✅ Darwin CSV exported in the night folder',
-                action: {
-                  label: 'Copy file path',
-                  onClick: () => {
-                    void copyNightExportFilePathToClipboard({ nightId })
-                  },
-                },
-              }),
-              error: '🚨 Failed to export Darwin CSV',
-            })
-          }}
-        >
+        <Button className='w-full' onClick={() => showDarwinExportToast({ nightId })}>
           Export Darwin CSV
         </Button>
 
@@ -125,4 +107,30 @@ export function NightLeftPanel(props: NightLeftPanelProps) {
       </div>
     </Column>
   )
+}
+
+function showDarwinExportToast(params: { nightId: string }) {
+  const { nightId } = params
+
+  const promise = exportNightDarwinCSV({ nightId })
+
+  toast.promise(promise, {
+    loading: '💾 Exporting Darwin CSV…',
+    success: () => ({
+      message: '✅ Darwin CSV exported in the night folder',
+      action: {
+        label: 'Copy file path',
+        onClick: () => {
+          void copyNightExportFilePathToClipboard({ nightId })
+        },
+      },
+      cancel: {
+        label: 'Copy folder path',
+        onClick: () => {
+          void copyNightFolderPathToClipboard({ nightId })
+        },
+      },
+    }),
+    error: '🚨 Failed to export Darwin CSV',
+  })
 }
