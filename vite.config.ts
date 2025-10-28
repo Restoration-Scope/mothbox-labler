@@ -13,4 +13,10 @@ export default defineConfig({
   server: {
     allowedHosts: ['vite-96.localcan.dev'],
   },
+  test: {
+    environment: 'jsdom',
+    setupFiles: ['/src/test/setup.ts'],
+    globals: true,
+    css: true,
+  },
 })

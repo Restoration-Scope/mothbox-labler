@@ -94,6 +94,13 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     handleSelectTaxon(t)
   }
 
+  function handleSubmitOrder() {
+    const value = (query ?? '').trim()
+    if (!value) return
+    const t: TaxonRecord = { scientificName: value, taxonRank: 'order', order: value }
+    handleSelectTaxon(t)
+  }
+
   function handleSubmitGenus() {
     const value = (query ?? '').trim()
     if (!value) return
@@ -236,6 +243,13 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
                 <span className={`${rankToTextClass('family')} font-medium flex items-center gap-8`}>
                   <TaxonRankLetterBadge rank='family' size='xsm' />
                   Add Family "{query}"
+                </span>
+              </CommandItem>
+
+              <CommandItem key='order' onSelect={() => handleSubmitOrder()} className='aria-selected:bg-brand/20 '>
+                <span className={`${rankToTextClass('order')} font-medium flex items-center gap-8`}>
+                  <TaxonRankLetterBadge rank='order' size='xsm' />
+                  Add Order "{query}"
                 </span>
               </CommandItem>
 
