@@ -7,6 +7,7 @@ import { patchesStore } from '~/stores/entities/5.patches'
 import { useObjectUrl } from '~/utils/use-object-url'
 import { patchFileMapByNightStore, type IndexedFile } from '~/features/folder-processing/files.state'
 import { morphoCoversStore, normalizeMorphoKey } from '~/stores/morphospecies/covers'
+import { Button } from '~/components/ui/button'
 
 export type MorphoSpeciesDetailsDialogProps = PropsWithChildren<{
   morphoKey: string
@@ -106,10 +107,33 @@ export function MorphoSpeciesDetailsDialog(props: MorphoSpeciesDetailsDialogProp
         {usage.nightIds.length ? (
           <section className='mt-12'>
             <h3 className='mb-6 text-14 font-semibold'>Nights</h3>
-            <ul className='list-disc pl-16 text-13'>
-              {usage.nightIds.map((n) => (
-                <li key={n}>{n}</li>
-              ))}
+            <ul className='space-y-6 text-13'>
+              {usage.nightIds.map((n) => {
+                const parts = (n || '').split('/')
+                const projectId = parts?.[0]
+                const siteId = parts?.[1]
+                const deploymentId = parts?.[2]
+                const nightId = parts?.[3]
+
+                const hasAll = !!(projectId && siteId && deploymentId && nightId)
+
+                const href = hasAll
+                  ? `/projects/${encodeURIComponent(projectId)}/sites/${encodeURIComponent(siteId)}/deployments/${encodeURIComponent(
+                      deploymentId,
+                    )}/nights/${encodeURIComponent(nightId)}`
+                  : undefined
+
+                return (
+                  <li key={n} className='flex items-center gap-8'>
+                    <span className='truncate'>{n}</span>
+                    {hasAll ? (
+                      <Button size='xsm' to={href}>
+                        View
+                      </Button>
+                    ) : null}
+                  </li>
+                )
+              })}
             </ul>
           </section>
         ) : null}
