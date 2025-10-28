@@ -94,6 +94,41 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     handleSelectTaxon(t)
   }
 
+  function handleSubmitGenus() {
+    const value = (query ?? '').trim()
+    if (!value) return
+    const t: TaxonRecord = { scientificName: value, taxonRank: 'genus', genus: value }
+    handleSelectTaxon(t)
+  }
+
+  function handleSubmitFamily() {
+    const value = (query ?? '').trim()
+    if (!value) return
+    const t: TaxonRecord = { scientificName: value, taxonRank: 'family', family: value }
+    handleSelectTaxon(t)
+  }
+
+  function handleSubmitTribe() {
+    const value = (query ?? '').trim()
+    if (!value) return
+    const t: TaxonRecord = { scientificName: value, taxonRank: 'tribe' }
+    handleSelectTaxon(t)
+  }
+
+  function handleSubmitSubfamily() {
+    const value = (query ?? '').trim()
+    if (!value) return
+    const t: TaxonRecord = { scientificName: value, taxonRank: 'subfamily' }
+    handleSelectTaxon(t)
+  }
+
+  function handleSubmitSuborder() {
+    const value = (query ?? '').trim()
+    if (!value) return
+    const t: TaxonRecord = { scientificName: value, taxonRank: 'suborder' }
+    handleSelectTaxon(t)
+  }
+
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} className='max-w-[520px] !p-0'>
       <DialogTitle className='hidden'>Identitfy</DialogTitle>
@@ -170,31 +205,52 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
           {query && (
             <CommandGroup>
               <CommandItem key='morphospecies' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
-                <span className='text-brand font-medium'>Add morpho species: "{query}"</span>
+                <span className={`${rankToTextClass('morphospecies')} font-medium flex items-center gap-8`}>
+                  <TaxonRankLetterBadge rank='morphospecies' size='xsm' />
+                  Add morpho species: "{query}"
+                </span>
               </CommandItem>
 
-              <CommandItem key='genus' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
-                <span className='text-brand font-medium'>Add Genus"{query}"</span>
+              <CommandItem key='genus' onSelect={() => handleSubmitGenus()} className='aria-selected:bg-brand/20 '>
+                <span className={`${rankToTextClass('genus')} font-medium flex items-center gap-8`}>
+                  <TaxonRankLetterBadge rank='genus' size='xsm' />
+                  Add Genus "{query}"
+                </span>
               </CommandItem>
 
-              <CommandItem key='tribe' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
-                <span className='text-brand font-medium'>Add Tribe"{query}"</span>
+              <CommandItem key='tribe' onSelect={() => handleSubmitTribe()} className='aria-selected:bg-brand/20 '>
+                <span className={`${rankToTextClass('tribe')} font-medium flex items-center gap-8`}>
+                  <TaxonRankLetterBadge rank='tribe' size='xsm' />
+                  Add Tribe "{query}"
+                </span>
               </CommandItem>
 
-              <CommandItem key='subfamily' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
-                <span className='text-brand font-medium'>Add Subfamily"{query}"</span>
+              <CommandItem key='subfamily' onSelect={() => handleSubmitSubfamily()} className='aria-selected:bg-brand/20 '>
+                <span className={`${rankToTextClass('subfamily')} font-medium flex items-center gap-8`}>
+                  <TaxonRankLetterBadge rank='subfamily' size='xsm' />
+                  Add Subfamily "{query}"
+                </span>
               </CommandItem>
 
-              <CommandItem key='family' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
-                <span className='text-brand font-medium'>Add Family"{query}"</span>
+              <CommandItem key='family' onSelect={() => handleSubmitFamily()} className='aria-selected:bg-brand/20 '>
+                <span className={`${rankToTextClass('family')} font-medium flex items-center gap-8`}>
+                  <TaxonRankLetterBadge rank='family' size='xsm' />
+                  Add Family "{query}"
+                </span>
               </CommandItem>
 
               <CommandItem key='class' onSelect={() => handleSubmitClass()} className='aria-selected:bg-brand/20 '>
-                <span className='text-brand font-medium'>Add Class"{query}"</span>
+                <span className={`${rankToTextClass('class')} font-medium flex items-center gap-8`}>
+                  <TaxonRankLetterBadge rank='class' size='xsm' />
+                  Add Class "{query}"
+                </span>
               </CommandItem>
 
-              <CommandItem key='suborder' onSelect={() => handleSubmitFreeText()} className='aria-selected:bg-brand/20 '>
-                <span className='text-brand font-medium'>Add Suborder"{query}"</span>
+              <CommandItem key='suborder' onSelect={() => handleSubmitSuborder()} className='aria-selected:bg-brand/20 '>
+                <span className={`${rankToTextClass('suborder')} font-medium flex items-center gap-8`}>
+                  <TaxonRankLetterBadge rank='suborder' size='xsm' />
+                  Add Suborder "{query}"
+                </span>
               </CommandItem>
             </CommandGroup>
           )}
@@ -333,6 +389,22 @@ function getRecentOptions(params: GetRecentOptionsParams) {
 
   const res = unique
   return res
+}
+
+function rankToTextClass(rank?: string | null) {
+  const value = (rank ?? '').toString().trim().toLowerCase()
+  if (value === 'morphospecies') return 'text-indigo-700'
+  if (value === 'species') return 'text-blue-700'
+  if (value === 'genus') return 'text-teal-700'
+  if (value === 'tribe') return 'text-teal-700'
+  if (value === 'subfamily') return 'text-green-700'
+  if (value === 'family') return 'text-green-700'
+  if (value === 'suborder') return 'text-yellow-700'
+  if (value === 'order') return 'text-yellow-700'
+  if (value === 'class') return 'text-orange-700'
+  if (value === 'phylum') return 'text-ink-primary'
+  if (value === 'kingdom') return 'text-ink-primary'
+  return 'text-brand'
 }
 
 type GetMorphoOptionsParams = {
