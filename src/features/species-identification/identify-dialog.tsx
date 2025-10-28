@@ -61,8 +61,11 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   }
 
   function handleSelectTaxon(t: TaxonRecord) {
-    if (!t?.scientificName) return
-    onSubmit(t.scientificName, t)
+    if (!t) return
+    const preferred = (t?.scientificName ?? '').trim()
+    const label = preferred || getDisplayLabelForTaxon(t)
+    if (!label) return
+    onSubmit(label, t)
     onOpenChange(false)
   }
 
@@ -123,7 +126,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
               {speciesOptionsLimited.map((t) => (
                 <SpeciesOptionRow
                   key={(t.taxonID as any) ?? t.scientificName}
-                  label={t.species || t.scientificName}
+                  label={getDisplayLabelForTaxon(t)}
                   taxon={t}
                   onSelect={() => handleSelectTaxon(t)}
                   itemClassName='row gap-x-8 !py-8'
@@ -217,6 +220,18 @@ function SpeciesOptionRow(props: SpeciesOptionRowProps) {
       {taxon?.taxonRank && <TaxonRankBadge rank={taxon.taxonRank} />}
     </CommandItem>
   )
+}
+
+function getDisplayLabelForTaxon(t: TaxonRecord) {
+  const rank = (t?.taxonRank ?? '').toLowerCase()
+  if (rank === 'species') return t.species || t.scientificName
+  if (rank === 'genus') return t.genus || t.scientificName
+  if (rank === 'family') return t.family || t.scientificName
+  if (rank === 'order') return t.order || t.scientificName
+  if (rank === 'class') return (t as any)?.class || t.scientificName
+  if (rank === 'phylum') return t.phylum || t.scientificName
+  if (rank === 'kingdom') return t.kingdom || t.scientificName
+  return t.scientificName || t.species || t.genus || t.family || t.order || t.phylum || t.kingdom || ''
 }
 
 // Helpers (atomic) — keep at bottom

@@ -98,7 +98,7 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
     return undefined
   }
 
-  const exactSet = new Set<string>((exactMatches || []).map((r) => String(r?.taxonID ?? r?.scientificName ?? '').toLowerCase()))
+  const exactSet = new Set<string>((exactMatches || []).map((r) => stableTaxonKey(r)))
   const combined = [...combinedPre].sort((a, b) => {
     const aKey = String(a?.taxonID ?? a?.scientificName ?? '').toLowerCase()
     const bKey = String(b?.taxonID ?? b?.scientificName ?? '').toLowerCase()
@@ -159,14 +159,38 @@ function dedupeByKey(records: TaxonRecord[]): TaxonRecord[] {
   const seen: Record<string, boolean> = {}
   const result: TaxonRecord[] = []
   for (const r of records) {
-    const key = String(r?.taxonID ?? r?.scientificName ?? '')
-      .trim()
-      .toLowerCase()
+    const key = stableTaxonKey(r)
     if (!key || seen[key]) continue
     seen[key] = true
     result.push(r)
   }
   return result
+}
+
+function stableTaxonKey(record: TaxonRecord) {
+  const id = String(record?.taxonID ?? '')
+    .trim()
+    .toLowerCase()
+  if (id) return `id:${id}`
+
+  const rank = String(record?.taxonRank ?? '')
+    .trim()
+    .toLowerCase()
+  let name = ''
+  if (rank === 'species') name = String(record?.species ?? '')
+  else if (rank === 'genus') name = String(record?.genus ?? '')
+  else if (rank === 'family') name = String(record?.family ?? '')
+  else if (rank === 'order') name = String(record?.order ?? '')
+  else if (rank === 'class') name = String(record?.class ?? '')
+  else if (rank === 'phylum') name = String(record?.phylum ?? '')
+  else if (rank === 'kingdom') name = String(record?.kingdom ?? '')
+  const nameKey = name.trim().toLowerCase()
+  if (rank && nameKey) return `${rank}:${nameKey}`
+  const scientific = String(record?.scientificName ?? '')
+    .trim()
+    .toLowerCase()
+  if (scientific) return `sci:${scientific}`
+  return ''
 }
 
 // Fallback approximate matching for misspellings (e.g., 'hempitera' -> 'Hemiptera').

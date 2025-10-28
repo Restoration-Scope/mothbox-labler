@@ -21,15 +21,13 @@ export async function ingestSpeciesListsFromFiles(params: { files: IndexedFile[]
       const rows = await readSpeciesCsvRows({ indexedFile: f })
       if (!Array.isArray(rows) || rows.length === 0) continue
 
-      const records = rows.map((row) => mapRowToTaxonRecord(row)).filter((r) => !!r?.scientificName)
+      const records = rows.flatMap((row) => mapRowToTaxonRecords(row))
 
       const seen: Record<string, boolean> = {}
       const unique: TaxonRecord[] = []
 
       for (const r of records) {
-        const key = String(r?.taxonID ?? r?.scientificName ?? '')
-          .trim()
-          .toLowerCase()
+        const key = stableTaxonKey(r)
         if (!key || seen[key]) continue
         seen[key] = true
         unique.push(r)
@@ -97,38 +95,75 @@ const NUMERIC_ID_KEYS = {
   acceptedTaxonKey: ['acceptedTaxonKey', 'acceptedNameUsageID'],
 } as const
 
-function mapRowToTaxonRecord(row: any): TaxonRecord {
+const RANK_SPECIFIC_ID_KEYS: Record<string, readonly string[]> = {
+  kingdom: ['kingdomKey'],
+  phylum: ['phylumKey'],
+  class: ['classKey'],
+  order: ['orderKey'],
+  family: ['familyKey'],
+  genus: ['genusKey'],
+  species: ['speciesKey'],
+}
+
+function mapRowToTaxonRecords(row: any): TaxonRecord[] {
   const lower = buildLowerKeyMap(row)
 
-  const genusRaw = getStringCI(lower, FIELD_KEYS.genus as unknown as string[])
-  const familyRaw = getStringCI(lower, FIELD_KEYS.family as unknown as string[])
-  const orderRaw = getStringCI(lower, FIELD_KEYS.order as unknown as string[])
-  const speciesRaw = getStringCI(lower, FIELD_KEYS.species as unknown as string[])
+  const kingdom = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.kingdom as unknown as string[]))
+  const phylum = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.phylum as unknown as string[]))
+  const className = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.class as unknown as string[]))
+  const order = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.order as unknown as string[]))
+  const family = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.family as unknown as string[]))
+  const genus = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.genus as unknown as string[]))
+  const species = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.species as unknown as string[]))
 
-  const genus = normalizeTaxonValue(genusRaw)
-  const family = normalizeTaxonValue(familyRaw)
-  const order = normalizeTaxonValue(orderRaw)
-  const species = normalizeTaxonValue(speciesRaw)
+  const acceptedTaxonKey = getFirstDefined(row, lower, NUMERIC_ID_KEYS.acceptedTaxonKey) as any
+  const iucnRedListCategory = getStringCI(lower, FIELD_KEYS.iucnRedListCategory as unknown as string[])
+  const taxonomicStatus = getStringCI(lower, FIELD_KEYS.taxonomicStatus as unknown as string[])
+  const acceptedScientificName = getStringCI(lower, FIELD_KEYS.acceptedScientificName as unknown as string[])
+  const extras = buildExtrasFiltered(row)
 
-  let scientificName = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.scientificName as unknown as string[])) || ''
-  if (!scientificName) scientificName = species || genus || family || order || ''
+  const rankPairs: Array<{ rank: string; value?: string }> = [
+    { rank: 'kingdom', value: kingdom },
+    { rank: 'phylum', value: phylum },
+    { rank: 'class', value: className },
+    { rank: 'order', value: order },
+    { rank: 'family', value: family },
+    { rank: 'genus', value: genus },
+    { rank: 'species', value: species },
+  ]
 
-  const record: TaxonRecord = {
-    taxonID: getFirstDefined(row, lower, NUMERIC_ID_KEYS.taxonID) as any,
-    scientificName,
-    taxonRank: getStringCI(lower, FIELD_KEYS.taxonRank as unknown as string[]),
-    kingdom: normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.kingdom as unknown as string[])),
-    phylum: normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.phylum as unknown as string[])),
-    class: normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.class as unknown as string[])),
-    order,
-    family,
-    genus,
-    species,
-    acceptedTaxonKey: getFirstDefined(row, lower, NUMERIC_ID_KEYS.acceptedTaxonKey) as any,
-    iucnRedListCategory: getStringCI(lower, FIELD_KEYS.iucnRedListCategory as unknown as string[]),
-    extras: buildExtrasFiltered(row),
+  const out: TaxonRecord[] = []
+
+  for (const { rank, value } of rankPairs) {
+    const rankValue = (value ?? '').trim()
+    if (!rankValue) continue
+
+    const rankId = getFirstDefined(row, lower, RANK_SPECIFIC_ID_KEYS[rank] || []) as any
+    const taxonID = rankId != null && rankId !== '' ? rankId : (getFirstDefined(row, lower, NUMERIC_ID_KEYS.taxonID) as any)
+
+    const record: TaxonRecord = {
+      taxonID,
+      // scientificName only meaningful at species level; keep empty otherwise
+      scientificName: rank === 'species' ? species || '' : '',
+      taxonRank: rank,
+      taxonomicStatus,
+      kingdom,
+      phylum,
+      class: className,
+      order,
+      family,
+      genus,
+      species,
+      acceptedTaxonKey,
+      acceptedScientificName,
+      iucnRedListCategory,
+      extras,
+    }
+
+    out.push(record)
   }
-  return record
+
+  return out
 }
 
 function getFirstDefined(row: any, lower: LowerKeyMap, keys: readonly string[]) {
@@ -203,4 +238,26 @@ function normalizeTaxonValue(value: string | undefined) {
   const lower = v.toLowerCase()
   if (lower === 'na' || lower === 'n/a' || lower === 'null' || lower === 'undefined' || lower === 'na na') return undefined
   return v
+}
+
+function stableTaxonKey(record: TaxonRecord) {
+  const id = String(record?.taxonID ?? '')
+    .trim()
+    .toLowerCase()
+  if (id) return `id:${id}`
+
+  const rank = String(record?.taxonRank ?? '')
+    .trim()
+    .toLowerCase()
+  let name = ''
+  if (rank === 'species') name = String(record?.species ?? '')
+  else if (rank === 'genus') name = String(record?.genus ?? '')
+  else if (rank === 'family') name = String(record?.family ?? '')
+  else if (rank === 'order') name = String(record?.order ?? '')
+  else if (rank === 'class') name = String(record?.class ?? '')
+  else if (rank === 'phylum') name = String(record?.phylum ?? '')
+  else if (rank === 'kingdom') name = String(record?.kingdom ?? '')
+  const nameKey = name.trim().toLowerCase()
+  if (rank && nameKey) return `${rank}:${nameKey}`
+  return ''
 }
