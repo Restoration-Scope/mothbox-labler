@@ -5,17 +5,27 @@ import { idbGet } from '~/utils/index-db'
 import { objectsToCSV } from '~/utils/csv'
 import { fsaaWriteText, type FileSystemDirectoryHandleLike } from '~/utils/fsaa'
 import { ensureReadWritePermission, persistenceConstants } from '~/features/folder-processing/files.persistence'
-
-/**
-add a new column:
-- name: the deepest taxonomic level that was identifed as. If it was kingdom animalia, jsut animalia. If it was family "so and so" then it shoudl be that.  OR if it's morphospecies then it's that . Unless there's a genus and species. theen it hsoudl be `{genus} {species}`
-
-
- */
+import { deriveTaxonName, getSpeciesValue, extractTaxonomyFields, extractTaxonMetadata } from '~/models/taxonomy'
+import { getPhotoBaseFromPhotoId, getNightDiskPathFromPhotos } from '~/utils/paths'
 
 const SOFTWARE_NAME = 'Mothbeam v2'
 
 const DARWIN_COLUMNS = [
+  // Taxonomy columns
+  'kingdom',
+  'phylum',
+  'class',
+  'order',
+  'family',
+  'genus',
+  'species',
+  'taxonID',
+  'taxonKey',
+  'commonName',
+  'scientificName',
+  'name',
+  'species_list',
+
   'basisOfRecord',
   'datasetID',
   'parentEventID',
@@ -29,18 +39,6 @@ const DARWIN_COLUMNS = [
   'detection_confidence',
   'identifiedBy',
   'ID_confidence',
-  'kingdom',
-  'phylum',
-  'class',
-  'order',
-  'family',
-  'genus',
-  'species',
-  'taxonID',
-  'taxonKey',
-  'commonName',
-  'scientificName',
-  'species_list',
   'filepath',
   'mothbox',
   'software',
@@ -114,7 +112,7 @@ export async function openNightFolderPicker(params: { nightId: string }): Promis
   const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
   if (!photos.length) return false
 
-  const nightDiskPath = getNightDiskPathFromAnyPhoto({ photos })
+  const nightDiskPath = getNightDiskPathFromPhotos({ photos })
   if (!nightDiskPath) return false
 
   const dirParts = nightDiskPath.split('/').filter(Boolean)
@@ -146,7 +144,7 @@ export async function copyNightFolderPathToClipboard(params: { nightId: string }
   const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
   if (!photos.length) return false
 
-  const nightDiskPath = getNightDiskPathFromAnyPhoto({ photos })
+  const nightDiskPath = getNightDiskPathFromPhotos({ photos })
   if (!nightDiskPath) return false
 
   const ok = await writeTextToClipboard(nightDiskPath)
@@ -162,7 +160,7 @@ export async function copyNightExportFilePathToClipboard(params: { nightId: stri
   const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
   if (!photos.length) return false
 
-  const nightDiskPath = getNightDiskPathFromAnyPhoto({ photos })
+  const nightDiskPath = getNightDiskPathFromPhotos({ photos })
   if (!nightDiskPath) return false
 
   const fileName = buildNightExportFileName({ nightId })
@@ -212,14 +210,14 @@ export async function generateNightDarwinCSVString(params: { nightId: string }):
   const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
   if (!photos.length) return null
 
-  const nightDiskPath = getNightDiskPathFromAnyPhoto({ photos })
+  const nightDiskPath = getNightDiskPathFromPhotos({ photos })
   if (!nightDiskPath) return null
 
   const rowObjs: DarwinRow[] = []
   for (const d of detections) {
     const patch = allPatches[d.patchId]
     const photo = allPhotos[d.photoId]
-    const rowObj = buildDarwinRowObject({ detection: d, patch, photo, nightId, nightDiskPath })
+    const rowObj = buildDarwinShapeFromDetection({ detection: d, patch, photo, nightId, nightDiskPath })
     rowObjs.push(rowObj)
   }
 
@@ -263,7 +261,7 @@ function formatTodayYyyyMm_Dd(): string {
   return res
 }
 
-function buildDarwinRowObject(params: {
+export function buildDarwinShapeFromDetection(params: {
   detection: DetectionEntity
   patch?: PatchEntity
   photo?: PhotoEntity
@@ -278,17 +276,26 @@ function buildDarwinRowObject(params: {
   const image_id = patch?.id || ''
   const label = detection?.taxon?.scientificName || detection?.label || ''
   const scientificName = label
+
+  // Use shared taxonomy utilities
+  const taxonomyFields = extractTaxonomyFields({ detection })
+  const taxonMetadata = extractTaxonMetadata({ detection })
+
+  // Darwin CSV uses fixed values for kingdom/phylum/class
   const kingdom = 'Animalia'
   const phylum = 'Arthropoda'
   const klass = 'Insecta'
-  const order = detection?.taxon?.order || ''
-  const family = detection?.taxon?.family || ''
-  const genus = detection?.taxon?.genus || ''
-  const species = ''
-  const taxonID = String((detection as any)?.taxon?.taxonID || '')
-  const taxonKey = String((detection as any)?.taxon?.acceptedTaxonKey ?? (detection as any)?.taxon?.taxonID ?? '')
-  const commonName = detection?.taxon?.vernacularName || ''
-  const species_list = String((detection as any)?.speciesListDOI || '')
+  const order = taxonomyFields.order || ''
+  const family = taxonomyFields.family || ''
+  const genus = taxonomyFields.genus || ''
+  const species = getSpeciesValue({ detection })
+  const taxonID = String(taxonMetadata.taxonID || '')
+  const taxonKey = String(taxonMetadata.acceptedTaxonKey ?? taxonMetadata.taxonID ?? '')
+  const commonName = taxonMetadata.vernacularName || ''
+  const species_list = String(taxonMetadata.speciesListDOI || '')
+
+  // Name column: deepest taxonomic level identified, or morphospecies, or genus + species
+  const name = deriveTaxonName({ detection })
 
   const datasetID = nightId.replaceAll('/', '_')
   const parentEventID = datasetID
@@ -327,6 +334,7 @@ function buildDarwinRowObject(params: {
     taxonKey,
     commonName,
     scientificName,
+    name,
     species_list,
     filepath,
     mothbox,
@@ -357,28 +365,6 @@ function buildDarwinRowObject(params: {
 }
 
 // FSAA writer moved to utils/fsaa.ts
-
-function getNightDiskPathFromAnyPhoto(params: { photos: PhotoEntity[] }): string {
-  const { photos } = params
-  for (const p of photos) {
-    const path = (p as any)?.imageFile?.path || (p as any)?.botDetectionFile?.path
-    if (!path) continue
-    const norm = String(path).replaceAll('\\', '/').replace(/^\/+/, '')
-    const segments = norm.split('/').filter(Boolean)
-    if (segments.length < 2) continue
-    const withoutFile = segments.slice(0, -1)
-    const joined = withoutFile.join('/')
-    return joined
-  }
-  return ''
-}
-
-function getPhotoBaseFromPhotoId(photoId: string): string {
-  const id = photoId || ''
-  if (!id.toLowerCase().endsWith('.jpg')) return id
-  const base = id.slice(0, -'.jpg'.length)
-  return base
-}
 
 function extractVerbatimEventDateFromPhotoBase(params: { baseName?: string }) {
   const base = (params?.baseName ?? '').trim()
