@@ -126,6 +126,43 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
 
   let finalResults = combined.slice(0, take)
 
+  // Normalize results: if query matches a genus/family/order exactly, promote that rank
+  finalResults = finalResults.map((record) => {
+    const qLower = trimmed.toLowerCase()
+    const recordGenus = (record?.genus ?? '').toLowerCase()
+    const recordFamily = (record?.family ?? '').toLowerCase()
+    const recordOrder = (record?.order ?? '').toLowerCase()
+    
+    // If query matches genus exactly, normalize to genus rank
+    if (recordGenus === qLower && record?.taxonRank !== 'genus') {
+      return {
+        ...record,
+        taxonRank: 'genus',
+        scientificName: '', // scientificName only for species level
+      }
+    }
+    
+    // If query matches family exactly, normalize to family rank
+    if (recordFamily === qLower && record?.taxonRank !== 'family') {
+      return {
+        ...record,
+        taxonRank: 'family',
+        scientificName: '', // scientificName only for species level
+      }
+    }
+    
+    // If query matches order exactly, normalize to order rank
+    if (recordOrder === qLower && record?.taxonRank !== 'order') {
+      return {
+        ...record,
+        taxonRank: 'order',
+        scientificName: '', // scientificName only for species level
+      }
+    }
+    
+    return record
+  })
+
   if (finalResults.length === 0 && (list?.records?.length ?? 0) > 0 && trimmed.length >= 4) {
     const approx = approximateSearch({
       records: (list?.records as TaxonRecord[]) ?? [],
@@ -133,17 +170,24 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
       limit: take,
       maxDistance: 2,
     })
-    if (approx.length) finalResults = approx
-  }
-
-  if (trimmed)
-    console.log('🌀 species.search', {
-      listId: speciesListId,
-      q: trimmed,
-      indexSize: index.length,
-      exactCount: exactMatches.length,
-      resultCount: combined.length,
+    if (approx.length) finalResults = approx.map((record) => {
+      const qLower = trimmed.toLowerCase()
+      const recordGenus = (record?.genus ?? '').toLowerCase()
+      const recordFamily = (record?.family ?? '').toLowerCase()
+      const recordOrder = (record?.order ?? '').toLowerCase()
+      
+      if (recordGenus === qLower && record?.taxonRank !== 'genus') {
+        return { ...record, taxonRank: 'genus', scientificName: '' }
+      }
+      if (recordFamily === qLower && record?.taxonRank !== 'family') {
+        return { ...record, taxonRank: 'family', scientificName: '' }
+      }
+      if (recordOrder === qLower && record?.taxonRank !== 'order') {
+        return { ...record, taxonRank: 'order', scientificName: '' }
+      }
+      return record
     })
+  }
 
   return finalResults
 }

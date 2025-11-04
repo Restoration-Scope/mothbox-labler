@@ -34,12 +34,16 @@ export function getRankValue(params: { det?: DetectionEntity; rank: 'order' | 'f
   const { det, rank } = params
   if (!det) return undefined
   const tax = det?.taxon
-  if (!tax) return undefined
   if (rank === 'order') return tax?.order || undefined
   if (rank === 'family') return tax?.family || undefined
   if (rank === 'genus') return tax?.genus || undefined
-  const res = tax?.species || undefined
-  return res
+  if (rank === 'species') {
+    const morphospecies = typeof det?.morphospecies === 'string' ? det.morphospecies : undefined
+    if (morphospecies) return morphospecies
+    const species = tax?.species || undefined
+    return species
+  }
+  return undefined
 }
 
 export function getHorizontalPadding(el: HTMLElement) {

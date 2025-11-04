@@ -17,10 +17,11 @@ export type IdentifyDialogProps = {
   onOpenChange: (open: boolean) => void
   onSubmit: (label: string, taxon?: TaxonRecord) => void
   projectId?: string
+  detectionIds?: string[]
 }
 
 export function IdentifyDialog(props: IdentifyDialogProps) {
-  const { open, onOpenChange, onSubmit, projectId } = props
+  const { open, onOpenChange, onSubmit, projectId, detectionIds } = props
 
   const [query, setQuery] = useState('')
   const selection = useStore(projectSpeciesSelectionStore)
@@ -68,6 +69,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     const value = (label ?? '').trim()
     if (!value) return
     onSubmit(value)
+    logIdentificationResult({ detectionIds })
     onOpenChange(false)
   }
 
@@ -77,6 +79,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     const label = preferred || getDisplayLabelForTaxon(t)
     if (!label) return
     onSubmit(label, t)
+    logIdentificationResult({ detectionIds })
     onOpenChange(false)
   }
 
@@ -84,6 +87,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     const value = query.trim()
     if (!value) return
     onSubmit(value)
+    logIdentificationResult({ detectionIds })
     onOpenChange(false)
   }
 
@@ -342,6 +346,46 @@ function getDisplayLabelForTaxon(t: TaxonRecord) {
 
 // Helpers (atomic) — keep at bottom
 
+type LogIdentificationResultParams = {
+  detectionIds?: string[]
+}
+
+function logIdentificationResult(params: LogIdentificationResultParams) {
+  const { detectionIds } = params
+  if (!detectionIds || detectionIds.length === 0) return
+
+  // Use setTimeout to ensure store has been updated after onSubmit callback
+  setTimeout(() => {
+    const updated = detectionsStore.get() || {}
+    const entities = detectionIds.map((id) => updated?.[id]).filter(Boolean) as DetectionEntity[]
+
+    if (entities.length > 0) {
+      console.log('✅ identify: stored entities', {
+        count: entities.length,
+        entities: entities.map((e) => ({
+          id: e.id,
+          patchId: e.patchId,
+          label: e.label,
+          taxon: e.taxon
+            ? {
+                scientificName: e.taxon.scientificName,
+                taxonRank: e.taxon.taxonRank,
+                order: e.taxon.order,
+                family: e.taxon.family,
+                genus: e.taxon.genus,
+                species: e.taxon.species,
+              }
+            : undefined,
+          detectedBy: e.detectedBy,
+          identifiedAt: e.identifiedAt,
+          isError: e.isError,
+          morphospecies: e.morphospecies,
+        })),
+      })
+    }
+  }, 0)
+}
+
 type GetSpeciesOptionsParams = {
   selection?: Record<string, string>
   projectId?: string
@@ -359,21 +403,6 @@ function getSpeciesOptions(params: GetSpeciesOptionsParams) {
   }
 
   const result = searchSpecies({ speciesListId: listId, query, limit: 20 })
-
-  if (query.trim())
-    console.log('✅ identify: species results', {
-      projectId,
-      listId,
-      q: query,
-      count: result.length,
-      sample: result.slice(0, 10).map((t) => ({
-        name: t?.scientificName,
-        rank: t?.taxonRank,
-        genus: t?.genus,
-        family: t?.family,
-        order: t?.order,
-      })),
-    })
 
   const res = result
   return res

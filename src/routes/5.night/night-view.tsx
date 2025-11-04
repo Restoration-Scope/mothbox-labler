@@ -196,7 +196,13 @@ export function NightView(props: { nightId: string }) {
           onResetToAuto={onResetToAuto}
         />
       </div>
-      <IdentifyDialog open={identifyOpen} onOpenChange={setIdentifyOpen} onSubmit={onSubmitLabel} projectId={(night as any)?.projectId} />
+      <IdentifyDialog
+        open={identifyOpen}
+        onOpenChange={setIdentifyOpen}
+        onSubmit={onSubmitLabel}
+        projectId={(night as any)?.projectId}
+        detectionIds={selectedDetectionIds}
+      />
       <PatchDetailDialog open={detailOpen} onOpenChange={setDetailOpen} patchId={detailPatchId} />
     </Row>
   )
@@ -237,7 +243,9 @@ function buildTaxonomyTreeForNight(params: { detections: Record<string, any>; ni
     const family = (d as any)?.taxon?.family as string | undefined
     const genus = (d as any)?.taxon?.genus as string | undefined
     const species = (d as any)?.taxon?.species as string | undefined
-    const hasSpecies = !!species
+    const morphospecies = (d as any)?.morphospecies as string | undefined
+    const hasSpecies = !!species || !!morphospecies
+    const speciesName = morphospecies || species
     const hasGenus = !!genus
     const hasFamily = !!family
     const hasOrder = !!order
@@ -252,14 +260,14 @@ function buildTaxonomyTreeForNight(params: { detections: Record<string, any>; ni
       if (orderName) path.push({ rank: 'order', name: orderName })
       if (familyName) path.push({ rank: 'family', name: familyName })
       if (genusName) path.push({ rank: 'genus', name: genusName })
-      if (hasSpecies && species) path.push({ rank: 'species', name: species })
+      if (hasSpecies && speciesName) path.push({ rank: 'species', name: speciesName })
     } else {
       // Auto: include only known ranks without placeholders
       if (klass) path.push({ rank: 'class', name: klass })
       if (order) path.push({ rank: 'order', name: order })
       if (family) path.push({ rank: 'family', name: family })
       if (genus) path.push({ rank: 'genus', name: genus })
-      if (species) path.push({ rank: 'species', name: species })
+      if (speciesName) path.push({ rank: 'species', name: speciesName })
     }
     if (path.length === 0) continue
     let currentLevel = roots
@@ -306,12 +314,14 @@ function filterPatchesByTaxon(params: {
   const result = patches.filter((p) => {
     const det = detections?.[p.id]
     const tax = det?.taxon
+    const morphospecies = det?.morphospecies
+    const speciesName = morphospecies || tax?.species
     let matches = false
     if (selectedTaxon?.rank === 'class') matches = tax?.class === selectedTaxon?.name
     else if (selectedTaxon?.rank === 'order') matches = tax?.order === selectedTaxon?.name
     else if (selectedTaxon?.rank === 'family') matches = tax?.family === selectedTaxon?.name
     else if (selectedTaxon?.rank === 'genus') matches = tax?.genus === selectedTaxon?.name
-    else if (selectedTaxon?.rank === 'species') matches = tax?.species === selectedTaxon?.name
+    else if (selectedTaxon?.rank === 'species') matches = speciesName === selectedTaxon?.name
     if (!matches) return false
     if (!selectedBucket) return true
     const detectedBy = det?.detectedBy === 'user' ? 'user' : 'auto'

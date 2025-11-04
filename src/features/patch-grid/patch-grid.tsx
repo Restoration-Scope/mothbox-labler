@@ -122,7 +122,7 @@ export function PatchGrid(props: PatchGridProps) {
       return out
     }
 
-    const anchorRank: 'order' | 'family' | 'genus' = (selectedTaxon?.rank as any) || 'order'
+    const anchorRank: 'order' | 'family' | 'genus' | 'species' = (selectedTaxon?.rank as any) || 'order'
     const anchorGroups = new Map<string, string[]>()
     for (const id of orderedIds) {
       const det = detections?.[id]
