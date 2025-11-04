@@ -18,5 +18,11 @@ export default defineConfig({
     setupFiles: ['/src/test/setup.ts'],
     globals: true,
     css: true,
+    resolve: {
+      alias: {
+        '~': '/src',
+        '@': '/src',
+      },
+    },
   },
 })
