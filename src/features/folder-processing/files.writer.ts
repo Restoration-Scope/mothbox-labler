@@ -5,6 +5,9 @@ import { nightSummariesStore, type NightSummaryEntity } from '~/stores/entities/
 import { ensureReadWritePermission, persistenceConstants } from './files.persistence'
 import { userSessionStore } from '~/stores/ui'
 import { morphoLinksStore } from '~/stores/morphospecies/links'
+import { getPhotoBaseFromPhotoId, getNightDiskPathFromPhoto } from '~/utils/paths'
+import { normalizeMorphoKey } from '~/stores/morphospecies/covers'
+import { buildIdentifiedJsonShapeFromDetection } from '~/models/detection-shapes'
 
 type FileSystemDirectoryHandleLike = {
   getDirectoryHandle?: (name: string, options?: { create?: boolean }) => Promise<FileSystemDirectoryHandleLike>
@@ -149,74 +152,7 @@ function buildUserIdentifiedJson(params: { baseName: string; detections: Detecti
   const { baseName, detections } = params
   const user = userSessionStore.get()
   const human = (user?.initials || 'user').trim()
-  const shapes = detections.map((d) => {
-    const shape: any = {
-      patch_path: `patches/${d.patchId}`,
-      label: d.label,
-      score: d.score,
-      direction: d.direction,
-      shape_type: d.shapeType,
-      points: d.points,
-      clusterID: typeof (d as any)?.clusterId === 'number' ? (d as any)?.clusterId : undefined,
-      kingdom: (d as any)?.isError ? null : (d as any)?.taxon?.kingdom,
-      phylum: (d as any)?.isError ? null : (d as any)?.taxon?.phylum,
-      class: (d as any)?.isError ? null : (d as any)?.taxon?.class,
-      order: (d as any)?.isError ? null : (d as any)?.taxon?.order,
-      family: (d as any)?.isError ? null : (d as any)?.taxon?.family,
-      genus: (d as any)?.isError ? null : (d as any)?.taxon?.genus,
-      species: (d as any)?.isError ? null : (d as any)?.taxon?.species,
-      // Persist identifiers and helpful metadata to retain linkage with species lists
-      taxonID: (d as any)?.isError ? undefined : (d as any)?.taxon?.taxonID,
-      acceptedTaxonKey: (d as any)?.isError ? undefined : (d as any)?.taxon?.acceptedTaxonKey,
-      acceptedScientificName: (d as any)?.isError ? undefined : (d as any)?.taxon?.acceptedScientificName,
-      vernacularName: (d as any)?.isError ? undefined : (d as any)?.taxon?.vernacularName,
-      taxonRank: (d as any)?.isError ? undefined : (d as any)?.taxon?.taxonRank,
-      species_list: (d as any)?.speciesListDOI || undefined,
-      is_error: (d as any)?.isError ? true : undefined,
-      identifier_human: d?.detectedBy === 'user' ? human : undefined,
-      timestamp_ID_human: d?.identifiedAt ?? Date.now(),
-      // TODO we should still have the bot stuff in here
-      // timestamp_ID_bot
-
-      /**
-   patch_path: string
-
-    confidence_detection: number
-    confidence_ID: number
-
-    identifier_bot: string
-    identifier_human: string
-
-    timestamp_detection: string
-    timestamp_ID_bot: string
-    timestamp_ID_human: string
-
-    detector_bot: string
-
-    species_list: string // DOI string
-
-    kingdom: string
-    phylum: string
-    class: string
-    order: string
-
-    clusterID: number
-
-    // Optionally, keep other fields for backward compatibility or extensibility
-    label?: unknown
-    score?: unknown
-    direction?: unknown
-    shape_type?: unknown
-    points?: number[][]
-    family?: unknown
-    genus?: unknown
-    species?: unknown
-  }>
-}
-       */
-    }
-    return shape
-  })
+  const shapes = detections.map((d) => buildIdentifiedJsonShapeFromDetection({ detection: d, identifierHuman: human }))
   const json = { version: '1', photoBase: baseName, shapes }
   return json
 }
@@ -235,28 +171,4 @@ async function writeJson(root: FileSystemDirectoryHandleLike, path: string[], da
   if (!writable) return
   await writable.write(JSON.stringify(data, null, 2))
   await writable.close()
-}
-
-function getNightDiskPathFromPhoto(photo: PhotoEntity): string {
-  const path = (photo as any)?.imageFile?.path || (photo as any)?.botDetectionFile?.path
-  if (!path) return ''
-  const norm = String(path).replaceAll('\\', '/').replace(/^\/+/, '')
-  const segments = norm.split('/').filter(Boolean)
-  if (segments.length < 2) return ''
-  const withoutFile = segments.slice(0, -1)
-  const joined = withoutFile.join('/')
-  return joined
-}
-
-function getPhotoBaseFromPhotoId(photoId: string): string {
-  const id = photoId || ''
-  if (!id.toLowerCase().endsWith('.jpg')) return id
-  const base = id.slice(0, -'.jpg'.length)
-  return base
-}
-
-function normalizeMorphoKey(label: string): string {
-  const text = (label ?? '').trim().toLowerCase()
-  const res = text
-  return res
 }

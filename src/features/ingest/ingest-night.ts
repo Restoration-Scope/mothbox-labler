@@ -6,6 +6,7 @@ import type { DetectionEntity } from '~/stores/entities/detections'
 
 import { extractNightDiskPathFromIndexedPath } from './ingest-paths'
 import { extractPatchFilename, parseBotDetectionJsonSafely, parseUserDetectionJsonSafely } from './ingest-json'
+import { buildDetectionFromIdentifiedJsonShape } from '~/models/detection-shapes'
 
 export async function parseNightBotDetections(params: {
   photos: Record<string, PhotoEntity>
@@ -105,46 +106,7 @@ export async function overlayNightUserDetections(params: {
         if (!patchFileName) continue
         const detectionId = patchFileName
         const existing = detections[detectionId]
-        const isError = (shape as any)?.is_error === true || String((shape as any)?.label || '').toUpperCase() === 'ERROR'
-        const taxonBase = isError ? undefined : deriveTaxonFromShape(shape)
-        // Rehydrate identifiers and metadata if present in user JSON
-        const taxon = isError
-          ? undefined
-          : taxonBase
-          ? {
-              ...taxonBase,
-              taxonID: (shape as any)?.taxonID ?? (taxonBase as any)?.taxonID,
-              acceptedTaxonKey: (shape as any)?.acceptedTaxonKey ?? (taxonBase as any)?.acceptedTaxonKey,
-              acceptedScientificName: (shape as any)?.acceptedScientificName ?? (taxonBase as any)?.acceptedScientificName,
-              vernacularName: (shape as any)?.vernacularName ?? (taxonBase as any)?.vernacularName,
-              taxonRank: (shape as any)?.taxonRank ?? (taxonBase as any)?.taxonRank,
-            }
-          : undefined
-        const identifiedAt =
-          typeof (shape as any)?.timestamp_ID_human === 'number'
-            ? (shape as any).timestamp_ID_human
-            : typeof (shape as any)?.human_identified_at === 'number'
-            ? (shape as any).human_identified_at
-            : (existing as any)?.identifiedAt
-        const next: DetectionEntity = {
-          id: detectionId,
-          patchId: detectionId,
-          photoId: (existing as any)?.photoId || (photo as any).id,
-          nightId: (photo as any).nightId,
-          label: isError ? 'ERROR' : taxon?.scientificName || safeLabel(shape?.label) || (existing as any)?.label,
-          taxon: (taxon as any) ?? (isError ? undefined : (existing as any)?.taxon),
-          score: (safeNumber(shape?.score) as any) ?? (existing as any)?.score,
-          direction: (safeNumber(shape?.direction) as any) ?? (existing as any)?.direction,
-          shapeType: (safeLabel(shape?.shape_type) as any) ?? (existing as any)?.shapeType,
-          points: Array.isArray(shape?.points) ? (shape.points as any) : (existing as any)?.points,
-          detectedBy: 'user',
-          identifiedAt,
-          clusterId: (safeNumber((shape as any)?.clusterID) as any) ?? (existing as any)?.clusterId,
-          isError: isError ? true : undefined,
-          morphospecies: !isError && !taxon?.scientificName ? safeLabel(shape?.label) ?? (existing as any)?.morphospecies : undefined,
-          // Rehydrate species list DOI if present in overlay JSON
-          speciesListDOI: (shape as any)?.species_list ?? (existing as any)?.speciesListDOI,
-        }
+        const next = buildDetectionFromIdentifiedJsonShape({ shape, photo, existingDetection: existing })
         detections[detectionId] = next
       }
     }
