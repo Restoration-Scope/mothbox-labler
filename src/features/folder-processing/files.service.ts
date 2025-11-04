@@ -55,18 +55,33 @@ export function clearSelections() {
 export async function tryRestoreFromSavedDirectory() {
   try {
     console.log('🏁 restoreDirectory: attempting to restore previously picked folder')
+    const tStart = performance.now()
 
+    const tLoad = performance.now()
     const handle = await loadSavedDirectory()
-    if (!handle) return false
+    const loadMs = Math.round(performance.now() - tLoad)
+    console.log('🌀 restoreDirectory: loaded saved directory handle', { ms: loadMs })
+    if (!handle) {
+      console.log('❌ restoreDirectory: no saved directory handle found')
+      return false
+    }
 
+    const tPermission = performance.now()
     const granted = await ensureReadPermission(handle as any)
-    if (!granted) return false
+    const permissionMs = Math.round(performance.now() - tPermission)
+    console.log('🌀 restoreDirectory: checked read permission', { granted, ms: permissionMs })
+    if (!granted) {
+      console.log('❌ restoreDirectory: read permission denied')
+      return false
+    }
 
     const items: Array<{ file: File; path: string; name: string; size: number }> = []
     const tCollect = performance.now()
+    console.log('🌀 restoreDirectory: starting file collection...')
 
     await collectFilesWithPathsRecursively({ directoryHandle: handle as any, pathParts: [], items: items as any })
-    console.log('📂 restoreDirectory: collected files', { total: items.length, ms: Math.round(performance.now() - tCollect) })
+    const collectMs = Math.round(performance.now() - tCollect)
+    console.log('📂 restoreDirectory: collected files', { total: items.length, ms: collectMs })
 
     const tValidate = performance.now()
     const validation = validateProjectRootSelection({ files: items as any })
@@ -87,9 +102,9 @@ export async function tryRestoreFromSavedDirectory() {
     await singlePassIngest({ files: items as any })
     const singleMs = Math.round(performance.now() - tSingle)
     console.log('🌀 restoreDirectory: single pass ingestion', { singleMs })
-    const totalMs = Math.round(performance.now() - tCollect)
+    const totalMs = Math.round(performance.now() - tStart)
     console.log('✅ restoreDirectory: ingestion complete', { totalFiles: items.length, totalMs })
-    console.log('⏱️ restoreDirectory: timings', { validateMs, indexApplyMs, singleMs, totalMs })
+    console.log('⏱️ restoreDirectory: timings', { loadMs, permissionMs, collectMs, validateMs, indexApplyMs, singleMs, totalMs })
     pickerErrorStore.set(null)
     return true
   } catch {
