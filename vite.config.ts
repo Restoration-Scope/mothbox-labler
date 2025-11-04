@@ -1,3 +1,4 @@
+/// <reference types="vitest/config" />
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -13,16 +14,11 @@ export default defineConfig({
   server: {
     allowedHosts: ['vite-96.localcan.dev'],
   },
+  // @ts-expect-error - vite and vitest have compatible but differently typed configs
   test: {
     environment: 'jsdom',
     setupFiles: ['/src/test/setup.ts'],
     globals: true,
     css: true,
-    resolve: {
-      alias: {
-        '~': '/src',
-        '@': '/src',
-      },
-    },
   },
 })

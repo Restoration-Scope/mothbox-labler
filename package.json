@@ -9,8 +9,9 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "check": "npx tsc --noEmit",
-    "test": "vitest",
+    "test": "vitest run",
     "test:run": "vitest run --reporter=dot",
+    "test:watch": "vitest",
     "species:search": "bun run scripts/species-search.ts"
   },
   "dependencies": {
