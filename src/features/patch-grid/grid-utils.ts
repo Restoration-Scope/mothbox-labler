@@ -32,17 +32,40 @@ export function computeDetectionArea(params: { detection?: DetectionEntity }) {
 
 export function getRankValue(params: { det?: DetectionEntity; rank: 'order' | 'family' | 'genus' | 'species' }) {
   const { det, rank } = params
-  if (!det) return undefined
+  if (!det) {
+    console.log('🔍 getRankValue - no det, rank:', rank)
+    return undefined
+  }
   const tax = det?.taxon
-  if (rank === 'order') return tax?.order || undefined
-  if (rank === 'family') return tax?.family || undefined
-  if (rank === 'genus') return tax?.genus || undefined
+  if (rank === 'order') {
+    const result = tax?.order || undefined
+    console.log('🔍 getRankValue - order:', result, 'tax:', tax)
+    return result
+  }
+  if (rank === 'family') {
+    const result = tax?.family || undefined
+    console.log('🔍 getRankValue - family:', result, 'tax:', tax)
+    return result
+  }
+  if (rank === 'genus') {
+    const result = tax?.genus || undefined
+    console.log('🔍 getRankValue - genus:', result, 'tax:', tax)
+    return result
+  }
   if (rank === 'species') {
     const morphospecies = typeof det?.morphospecies === 'string' ? det.morphospecies : undefined
-    if (morphospecies) return morphospecies
     const species = tax?.species || undefined
+    console.log('🔍 getRankValue - species:', {
+      morphospecies,
+      taxonSpecies: species,
+      hasMorphospecies: !!morphospecies,
+      hasTaxonSpecies: !!species,
+      returning: morphospecies || species,
+    })
+    if (morphospecies) return morphospecies
     return species
   }
+  console.log('🔍 getRankValue - no match, rank:', rank)
   return undefined
 }
 
