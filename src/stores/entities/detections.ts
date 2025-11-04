@@ -7,6 +7,7 @@ import { photosStore, type PhotoEntity } from '~/stores/entities/photos'
 import { parseBotDetectionJsonSafely, extractPatchFilename } from '~/features/ingest/ingest-json'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 import { deriveTaxonName } from '~/models/taxonomy'
+import { buildDetectionFromBotShape } from '~/models/detection-shapes'
 
 export type DetectionEntity = {
   id: string
@@ -251,23 +252,7 @@ export async function resetDetections(params: { detectionIds: string[] }) {
       const match = shapes.find((s: any) => extractPatchFilename({ patchPath: (s as any)?.patch_path ?? '' }) === id)
 
       if (match) {
-        const taxon = deriveTaxonFromShape(match)
-        const next: DetectionEntity = {
-          ...existing,
-          label: taxon?.scientificName || safeLabel((match as any)?.label),
-          taxon: taxon as any,
-          score: safeNumber((match as any)?.score),
-          direction: safeNumber((match as any)?.direction),
-          shapeType: safeLabel((match as any)?.shape_type),
-          points: Array.isArray((match as any)?.points) ? ((match as any)?.points as any) : (existing as any)?.points,
-          clusterId: safeNumber((match as any)?.clusterID) as any,
-          detectedBy: 'auto',
-          identifiedAt: undefined,
-          isError: undefined,
-          isMorpho: undefined,
-          speciesListId: undefined,
-          speciesListDOI: undefined,
-        }
+        const next = buildDetectionFromBotShape({ shape: match, existingDetection: existing })
         updated[id] = next
       } else {
         // Fallback: clear human flags and mark as auto without changing core fields
@@ -277,6 +262,7 @@ export async function resetDetections(params: { detectionIds: string[] }) {
           identifiedAt: undefined,
           isError: undefined,
           isMorpho: undefined,
+          morphospecies: undefined,
           speciesListId: undefined,
           speciesListDOI: undefined,
         }

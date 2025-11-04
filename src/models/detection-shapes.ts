@@ -25,6 +25,39 @@ export function buildIdentifiedJsonShapeFromDetection(params: { detection: Detec
 }
 
 /**
+ * Resets a detection to its auto-detected state from a bot detection shape.
+ * Clears all user-identified fields (morphospecies, isError, identifiedAt, etc.)
+ * and restores values from the original bot detection JSON.
+ */
+export function buildDetectionFromBotShape(params: { shape: any; existingDetection: DetectionEntity }) {
+  const { shape, existingDetection } = params
+
+  const extractedTaxonomy = extractTaxonomyFromShape({ shape })
+  const scientificNameAndRank = determineScientificNameAndRank({ taxonomy: extractedTaxonomy })
+  const taxon = buildTaxonFromShape({ shape, taxonomy: extractedTaxonomy, scientificNameAndRank, isError: false })
+
+  const detection: DetectionEntity = {
+    ...existingDetection,
+    label: taxon?.scientificName || safeLabel(shape?.label),
+    taxon: taxon as any,
+    score: safeNumber(shape?.score),
+    direction: safeNumber(shape?.direction),
+    shapeType: safeLabel(shape?.shape_type),
+    points: Array.isArray(shape?.points) ? (shape.points as any) : existingDetection?.points,
+    clusterId: safeNumber(shape?.clusterID) as any,
+    detectedBy: 'auto',
+    identifiedAt: undefined,
+    isError: undefined,
+    isMorpho: undefined,
+    morphospecies: undefined,
+    speciesListId: undefined,
+    speciesListDOI: undefined,
+  }
+
+  return detection
+}
+
+/**
  * Converts an IdentifiedJSONShape (from _identified.json) back to a DetectionEntity.
  * Handles morphospecies extraction (species field when no taxon.species).
  * Used when loading saved progress.
