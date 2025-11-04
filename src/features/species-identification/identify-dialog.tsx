@@ -36,6 +36,73 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     return res
   }, [selection, projectId, query])
 
+  useEffect(() => {
+    if (query.trim().toLowerCase() === 'diptera' && speciesOptions?.length) {
+      console.log('🔍 Diptera search results:', {
+        count: speciesOptions.length,
+        results: speciesOptions.map((r) => {
+          const parts: string[] = []
+          const kingdom = String(r?.kingdom ?? '').trim().toLowerCase()
+          if (!kingdom) return { ...r, stableKey: '' }
+          parts.push(kingdom)
+
+          const rank = String(r?.taxonRank ?? '').trim().toLowerCase()
+          if (rank === 'kingdom') {
+            return { ...r, stableKey: parts.join(':') }
+          }
+
+          const phylum = String(r?.phylum ?? '').trim().toLowerCase()
+          if (phylum) parts.push(phylum)
+          if (rank === 'phylum') {
+            return { ...r, stableKey: parts.join(':') }
+          }
+
+          const className = String(r?.class ?? '').trim().toLowerCase()
+          if (className) parts.push(className)
+          if (rank === 'class') {
+            return { ...r, stableKey: parts.join(':') }
+          }
+
+          const order = String(r?.order ?? '').trim().toLowerCase()
+          if (order) parts.push(order)
+          if (rank === 'order') {
+            return { ...r, stableKey: parts.join(':') }
+          }
+
+          const family = String(r?.family ?? '').trim().toLowerCase()
+          if (family) parts.push(family)
+          if (rank === 'family') {
+            return { ...r, stableKey: parts.join(':') }
+          }
+
+          const genus = String(r?.genus ?? '').trim().toLowerCase()
+          if (genus) parts.push(genus)
+          if (rank === 'genus') {
+            return { ...r, stableKey: parts.join(':') }
+          }
+
+          const species = String(r?.species ?? '').trim().toLowerCase()
+          if (species) parts.push(species)
+          if (rank === 'species') {
+            return { ...r, stableKey: parts.join(':') }
+          }
+
+          return {
+            taxonID: r.taxonID,
+            scientificName: r.scientificName,
+            taxonRank: r.taxonRank,
+            order: r.order,
+            family: r.family,
+            genus: r.genus,
+            species: r.species,
+            taxonomicStatus: r.taxonomicStatus,
+            stableKey: parts.join(':'),
+          }
+        }),
+      })
+    }
+  }, [query, speciesOptions])
+
   const speciesOptionsLimited = useMemo(() => {
     const list = speciesOptions || []
     const res = list.slice(0, MAX_SPECIES_UI_RESULTS)

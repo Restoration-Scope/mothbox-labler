@@ -38,6 +38,22 @@ function ensureSpeciesIndexForList(list: SpeciesList | undefined): SpeciesIndexI
     }
   }
 
+  if (exactIndex['diptera']) {
+    console.log('🔍 ensureSpeciesIndexForList - Diptera entries in exact index', {
+      count: exactIndex['diptera'].length,
+      entries: exactIndex['diptera'].map((r) => ({
+        taxonID: r.taxonID,
+        taxonRank: r.taxonRank,
+        order: r.order,
+        family: r.family,
+        genus: r.genus,
+        species: r.species,
+        scientificName: r.scientificName,
+        stableKey: stableTaxonKey(r),
+      })),
+    })
+  }
+
   speciesIndexCache[list.id] = items
   speciesExactIndexCache[list.id] = exactIndex
   return items
@@ -66,6 +82,22 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
   const exactLower = trimmed.toLowerCase()
   let exactMatches = (exactIndex[exactLower] ?? []) as TaxonRecord[]
 
+  if (trimmed.toLowerCase() === 'diptera') {
+    console.log('🔍 searchSpecies - Diptera: exact matches before filter', {
+      count: exactMatches.length,
+      matches: exactMatches.map((r) => ({
+        taxonID: r.taxonID,
+        taxonRank: r.taxonRank,
+        order: r.order,
+        family: r.family,
+        genus: r.genus,
+        species: r.species,
+        scientificName: r.scientificName,
+        taxonomicStatus: r.taxonomicStatus,
+      })),
+    })
+  }
+
   const acceptFilter = (r: TaxonRecord) => {
     const isUnranked = (r?.taxonRank ?? '').toLowerCase() === 'unranked'
     const status = (r?.taxonomicStatus ?? '').toLowerCase()
@@ -75,7 +107,38 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
   exactMatches = exactMatches.filter(acceptFilter)
   mapped = mapped.filter(acceptFilter)
 
+  if (trimmed.toLowerCase() === 'diptera') {
+    console.log('🔍 searchSpecies - Diptera: after filters', {
+      exactMatchesCount: exactMatches.length,
+      fuzzyMatchesCount: mapped.length,
+      exactMatches: exactMatches.map((r) => ({
+        taxonID: r.taxonID,
+        taxonRank: r.taxonRank,
+        order: r.order,
+        stableKey: stableTaxonKey(r),
+      })),
+      fuzzyMatches: mapped.slice(0, 5).map((r) => ({
+        taxonID: r.taxonID,
+        taxonRank: r.taxonRank,
+        order: r.order,
+        stableKey: stableTaxonKey(r),
+      })),
+    })
+  }
+
   const combinedPre: TaxonRecord[] = dedupeByKey([...exactMatches, ...mapped])
+
+  if (trimmed.toLowerCase() === 'diptera') {
+    console.log('🔍 searchSpecies - Diptera: after dedupe', {
+      count: combinedPre.length,
+      results: combinedPre.map((r) => ({
+        taxonID: r.taxonID,
+        taxonRank: r.taxonRank,
+        order: r.order,
+        stableKey: stableTaxonKey(r),
+      })),
+    })
+  }
 
   const rankOrder: Record<string, number> = {
     genus: 0,
@@ -126,6 +189,21 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
 
   let finalResults = combined.slice(0, take)
 
+  if (trimmed.toLowerCase() === 'diptera') {
+    console.log('🔍 searchSpecies - Diptera: final results before normalization', {
+      count: finalResults.length,
+      results: finalResults.map((r) => ({
+        taxonID: r.taxonID,
+        taxonRank: r.taxonRank,
+        order: r.order,
+        family: r.family,
+        genus: r.genus,
+        scientificName: r.scientificName,
+        stableKey: stableTaxonKey(r),
+      })),
+    })
+  }
+
   // Normalize results: if query matches a genus/family/order exactly, promote that rank
   finalResults = finalResults.map((record) => {
     const qLower = trimmed.toLowerCase()
@@ -133,35 +211,88 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
     const recordFamily = (record?.family ?? '').toLowerCase()
     const recordOrder = (record?.order ?? '').toLowerCase()
     
+    let normalized = record
+    
     // If query matches genus exactly, normalize to genus rank
     if (recordGenus === qLower && record?.taxonRank !== 'genus') {
-      return {
+      normalized = {
         ...record,
         taxonRank: 'genus',
         scientificName: '', // scientificName only for species level
+        acceptedScientificName: undefined, // Clear species-level fields
+        acceptedTaxonKey: undefined,
+        species: undefined, // Clear lower-rank fields
       }
     }
-    
     // If query matches family exactly, normalize to family rank
-    if (recordFamily === qLower && record?.taxonRank !== 'family') {
-      return {
+    else if (recordFamily === qLower && record?.taxonRank !== 'family') {
+      normalized = {
         ...record,
         taxonRank: 'family',
         scientificName: '', // scientificName only for species level
+        acceptedScientificName: undefined, // Clear species-level fields
+        acceptedTaxonKey: undefined,
+        genus: undefined, // Clear lower-rank fields
+        species: undefined,
       }
     }
-    
     // If query matches order exactly, normalize to order rank
-    if (recordOrder === qLower && record?.taxonRank !== 'order') {
-      return {
+    else if (recordOrder === qLower && record?.taxonRank !== 'order') {
+      normalized = {
         ...record,
         taxonRank: 'order',
         scientificName: '', // scientificName only for species level
+        acceptedScientificName: undefined, // Clear species-level fields
+        acceptedTaxonKey: undefined,
+        family: undefined, // Clear lower-rank fields
+        genus: undefined,
+        species: undefined,
       }
     }
     
-    return record
+    // Clean up: ensure fields match the taxonRank
+    const rank = String(normalized?.taxonRank ?? '').trim().toLowerCase()
+    if (rank !== 'species') {
+      if (normalized.acceptedScientificName !== undefined || normalized.acceptedTaxonKey !== undefined) {
+        normalized = {
+          ...normalized,
+          acceptedScientificName: undefined,
+          acceptedTaxonKey: undefined,
+        }
+      }
+    }
+    // Clear lower-rank fields based on taxonRank
+    if (rank === 'order') {
+      if (normalized.family !== undefined || normalized.genus !== undefined || normalized.species !== undefined) {
+        normalized = {
+          ...normalized,
+          family: undefined,
+          genus: undefined,
+          species: undefined,
+        }
+      }
+    } else if (rank === 'family') {
+      if (normalized.genus !== undefined || normalized.species !== undefined) {
+        normalized = {
+          ...normalized,
+          genus: undefined,
+          species: undefined,
+        }
+      }
+    } else if (rank === 'genus') {
+      if (normalized.species !== undefined) {
+        normalized = {
+          ...normalized,
+          species: undefined,
+        }
+      }
+    }
+    
+    return normalized
   })
+
+  // Deduplicate again after normalization (normalization may have changed taxonRank, creating new duplicates)
+  finalResults = dedupeByKey(finalResults)
 
   if (finalResults.length === 0 && (list?.records?.length ?? 0) > 0 && trimmed.length >= 4) {
     const approx = approximateSearch({
@@ -170,22 +301,80 @@ export function searchSpecies(params: { speciesListId?: string; query: string; l
       limit: take,
       maxDistance: 2,
     })
-    if (approx.length) finalResults = approx.map((record) => {
-      const qLower = trimmed.toLowerCase()
-      const recordGenus = (record?.genus ?? '').toLowerCase()
-      const recordFamily = (record?.family ?? '').toLowerCase()
-      const recordOrder = (record?.order ?? '').toLowerCase()
-      
-      if (recordGenus === qLower && record?.taxonRank !== 'genus') {
-        return { ...record, taxonRank: 'genus', scientificName: '' }
-      }
-      if (recordFamily === qLower && record?.taxonRank !== 'family') {
-        return { ...record, taxonRank: 'family', scientificName: '' }
-      }
-      if (recordOrder === qLower && record?.taxonRank !== 'order') {
-        return { ...record, taxonRank: 'order', scientificName: '' }
-      }
-      return record
+    if (approx.length) {
+      finalResults = approx.map((record) => {
+        const qLower = trimmed.toLowerCase()
+        const recordGenus = (record?.genus ?? '').toLowerCase()
+        const recordFamily = (record?.family ?? '').toLowerCase()
+        const recordOrder = (record?.order ?? '').toLowerCase()
+        
+        let normalized = record
+        
+        if (recordGenus === qLower && record?.taxonRank !== 'genus') {
+          normalized = { ...record, taxonRank: 'genus', scientificName: '', acceptedScientificName: undefined, acceptedTaxonKey: undefined, species: undefined }
+        } else if (recordFamily === qLower && record?.taxonRank !== 'family') {
+          normalized = { ...record, taxonRank: 'family', scientificName: '', acceptedScientificName: undefined, acceptedTaxonKey: undefined, genus: undefined, species: undefined }
+        } else if (recordOrder === qLower && record?.taxonRank !== 'order') {
+          normalized = { ...record, taxonRank: 'order', scientificName: '', acceptedScientificName: undefined, acceptedTaxonKey: undefined, family: undefined, genus: undefined, species: undefined }
+        }
+        
+        // Clean up: ensure fields match the taxonRank
+        const rank = String(normalized?.taxonRank ?? '').trim().toLowerCase()
+        if (rank !== 'species') {
+          if (normalized.acceptedScientificName !== undefined || normalized.acceptedTaxonKey !== undefined) {
+            normalized = {
+              ...normalized,
+              acceptedScientificName: undefined,
+              acceptedTaxonKey: undefined,
+            }
+          }
+        }
+        // Clear lower-rank fields based on taxonRank
+        if (rank === 'order') {
+          if (normalized.family !== undefined || normalized.genus !== undefined || normalized.species !== undefined) {
+            normalized = {
+              ...normalized,
+              family: undefined,
+              genus: undefined,
+              species: undefined,
+            }
+          }
+        } else if (rank === 'family') {
+          if (normalized.genus !== undefined || normalized.species !== undefined) {
+            normalized = {
+              ...normalized,
+              genus: undefined,
+              species: undefined,
+            }
+          }
+        } else if (rank === 'genus') {
+          if (normalized.species !== undefined) {
+            normalized = {
+              ...normalized,
+              species: undefined,
+            }
+          }
+        }
+        
+        return normalized
+      })
+      // Deduplicate after approximate search normalization too
+      finalResults = dedupeByKey(finalResults)
+    }
+  }
+
+  if (trimmed.toLowerCase() === 'diptera') {
+    console.log('🔍 searchSpecies - Diptera: final results after normalization and dedupe', {
+      count: finalResults.length,
+      results: finalResults.map((r) => ({
+        taxonID: r.taxonID,
+        taxonRank: r.taxonRank,
+        order: r.order,
+        family: r.family,
+        genus: r.genus,
+        scientificName: r.scientificName,
+        stableKey: stableTaxonKey(r),
+      })),
     })
   }
 
@@ -212,29 +401,40 @@ function dedupeByKey(records: TaxonRecord[]): TaxonRecord[] {
 }
 
 function stableTaxonKey(record: TaxonRecord) {
-  const id = String(record?.taxonID ?? '')
-    .trim()
-    .toLowerCase()
-  if (id) return `id:${id}`
+  const parts: string[] = []
 
-  const rank = String(record?.taxonRank ?? '')
-    .trim()
-    .toLowerCase()
-  let name = ''
-  if (rank === 'species') name = String(record?.species ?? '')
-  else if (rank === 'genus') name = String(record?.genus ?? '')
-  else if (rank === 'family') name = String(record?.family ?? '')
-  else if (rank === 'order') name = String(record?.order ?? '')
-  else if (rank === 'class') name = String(record?.class ?? '')
-  else if (rank === 'phylum') name = String(record?.phylum ?? '')
-  else if (rank === 'kingdom') name = String(record?.kingdom ?? '')
-  const nameKey = name.trim().toLowerCase()
-  if (rank && nameKey) return `${rank}:${nameKey}`
-  const scientific = String(record?.scientificName ?? '')
-    .trim()
-    .toLowerCase()
-  if (scientific) return `sci:${scientific}`
-  return ''
+  const kingdom = String(record?.kingdom ?? '').trim().toLowerCase()
+  if (!kingdom) return ''
+  parts.push(kingdom)
+
+  const rank = String(record?.taxonRank ?? '').trim().toLowerCase()
+  if (rank === 'kingdom') return parts.join(':')
+
+  const phylum = String(record?.phylum ?? '').trim().toLowerCase()
+  if (phylum) parts.push(phylum)
+  if (rank === 'phylum') return parts.join(':')
+
+  const className = String(record?.class ?? '').trim().toLowerCase()
+  if (className) parts.push(className)
+  if (rank === 'class') return parts.join(':')
+
+  const order = String(record?.order ?? '').trim().toLowerCase()
+  if (order) parts.push(order)
+  if (rank === 'order') return parts.join(':')
+
+  const family = String(record?.family ?? '').trim().toLowerCase()
+  if (family) parts.push(family)
+  if (rank === 'family') return parts.join(':')
+
+  const genus = String(record?.genus ?? '').trim().toLowerCase()
+  if (genus) parts.push(genus)
+  if (rank === 'genus') return parts.join(':')
+
+  const species = String(record?.species ?? '').trim().toLowerCase()
+  if (species) parts.push(species)
+  if (rank === 'species') return parts.join(':')
+
+  return parts.join(':')
 }
 
 // Fallback approximate matching for misspellings (e.g., 'hempitera' -> 'Hemiptera').

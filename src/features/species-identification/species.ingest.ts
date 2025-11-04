@@ -241,23 +241,38 @@ function normalizeTaxonValue(value: string | undefined) {
 }
 
 function stableTaxonKey(record: TaxonRecord) {
-  const id = String(record?.taxonID ?? '')
-    .trim()
-    .toLowerCase()
-  if (id) return `id:${id}`
+  const parts: string[] = []
 
-  const rank = String(record?.taxonRank ?? '')
-    .trim()
-    .toLowerCase()
-  let name = ''
-  if (rank === 'species') name = String(record?.species ?? '')
-  else if (rank === 'genus') name = String(record?.genus ?? '')
-  else if (rank === 'family') name = String(record?.family ?? '')
-  else if (rank === 'order') name = String(record?.order ?? '')
-  else if (rank === 'class') name = String(record?.class ?? '')
-  else if (rank === 'phylum') name = String(record?.phylum ?? '')
-  else if (rank === 'kingdom') name = String(record?.kingdom ?? '')
-  const nameKey = name.trim().toLowerCase()
-  if (rank && nameKey) return `${rank}:${nameKey}`
-  return ''
+  const kingdom = String(record?.kingdom ?? '').trim().toLowerCase()
+  if (!kingdom) return ''
+  parts.push(kingdom)
+
+  const rank = String(record?.taxonRank ?? '').trim().toLowerCase()
+  if (rank === 'kingdom') return parts.join(':')
+
+  const phylum = String(record?.phylum ?? '').trim().toLowerCase()
+  if (phylum) parts.push(phylum)
+  if (rank === 'phylum') return parts.join(':')
+
+  const className = String(record?.class ?? '').trim().toLowerCase()
+  if (className) parts.push(className)
+  if (rank === 'class') return parts.join(':')
+
+  const order = String(record?.order ?? '').trim().toLowerCase()
+  if (order) parts.push(order)
+  if (rank === 'order') return parts.join(':')
+
+  const family = String(record?.family ?? '').trim().toLowerCase()
+  if (family) parts.push(family)
+  if (rank === 'family') return parts.join(':')
+
+  const genus = String(record?.genus ?? '').trim().toLowerCase()
+  if (genus) parts.push(genus)
+  if (rank === 'genus') return parts.join(':')
+
+  const species = String(record?.species ?? '').trim().toLowerCase()
+  if (species) parts.push(species)
+  if (rank === 'species') return parts.join(':')
+
+  return parts.join(':')
 }
