@@ -19,6 +19,7 @@ const DARWIN_COLUMNS = [
   'family',
   'genus',
   'species',
+  'morphospecies',
   'taxonID',
   'taxonKey',
   'commonName',
@@ -289,6 +290,7 @@ export function buildDarwinShapeFromDetection(params: {
   const family = taxonomyFields.family || ''
   const genus = taxonomyFields.genus || ''
   const species = getSpeciesValue({ detection })
+  const morphospecies = detection?.morphospecies || ''
   const taxonID = String(taxonMetadata.taxonID || '')
   const taxonKey = String(taxonMetadata.acceptedTaxonKey ?? taxonMetadata.taxonID ?? '')
   const commonName = taxonMetadata.vernacularName || ''
@@ -330,6 +332,7 @@ export function buildDarwinShapeFromDetection(params: {
     family,
     genus,
     species,
+    morphospecies,
     taxonID,
     taxonKey,
     commonName,
