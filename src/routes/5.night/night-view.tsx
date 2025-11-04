@@ -1,6 +1,7 @@
 import { useStore } from '@nanostores/react'
 import { useEffect, useMemo, useState } from 'react'
 import { useRouter } from '@tanstack/react-router'
+import { expandMany, makeKey } from '~/features/left-panel/collapse.store'
 import { ensureSpeciesListSelection } from '~/features/species-picker/species-picker.state'
 import { nightsStore } from '~/stores/entities/4.nights'
 import type { PatchEntity } from '~/stores/entities/5.patches'
@@ -54,7 +55,17 @@ export function NightView(props: { nightId: string }) {
 
     if (validRank && n) setSelectedTaxon({ rank: validRank, name: n })
     else if (!validRank || !n) setSelectedTaxon(undefined)
-  }, [search?.bucket, search?.rank, search?.name])
+
+    // Expand left panel taxonomy path so the selected item is visible
+    if (nextBucket && validRank && n) {
+      expandLeftPanelPathForSelection({
+        selectedBucket: nextBucket,
+        selectedTaxon: { rank: validRank as any, name: n },
+        nightId,
+        detections,
+      })
+    }
+  }, [search?.bucket, search?.rank, search?.name, nightId, detections, selectedBucket])
 
   const list = useMemo(() => Object.values(patches).filter((patch) => patch.nightId === nightId), [patches, nightId])
   const taxonomyAuto = useMemo(() => buildTaxonomyTreeForNight({ detections, nightId, bucket: 'auto' }), [detections, nightId])
@@ -330,6 +341,69 @@ function sortPatchesByClusterThenArea(params: { patches: PatchEntity[]; detectio
   })
   const result = withKeys.map((x) => x.patch)
   return result
+}
+
+function expandLeftPanelPathForSelection(params: {
+  selectedBucket?: 'auto' | 'user'
+  selectedTaxon?: TaxonSelection
+  nightId: string
+  detections: Record<string, DetectionEntity>
+}) {
+  const { selectedBucket, selectedTaxon, nightId, detections } = params
+  if (!selectedBucket || !selectedTaxon) return
+  if (selectedTaxon.rank === 'class') return
+
+  let match: DetectionEntity | undefined
+  for (const d of Object.values(detections || {})) {
+    const det = d as DetectionEntity
+    if ((det as any)?.nightId !== nightId) continue
+    const detectedBy = det?.detectedBy === 'user' ? 'user' : 'auto'
+    if (selectedBucket && detectedBy !== selectedBucket) continue
+    const t = det?.taxon
+    if (!t) continue
+    const name = selectedTaxon?.name
+    let ok = false
+    if (selectedTaxon.rank === 'order') ok = t?.order === name
+    else if (selectedTaxon.rank === 'family') ok = t?.family === name
+    else if (selectedTaxon.rank === 'genus') ok = t?.genus === name
+    else if (selectedTaxon.rank === 'species') ok = t?.species === name
+    if (ok) {
+      match = det
+      break
+    }
+  }
+  if (!match) return
+
+  const t = match?.taxon || ({} as any)
+  const keys: string[] = []
+
+  if (selectedTaxon.rank === 'order') {
+    const orderName = t?.order
+    if (orderName) keys.push(makeKey({ bucket: selectedBucket, rank: 'order', path: orderName }))
+  } else if (selectedTaxon.rank === 'family') {
+    const orderName = selectedBucket === 'user' ? t?.order || UNASSIGNED_LABEL : t?.order
+    const familyName = t?.family
+    if (orderName) keys.push(makeKey({ bucket: selectedBucket, rank: 'order', path: orderName }))
+    if (orderName && familyName) keys.push(makeKey({ bucket: selectedBucket, rank: 'family', path: `${orderName}/${familyName}` }))
+  } else if (selectedTaxon.rank === 'genus') {
+    const orderName = selectedBucket === 'user' ? t?.order || UNASSIGNED_LABEL : t?.order
+    const familyName = selectedBucket === 'user' ? t?.family || UNASSIGNED_LABEL : t?.family
+    const genusName = t?.genus
+    if (orderName) keys.push(makeKey({ bucket: selectedBucket, rank: 'order', path: orderName }))
+    if (orderName && familyName) keys.push(makeKey({ bucket: selectedBucket, rank: 'family', path: `${orderName}/${familyName}` }))
+    if (orderName && familyName && genusName)
+      keys.push(makeKey({ bucket: selectedBucket, rank: 'genus', path: `${orderName}/${familyName}/${genusName}` }))
+  } else if (selectedTaxon.rank === 'species') {
+    const orderName = selectedBucket === 'user' ? t?.order || UNASSIGNED_LABEL : t?.order
+    const familyName = selectedBucket === 'user' ? t?.family || UNASSIGNED_LABEL : t?.family
+    const genusName = selectedBucket === 'user' ? t?.genus || UNASSIGNED_LABEL : t?.genus
+    if (orderName) keys.push(makeKey({ bucket: selectedBucket, rank: 'order', path: orderName }))
+    if (orderName && familyName) keys.push(makeKey({ bucket: selectedBucket, rank: 'family', path: `${orderName}/${familyName}` }))
+    if (orderName && familyName && genusName)
+      keys.push(makeKey({ bucket: selectedBucket, rank: 'genus', path: `${orderName}/${familyName}/${genusName}` }))
+  }
+
+  if (keys.length) expandMany(keys)
 }
 
 function computeDetectionArea(params: { detection?: DetectionEntity }) {
