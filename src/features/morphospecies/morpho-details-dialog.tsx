@@ -4,10 +4,12 @@ import { Dialog, DialogContent, DialogTitle, DialogTrigger } from '~/components/
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
 import { nightsStore } from '~/stores/entities/4.nights'
 import { patchesStore } from '~/stores/entities/5.patches'
+import { detectionsStore, type DetectionEntity } from '~/stores/entities/detections'
 import { useObjectUrl } from '~/utils/use-object-url'
 import { patchFileMapByNightStore, type IndexedFile } from '~/features/folder-processing/files.state'
 import { morphoCoversStore, normalizeMorphoKey } from '~/stores/morphospecies/covers'
 import { Button } from '~/components/ui/button'
+import { aggregateTaxonomyFromDetections, getTaxonomyFieldLabel } from '~/models/taxonomy'
 
 export type MorphoSpeciesDetailsDialogProps = PropsWithChildren<{
   morphoKey: string
@@ -22,6 +24,7 @@ export function MorphoSpeciesDetailsDialog(props: MorphoSpeciesDetailsDialogProp
   const patches = useStore(patchesStore)
   const patchMapByNight = useStore(patchFileMapByNightStore)
   const covers = useStore(morphoCoversStore)
+  const allDetections = useStore(detectionsStore)
 
   const usage = useMemo(() => {
     const nightIds: string[] = []
@@ -42,6 +45,18 @@ export function MorphoSpeciesDetailsDialog(props: MorphoSpeciesDetailsDialogProp
     }
     return { nightIds, projectIds: Array.from(projectIds), previewPairs }
   }, [summaries, nights, morphoKey, covers])
+
+  const taxonomy = useMemo(() => {
+    const morphoDetections = Object.values(allDetections ?? {}).filter((d) => {
+      const morpho = typeof d?.morphospecies === 'string' ? d.morphospecies : ''
+      return normalizeMorphoKey(morpho) === normalizeMorphoKey(morphoKey) && d?.detectedBy === 'user'
+    })
+
+    if (!morphoDetections.length) return null
+
+    const aggregatedTaxonomy = aggregateTaxonomyFromDetections({ detections: morphoDetections })
+    return aggregatedTaxonomy
+  }, [allDetections, morphoKey])
 
   const [previewFile, setPreviewFile] = useState<File | undefined>(undefined)
 
@@ -92,6 +107,21 @@ export function MorphoSpeciesDetailsDialog(props: MorphoSpeciesDetailsDialogProp
           <span className='mr-12'>Projects: {usage.projectIds.length}</span>
           <span>Nights: {usage.nightIds.length}</span>
         </div>
+
+        {taxonomy ? (
+          <section className='mt-12'>
+            <h3 className='mb-6 text-14 font-semibold'>Taxonomy</h3>
+            <div className='space-y-2 text-13'>
+              {Object.entries(taxonomy)
+                .filter(([, value]) => value != null)
+                .map(([key, value]) => (
+                  <div key={key}>
+                    <span className='font-medium'>{getTaxonomyFieldLabel(key)}:</span> {value}
+                  </div>
+                ))}
+            </div>
+          </section>
+        ) : null}
 
         {usage.projectIds.length ? (
           <section className='mt-12'>
