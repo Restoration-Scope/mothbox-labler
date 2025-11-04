@@ -1,3 +1,4 @@
+import { useMemo } from 'react'
 import { Link } from '@tanstack/react-router'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { InlineProgress } from './inline-progress'
@@ -55,6 +56,7 @@ type ProjectsListProps = HierarchyStores & {
 
 function ProjectsList(props: ProjectsListProps) {
   const { projects, sites, deployments, nights, detections, nightSummaries } = props
+  const progressIndex = useMemo(() => buildProgressIndex({ nightSummaries, detections }), [nightSummaries, detections])
   const list = Object.values(projects ?? {})
   if (!list.length) return null
 
@@ -67,23 +69,28 @@ function ProjectsList(props: ProjectsListProps) {
           sites={sites}
           deployments={deployments}
           nights={nights}
-          detections={detections}
-          nightSummaries={nightSummaries}
+          progressIndex={progressIndex}
         />
       ))}
     </ul>
   )
 }
 
+type ProgressIndex = {
+  byProject: Record<string, { total: number; identified: number }>
+  bySite: Record<string, { total: number; identified: number }>
+  byDeployment: Record<string, { total: number; identified: number }>
+  byNight: Record<string, { total: number; identified: number }>
+}
+
 type ProjectItemProps = HierarchyStores & {
   project: ProjectEntity
-  detections: Record<string, DetectionEntity>
-  nightSummaries: Record<string, NightSummaryEntity>
+  progressIndex: ProgressIndex
 }
 
 function ProjectItem(props: ProjectItemProps) {
-  const { project, sites, deployments, nights, detections, nightSummaries } = props
-  const prog = getProgressForProject({ projectId: project.id, detections, nightSummaries })
+  const { project, sites, deployments, nights, progressIndex } = props
+  const prog = progressIndex.byProject[project.id] ?? { total: 0, identified: 0 }
 
   return (
     <li className='rounded-md border bg-white p-8 relative group/project'>
@@ -96,41 +103,25 @@ function ProjectItem(props: ProjectItemProps) {
           <ItemActions scope={'project'} id={project.id} nights={nights} />
         </div>
       </div>
-      <SitesList
-        projectId={project.id}
-        sites={sites}
-        deployments={deployments}
-        nights={nights}
-        detections={detections}
-        nightSummaries={nightSummaries}
-      />
+      <SitesList projectId={project.id} sites={sites} deployments={deployments} nights={nights} progressIndex={progressIndex} />
     </li>
   )
 }
 
 type SitesListProps = HierarchyStores & {
   projectId: string
-  detections: Record<string, DetectionEntity>
-  nightSummaries: Record<string, NightSummaryEntity>
+  progressIndex: ProgressIndex
 }
 
 function SitesList(props: SitesListProps) {
-  const { projectId, sites, deployments, nights, detections, nightSummaries } = props
+  const { projectId, sites, deployments, nights, progressIndex } = props
   const list = getSitesForProject({ sites, projectId })
   if (!list.length) return null
 
   return (
     <ul className='ml-12 mt-2 space-y-1'>
       {list.map((site) => (
-        <SiteItem
-          key={site.id}
-          site={site}
-          projectId={projectId}
-          deployments={deployments}
-          nights={nights}
-          detections={detections}
-          nightSummaries={nightSummaries}
-        />
+        <SiteItem key={site.id} site={site} projectId={projectId} deployments={deployments} nights={nights} progressIndex={progressIndex} />
       ))}
     </ul>
   )
@@ -139,14 +130,13 @@ function SitesList(props: SitesListProps) {
 type SiteItemProps = ListStores & {
   site: SiteEntity
   projectId: string
-  detections: Record<string, DetectionEntity>
-  nightSummaries: Record<string, NightSummaryEntity>
+  progressIndex: ProgressIndex
 }
 
 function SiteItem(props: SiteItemProps) {
-  const { site, projectId, deployments, nights, detections, nightSummaries } = props
+  const { site, projectId, deployments, nights, progressIndex } = props
   const siteParam = lastPathSegment({ id: site.id })
-  const prog = getProgressForSite({ siteId: site.id, detections, nightSummaries })
+  const prog = progressIndex.bySite[site.id] ?? { total: 0, identified: 0 }
 
   return (
     <li className='relative group/site'>
@@ -163,14 +153,7 @@ function SiteItem(props: SiteItemProps) {
           <ItemActions scope={'site'} id={site.id} nights={nights} />
         </div>
       </div>
-      <DeploymentsList
-        projectId={projectId}
-        siteId={site.id}
-        deployments={deployments}
-        nights={nights}
-        detections={detections}
-        nightSummaries={nightSummaries}
-      />
+      <DeploymentsList projectId={projectId} siteId={site.id} deployments={deployments} nights={nights} progressIndex={progressIndex} />
     </li>
   )
 }
@@ -178,27 +161,18 @@ function SiteItem(props: SiteItemProps) {
 type DeploymentsListProps = ListStores & {
   projectId: string
   siteId: string
-  detections: Record<string, DetectionEntity>
-  nightSummaries: Record<string, NightSummaryEntity>
+  progressIndex: ProgressIndex
 }
 
 function DeploymentsList(props: DeploymentsListProps) {
-  const { projectId, siteId, deployments, nights, detections, nightSummaries } = props
+  const { projectId, siteId, deployments, nights, progressIndex } = props
   const list = getDeploymentsForSite({ deployments, siteId })
   if (!list.length) return null
 
   return (
     <ul className='ml-12 mt-1 space-y-1'>
       {list.map((dep) => (
-        <DeploymentItem
-          key={dep.id}
-          projectId={projectId}
-          siteId={siteId}
-          deployment={dep}
-          nights={nights}
-          detections={detections}
-          nightSummaries={nightSummaries}
-        />
+        <DeploymentItem key={dep.id} projectId={projectId} siteId={siteId} deployment={dep} nights={nights} progressIndex={progressIndex} />
       ))}
     </ul>
   )
@@ -208,15 +182,14 @@ type DeploymentItemProps = Pick<HierarchyStores, 'nights'> & {
   projectId: string
   siteId: string
   deployment: DeploymentEntity
-  detections: Record<string, DetectionEntity>
-  nightSummaries: Record<string, NightSummaryEntity>
+  progressIndex: ProgressIndex
 }
 
 function DeploymentItem(props: DeploymentItemProps) {
-  const { projectId, siteId, deployment, nights, detections, nightSummaries } = props
+  const { projectId, siteId, deployment, nights, progressIndex } = props
   const siteParam = lastPathSegment({ id: siteId })
   const deploymentParam = lastPathSegment({ id: deployment.id })
-  const prog = getProgressForDeployment({ deploymentId: deployment.id, detections, nightSummaries })
+  const prog = progressIndex.byDeployment[deployment.id] ?? { total: 0, identified: 0 }
 
   return (
     <li className='relative group/deployment'>
@@ -233,14 +206,7 @@ function DeploymentItem(props: DeploymentItemProps) {
           <ItemActions scope={'deployment'} id={deployment.id} nights={nights} />
         </div>
       </div>
-      <NightsList
-        projectId={projectId}
-        siteId={siteId}
-        deploymentId={deployment.id}
-        nights={nights}
-        detections={detections}
-        nightSummaries={nightSummaries}
-      />
+      <NightsList projectId={projectId} siteId={siteId} deploymentId={deployment.id} nights={nights} progressIndex={progressIndex} />
     </li>
   )
 }
@@ -249,42 +215,41 @@ type NightsListProps = Pick<HierarchyStores, 'nights'> & {
   projectId: string
   siteId: string
   deploymentId: string
-  detections: Record<string, DetectionEntity>
-  nightSummaries: Record<string, NightSummaryEntity>
+  progressIndex: ProgressIndex
 }
 
 function NightsList(props: NightsListProps) {
-  const { projectId, siteId, deploymentId, nights, detections, nightSummaries } = props
+  const { projectId, siteId, deploymentId, nights, progressIndex } = props
   const list = getNightsForDeployment({ nights, deploymentId })
   if (!list.length) return null
 
   return (
     <ul className='ml-12 mt-1 space-y-1'>
-      {list.map((night) => (
-        <li key={night.id} className='relative group/night'>
-          <div className='flex items-center gap-12'>
-            <Link
-              to={'/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId'}
-              params={{
-                projectId,
-                siteId: lastPathSegment({ id: siteId }),
-                deploymentId: lastPathSegment({ id: deploymentId }),
-                nightId: lastPathSegment({ id: night.id }),
-              }}
-              className='text-sm text-blue-700 hover:underline'
-            >
-              {night.name}
-            </Link>
-            <div className='ml-auto flex items-center gap-12'>
-              <InlineProgress
-                total={getProgressForNight({ nightId: night.id, detections, nightSummaries }).total}
-                identified={getProgressForNight({ nightId: night.id, detections, nightSummaries }).identified}
-              />
-              <ItemActions scope={'night'} id={night.id} nights={nights} />
+      {list.map((night) => {
+        const prog = progressIndex.byNight[night.id] ?? { total: 0, identified: 0 }
+        return (
+          <li key={night.id} className='relative group/night'>
+            <div className='flex items-center gap-12'>
+              <Link
+                to={'/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId'}
+                params={{
+                  projectId,
+                  siteId: lastPathSegment({ id: siteId }),
+                  deploymentId: lastPathSegment({ id: deploymentId }),
+                  nightId: lastPathSegment({ id: night.id }),
+                }}
+                className='text-sm text-blue-700 hover:underline'
+              >
+                {night.name}
+              </Link>
+              <div className='ml-auto flex items-center gap-12'>
+                <InlineProgress total={prog.total} identified={prog.identified} />
+                <ItemActions scope={'night'} id={night.id} nights={nights} />
+              </div>
             </div>
-          </div>
-        </li>
-      ))}
+          </li>
+        )
+      })}
     </ul>
   )
 }
@@ -313,6 +278,106 @@ function lastPathSegment(params: { id: string }) {
   const last = parts[parts.length - 1] ?? ''
   const res = last
   return res
+}
+
+function buildProgressIndex(params: {
+  nightSummaries: Record<string, NightSummaryEntity>
+  detections: Record<string, DetectionEntity>
+}): ProgressIndex {
+  const { nightSummaries, detections } = params
+
+  const byNight: Record<string, { total: number; identified: number }> = {}
+  const byDeployment: Record<string, { total: number; identified: number }> = {}
+  const bySite: Record<string, { total: number; identified: number }> = {}
+  const byProject: Record<string, { total: number; identified: number }> = {}
+
+  const hasSummaries = nightSummaries && Object.keys(nightSummaries).length > 0
+
+  if (hasSummaries) {
+    for (const [nightId, summary] of Object.entries(nightSummaries)) {
+      if (!nightId || !summary) continue
+
+      const total = summary.totalDetections || 0
+      const identified = summary.totalIdentified || 0
+
+      byNight[nightId] = { total, identified }
+
+      const parts = nightId.split('/').filter(Boolean)
+      if (parts.length >= 4) {
+        const [projectId, siteId, deploymentId] = parts
+
+        if (deploymentId) {
+          const deploymentIdFull = `${projectId}/${siteId}/${deploymentId}`
+          const existing = byDeployment[deploymentIdFull] ?? { total: 0, identified: 0 }
+          byDeployment[deploymentIdFull] = {
+            total: existing.total + total,
+            identified: existing.identified + identified,
+          }
+        }
+
+        if (siteId) {
+          const siteIdFull = `${projectId}/${siteId}`
+          const existing = bySite[siteIdFull] ?? { total: 0, identified: 0 }
+          bySite[siteIdFull] = {
+            total: existing.total + total,
+            identified: existing.identified + identified,
+          }
+        }
+
+        if (projectId) {
+          const existing = byProject[projectId] ?? { total: 0, identified: 0 }
+          byProject[projectId] = {
+            total: existing.total + total,
+            identified: existing.identified + identified,
+          }
+        }
+      }
+    }
+  } else {
+    for (const detection of Object.values(detections ?? {})) {
+      const nightId = (detection as any)?.nightId
+      if (!nightId) continue
+
+      const existing = byNight[nightId] ?? { total: 0, identified: 0 }
+      byNight[nightId] = {
+        total: existing.total + 1,
+        identified: existing.identified + ((detection as any)?.detectedBy === 'user' ? 1 : 0),
+      }
+
+      const parts = nightId.split('/').filter(Boolean)
+      if (parts.length >= 4) {
+        const [projectId, siteId, deploymentId] = parts
+
+        if (deploymentId) {
+          const deploymentIdFull = `${projectId}/${siteId}/${deploymentId}`
+          const existing = byDeployment[deploymentIdFull] ?? { total: 0, identified: 0 }
+          byDeployment[deploymentIdFull] = {
+            total: existing.total + 1,
+            identified: existing.identified + ((detection as any)?.detectedBy === 'user' ? 1 : 0),
+          }
+        }
+
+        if (siteId) {
+          const siteIdFull = `${projectId}/${siteId}`
+          const existing = bySite[siteIdFull] ?? { total: 0, identified: 0 }
+          bySite[siteIdFull] = {
+            total: existing.total + 1,
+            identified: existing.identified + ((detection as any)?.detectedBy === 'user' ? 1 : 0),
+          }
+        }
+
+        if (projectId) {
+          const existing = byProject[projectId] ?? { total: 0, identified: 0 }
+          byProject[projectId] = {
+            total: existing.total + 1,
+            identified: existing.identified + ((detection as any)?.detectedBy === 'user' ? 1 : 0),
+          }
+        }
+      }
+    }
+  }
+
+  return { byNight, byDeployment, bySite, byProject }
 }
 
 function getProgressForNight(params: {
@@ -417,4 +482,3 @@ function getProgressForProject(params: {
   }
   return { total, identified }
 }
-
