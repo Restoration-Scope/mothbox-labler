@@ -5,14 +5,25 @@
 - Goal: From Home, add a button to a new route that shows all morphospecies used across datasets. Clicking an item shows in which projects they appear.
 - Persistence: As users save morphospecies (free-text identifications), update `nightSummariesStore` and write to disk so subsequent app loads can restore quickly.
 
+### Morphospecies Definition
+
+A morphospecies is a user-defined species-level identification (stored in `detection.morphospecies`) that:
+- Requires higher taxonomic context (order, family, or genus) to be assigned
+- Preserves the underlying scientific taxonomy hierarchy (kingdom, phylum, class, order, family, genus, scientificName, taxonRank)
+- Is treated as a temporary, unaccepted concept that doesn't replace scientific taxonomic information
+- Can be merged with higher taxonomic ranks (genus, family, order) while remaining preserved
+- Is cleared when replaced with a full scientific species identification (genus + species)
+
+**Detection criteria**: A detection is considered a morphospecies when `detection.morphospecies` is a non-empty string (regardless of `taxon` presence, as the scientific taxonomy is preserved separately).
+
 ### Open Questions
 
-1. Morphospecies definition: treat any user identification without a structured taxon (`taxon.scientificName` absent) but with a non-ERROR free-text label as a morphospecies? Or also include taxon.species that doesn’t exist in species list?
+1. ~~Morphospecies definition~~: ✅ Defined above. Any detection with `morphospecies` field populated is a morphospecies.
 2. Canonical key: should morphospecies be normalized case-insensitively (e.g. lowercase) and trimmed? Keep original casing for display?
 3. Scope grouping: when viewing usage, show counts per project and allow drill-down to sites/deployments/nights?
 4. Navigation: preferred path: `/morpho` for index, and maybe `/morpho/$key` for usage details?
 5. Capacity: expected number of morphospecies—do we need pagination/search in the grid now?
-6. Persistence filename/location: store under each night’s `night_summary.json` (extend schema), or create a `night_morpho_summary.json`? Preference?
+6. Persistence filename/location: store under each night's `night_summary.json` (extend schema), or create a `night_morpho_summary.json`? Preference?
 
 ### Proposed Data Model Changes
 
@@ -28,9 +39,9 @@ Normalization helper:
 ### Write Path (on user identification)
 
 - In `labelDetections` (src/stores/entities/detections.ts), after updating detections:
-  - Derive the subset of updated detections that are morpho (`isMorpho === true`).
+  - Derive the subset of updated detections that are morphospecies (`morphospecies` field is non-empty string).
   - Schedule save per night (already exists); enhance `exportUserDetectionsForNight` to:
-    - Compute per-night `morphoCounts` by iterating detections for that night where `isMorpho`.
+    - Compute per-night `morphoCounts` by iterating detections for that night where `morphospecies` is a non-empty string.
     - Merge with existing summary loaded in memory.
     - Persist updated `night_summary.json` including new fields.
 

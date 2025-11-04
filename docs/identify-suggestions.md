@@ -20,11 +20,40 @@ Relevant files:
 
 - **Free text commands**: When there is any query, the dialog offers commands to add the typed text as:
 
-  - “Add morpho species: "<query>"” (and additional rank variants). All of these submit the same free-text label.
+  - "Add morpho species: "<query>"" (and additional rank variants). All of these submit the same free-text label.
 
 - **Actions**: Typing exactly `ERROR` shows an action to mark detection as error.
 
 Note: Legacy plain-text suggestions have been removed.
+
+### Morphospecies: concepts and behavior
+
+A **morphospecies** is a user-defined species-level identification used when a precise scientific name is unknown. It's treated as a temporary, unaccepted concept that doesn't replace the underlying scientific taxonomy.
+
+**Key principles:**
+
+1. **Preserves scientific taxonomy**: When a morphospecies is created, the existing scientific taxonomy hierarchy (kingdom, phylum, class, order, family, genus, scientificName, taxonRank) is preserved. The morphospecies is stored separately in the `morphospecies` field and does not overwrite scientific taxonomic information.
+
+2. **Requires taxonomic context**: A morphospecies can only be assigned when the detection already has higher taxonomic context (order, family, or genus). Without this context, the morphospecies assignment is skipped.
+
+3. **Merging with higher ranks**: When adding higher taxonomic ranks (genus, family, order) to an existing morphospecies:
+   - The morphospecies is preserved
+   - The new taxonomic ranks are merged with existing ranks
+   - The scientific taxonomy hierarchy is updated accordingly
+   - The morphospecies remains as the species-level identifier
+
+4. **Full species replacement**: When identifying with a complete species (both genus and species fields present), the morphospecies is cleared and replaced with the scientific identification.
+
+5. **Name derivation**: The `name` field (used in exports) prioritizes:
+   - `"genus morphospecies"` when both genus and morphospecies exist
+   - `morphospecies` alone when no genus is present
+   - Otherwise, the deepest taxonomic level identified
+
+**Examples:**
+
+- Auto-detection: `order: 'Diptera'` → User adds morphospecies `"Custom Morpho A"` → Result: `order: 'Diptera'` preserved, `morphospecies: 'Custom Morpho A'`
+- Morphospecies exists → User adds `genus: 'Lispe'` → Result: `genus: 'Lispe'` merged, `morphospecies: 'Custom Morpho A'` preserved
+- Morphospecies exists → User identifies full species `genus: 'Lispe', species: 'tentaculata'` → Result: morphospecies cleared, full scientific taxonomy applied
 
 ### Render order and conditions (current)
 
