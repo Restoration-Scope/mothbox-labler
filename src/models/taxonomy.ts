@@ -110,3 +110,80 @@ function buildGenusSpeciesName(params: { genus?: string; species: string }): str
   const { genus, species } = params
   return `${genus} ${species}`.trim()
 }
+
+/**
+ * Returns a human-readable label for a taxonomy field key.
+ */
+export function getTaxonomyFieldLabel(key: string): string {
+  const labels: Record<string, string> = {
+    kingdom: 'Kingdom',
+    phylum: 'Phylum',
+    class: 'Class',
+    order: 'Order',
+    family: 'Family',
+    genus: 'Genus',
+    species: 'Species',
+    morphospecies: 'Morphospecies',
+    scientificName: 'Scientific name',
+    name: 'Name',
+    commonName: 'Common name',
+  }
+  return labels[key] || key.charAt(0).toUpperCase() + key.slice(1)
+}
+
+/**
+ * Aggregates taxonomy information from multiple detections.
+ * Returns an object with all taxonomy fields that appear in at least one detection.
+ */
+export function aggregateTaxonomyFromDetections(params: { detections: DetectionEntity[] }) {
+  const { detections } = params
+  if (!detections.length) return null
+
+  let kingdom: string | null = null
+  let phylum: string | null = null
+  let classValue: string | null = null
+  let order: string | null = null
+  let family: string | null = null
+  let genus: string | null = null
+  let species: string | null = null
+  let morphospecies: string | null = null
+  let scientificName: string | null = null
+  let name: string | null = null
+  let commonName: string | null = null
+
+  for (const detection of detections) {
+    const taxonomyFields = extractTaxonomyFields({ detection })
+    const taxonMetadata = extractTaxonMetadata({ detection })
+    const nameValue = deriveTaxonName({ detection })
+    const speciesValue = getSpeciesValue({ detection })
+    const morphoValue = detection?.morphospecies || ''
+
+    if (taxonomyFields.kingdom) kingdom = taxonomyFields.kingdom
+    if (taxonomyFields.phylum) phylum = taxonomyFields.phylum
+    if (taxonomyFields.class) classValue = taxonomyFields.class
+    if (taxonomyFields.order) order = taxonomyFields.order
+    if (taxonomyFields.family) family = taxonomyFields.family
+    if (taxonomyFields.genus) genus = taxonomyFields.genus
+    if (speciesValue) species = speciesValue
+    if (morphoValue) morphospecies = morphoValue
+    if (taxonMetadata.acceptedScientificName || detection?.taxon?.scientificName) {
+      scientificName = taxonMetadata.acceptedScientificName || detection?.taxon?.scientificName || null
+    }
+    if (nameValue) name = nameValue
+    if (taxonMetadata.vernacularName) commonName = taxonMetadata.vernacularName
+  }
+
+  return {
+    kingdom,
+    phylum,
+    class: classValue,
+    order,
+    family,
+    genus,
+    species,
+    morphospecies,
+    scientificName,
+    name,
+    commonName,
+  }
+}
