@@ -6,6 +6,7 @@ import { speciesListsStore } from '~/features/species-identification/species-lis
 import { photosStore, type PhotoEntity } from '~/stores/entities/photos'
 import { parseBotDetectionJsonSafely, extractPatchFilename } from '~/features/ingest/ingest-json'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
+import { deriveTaxonName } from '~/models/taxonomy'
 
 export type DetectionEntity = {
   id: string
@@ -39,8 +40,14 @@ export function detectionStoreById(id: string) {
 export function labelDetections(params: { detectionIds: string[]; label?: string; taxon?: TaxonRecord }) {
   const { detectionIds, taxon } = params
   const trimmed = (params?.label ?? '').trim()
-  const hasTaxon = !!taxon?.scientificName
-  const finalLabel = hasTaxon ? taxon?.scientificName ?? '' : trimmed
+  // Check if taxon exists (has taxonRank or any rank fields), not just scientificName
+  const hasTaxon = !!taxon && (!!taxon.taxonRank || !!taxon.genus || !!taxon.family || !!taxon.order || !!taxon.species)
+  // For species-level, use scientificName; for higher ranks, use the rank value or label
+  const finalLabel = hasTaxon
+    ? taxon?.taxonRank === 'species'
+      ? taxon?.scientificName ?? ''
+      : taxon?.genus || taxon?.family || taxon?.order || taxon?.scientificName || trimmed
+    : trimmed
   if (!Array.isArray(detectionIds) || detectionIds.length === 0) return
   if (!finalLabel) return
 
@@ -60,8 +67,61 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
     let nextTaxon: TaxonRecord | undefined = existing?.taxon
     let nextMorphospecies: string | undefined = existing?.morphospecies
     if (hasTaxon) {
-      nextTaxon = taxon
-      nextMorphospecies = undefined
+      // Merge taxonomy: preserve morphospecies and existing ranks when adding higher ranks
+      const existingTaxon = existing?.taxon ?? {}
+      const newRank = (taxon?.taxonRank ?? '').toLowerCase()
+      const isHigherRank = isRankHigherThanSpecies(newRank)
+
+      // Check if new taxon has genus field set (even if rank is species, might be a genus-level match)
+      const hasGenusField = !!taxon?.genus
+      const hasFamilyField = !!taxon?.family
+      const hasOrderField = !!taxon?.order
+      const hasSpeciesField = !!taxon?.species
+
+      // If it's a full species (has both genus and species), it's a replacement, not a merge
+      const isFullSpecies = hasGenusField && hasSpeciesField && newRank === 'species'
+
+      // Debug: log when merging genus with morphospecies
+      if (existing?.morphospecies && (isHigherRank || (hasGenusField && !isFullSpecies))) {
+        console.log('🌀 labelDetections: merging taxon with morphospecies', {
+          detectionId: id,
+          existingMorphospecies: existing.morphospecies,
+          newTaxon: { taxonRank: taxon?.taxonRank, genus: taxon?.genus, scientificName: taxon?.scientificName },
+          isHigherRank,
+          hasGenusField,
+          isFullSpecies,
+        })
+      }
+
+      if (isHigherRank && existing?.morphospecies) {
+        // Adding genus/family/order to morphospecies: merge and preserve morphospecies
+        nextTaxon = mergeTaxonRanks({ existing: existingTaxon, newTaxon: taxon })
+        // Clear species field when adding a genus - morphospecies is stored separately
+        // For family/order, keep species field as it might contain morphospecies
+        if (newRank === 'genus') {
+          nextTaxon.species = undefined
+          // If scientificName is empty, set it to the genus name
+          if (taxon?.genus && !nextTaxon.scientificName) {
+            nextTaxon.scientificName = taxon.genus
+          }
+        }
+        nextMorphospecies = existing.morphospecies
+      } else if (existing?.morphospecies && (hasGenusField || hasFamilyField || hasOrderField) && !isFullSpecies) {
+        // If there's an existing morphospecies and the new taxon has higher ranks (but not a full species),
+        // merge them and preserve the morphospecies (even if taxonRank is species)
+        nextTaxon = mergeTaxonRanks({ existing: existingTaxon, newTaxon: taxon })
+        // Preserve morphospecies as the species value
+        nextTaxon.species = existing.morphospecies
+        // Update taxonRank to reflect the highest rank in the merged taxon
+        if (hasGenusField && !isHigherRank) nextTaxon.taxonRank = 'genus'
+        else if (hasFamilyField && !isHigherRank) nextTaxon.taxonRank = 'family'
+        else if (hasOrderField && !isHigherRank) nextTaxon.taxonRank = 'order'
+        nextMorphospecies = existing.morphospecies
+      } else {
+        // Full replacement: new taxon replaces everything (including morphospecies)
+        nextTaxon = taxon
+        nextMorphospecies = undefined
+      }
     } else if (!isError && trimmed) {
       const prev: Partial<TaxonRecord> = existing?.taxon ?? {}
       const hasOrderFamilyOrGenus = !!prev?.order || !!prev?.family || !!prev?.genus
@@ -70,16 +130,13 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
         // Keep detection unchanged for this id
         continue
       }
+      // Preserve existing taxon hierarchy; morphospecies is a temporary unaccepted concept
+      // so the scientific/valid taxonomy stays the same
       nextTaxon = {
-        scientificName: trimmed,
-        taxonRank: 'species',
-        kingdom: prev?.kingdom,
-        phylum: prev?.phylum,
-        class: prev?.class,
-        order: prev?.order,
-        family: prev?.family,
-        genus: prev?.genus,
-        species: trimmed,
+        ...prev,
+        scientificName: prev?.scientificName ?? '', // Ensure scientificName is always a string
+        // Keep all existing fields (kingdom, phylum, class, order, family, genus, taxonRank, etc.)
+        // Do not override with morphospecies - it's stored separately in morphospecies field
       }
       nextMorphospecies = trimmed
     } else if (isError) {
@@ -91,12 +148,21 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
     const speciesListId = projectId ? selectionByProject?.[projectId] : undefined
     const speciesListDOI = speciesListId ? (speciesLists?.[speciesListId]?.doi as string | undefined) : undefined
 
+    // Compute name field for taxon if present
+    let taxonWithName: (TaxonRecord & { name?: string }) | undefined = nextTaxon
+    if (nextTaxon) {
+      taxonWithName = {
+        ...nextTaxon,
+        name: deriveTaxonName({ detection: { ...existing, taxon: nextTaxon, morphospecies: nextMorphospecies } }),
+      }
+    }
+
     const next: DetectionEntity = {
       ...existing,
       label: isError ? 'ERROR' : finalLabel,
       detectedBy: 'user',
       identifiedAt,
-      taxon: nextTaxon,
+      taxon: taxonWithName,
       isError,
       // legacy flag no longer used; left undefined
       isMorpho: undefined,
@@ -336,4 +402,102 @@ function getProjectIdFromNightId(nightId?: string | null): string | undefined {
 
   const projectId = parts[0]
   return projectId
+}
+
+function isRankHigherThanSpecies(rank: string): boolean {
+  const lower = rank.toLowerCase()
+  return (
+    lower === 'kingdom' ||
+    lower === 'phylum' ||
+    lower === 'class' ||
+    lower === 'order' ||
+    lower === 'suborder' ||
+    lower === 'family' ||
+    lower === 'subfamily' ||
+    lower === 'tribe' ||
+    lower === 'genus'
+  )
+}
+
+type MergeTaxonRanksParams = {
+  existing: Partial<TaxonRecord>
+  newTaxon: TaxonRecord
+}
+
+function mergeTaxonRanks(params: MergeTaxonRanksParams): TaxonRecord {
+  const { existing, newTaxon } = params
+  const newRank = (newTaxon?.taxonRank ?? '').toLowerCase()
+  const existingSpecies = existing?.species
+
+  // Start with existing taxon, then merge in new taxon fields
+  const merged: Partial<TaxonRecord> = {
+    ...existing,
+  }
+
+  // Update fields based on the rank being added
+  if (newRank === 'kingdom' && newTaxon?.kingdom) {
+    merged.kingdom = newTaxon.kingdom
+    merged.phylum = newTaxon.phylum ?? existing?.phylum
+    merged.class = newTaxon.class ?? existing?.class
+    merged.order = newTaxon.order ?? existing?.order
+    merged.family = newTaxon.family ?? existing?.family
+    merged.genus = newTaxon.genus ?? existing?.genus
+    merged.species = existingSpecies ?? newTaxon.species
+    merged.scientificName = newTaxon.scientificName
+    merged.taxonRank = 'kingdom'
+  } else if (newRank === 'phylum' && newTaxon?.phylum) {
+    merged.phylum = newTaxon.phylum
+    merged.class = newTaxon.class ?? existing?.class
+    merged.order = newTaxon.order ?? existing?.order
+    merged.family = newTaxon.family ?? existing?.family
+    merged.genus = newTaxon.genus ?? existing?.genus
+    merged.species = existingSpecies ?? newTaxon.species
+    merged.scientificName = newTaxon.scientificName
+    merged.taxonRank = 'phylum'
+  } else if (newRank === 'class' && newTaxon?.class) {
+    merged.class = newTaxon.class
+    merged.order = newTaxon.order ?? existing?.order
+    merged.family = newTaxon.family ?? existing?.family
+    merged.genus = newTaxon.genus ?? existing?.genus
+    merged.species = existingSpecies ?? newTaxon.species
+    merged.scientificName = newTaxon.scientificName
+    merged.taxonRank = 'class'
+  } else if (newRank === 'order' || newRank === 'suborder') {
+    merged.order = newTaxon.order ?? existing?.order
+    merged.family = newTaxon.family ?? existing?.family
+    merged.genus = newTaxon.genus ?? existing?.genus
+    merged.species = existingSpecies ?? newTaxon.species
+    merged.scientificName = newTaxon.scientificName
+    merged.taxonRank = newRank
+  } else if (newRank === 'family' || newRank === 'subfamily') {
+    merged.family = newTaxon.family ?? existing?.family
+    merged.genus = newTaxon.genus ?? existing?.genus
+    merged.species = existingSpecies ?? newTaxon.species
+    merged.scientificName = newTaxon.scientificName
+    merged.taxonRank = newRank
+  } else if (newRank === 'tribe') {
+    merged.genus = newTaxon.genus ?? existing?.genus
+    merged.species = existingSpecies ?? newTaxon.species
+    merged.scientificName = newTaxon.scientificName
+    merged.taxonRank = 'tribe'
+  } else if (newRank === 'genus') {
+    // Merge all rank fields from newTaxon, not just genus
+    merged.order = newTaxon.order ?? existing?.order
+    merged.family = newTaxon.family ?? existing?.family
+    merged.genus = newTaxon.genus ?? existing?.genus
+    merged.species = existingSpecies ?? newTaxon.species
+    merged.scientificName = newTaxon.scientificName
+    merged.taxonRank = 'genus'
+  }
+
+  // Preserve existing higher ranks if not being replaced
+  if (!merged.kingdom && existing?.kingdom) merged.kingdom = existing.kingdom
+  if (!merged.phylum && existing?.phylum) merged.phylum = existing.phylum
+  if (!merged.class && existing?.class) merged.class = existing.class
+  if (!merged.order && existing?.order) merged.order = existing.order
+  if (!merged.family && existing?.family) merged.family = existing.family
+  if (!merged.genus && existing?.genus) merged.genus = existing.genus
+  if (!merged.species && existing?.species) merged.species = existing.species
+
+  return merged as TaxonRecord
 }
