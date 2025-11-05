@@ -293,9 +293,9 @@ describe('Detection Identification Scenarios', () => {
       },
     },
 
-    // Scenario 7: Morphospecies with genus -> Add order (should merge)
+    // Scenario 7: Morphospecies with genus -> Change order (should reset lower ranks)
     {
-      name: 'Add order to morphospecies that already has genus',
+      name: 'Change order to morphospecies that already has genus (should reset lower ranks)',
       initial: {
         ...BASE_DETECTION,
         label: 'Lispe',
@@ -326,16 +326,16 @@ describe('Detection Identification Scenarios', () => {
       expected: {
         label: 'Coleoptera',
         detectedBy: 'user',
-        morphospecies: 'Custom Morpho A',
+        morphospecies: undefined, // Should clear morphospecies when order changes
         taxon: {
           ...BASE_TAXON,
           order: 'Coleoptera', // Should update order
-          family: 'Muscidae', // Should preserve family
-          genus: 'Lispe', // Should preserve genus
-          species: 'Custom Morpho A', // Should preserve morphospecies
+          family: undefined, // Should reset family (Muscidae is Diptera-specific)
+          genus: undefined, // Should reset genus (Lispe is Diptera-specific)
+          species: undefined, // Should reset species
           scientificName: 'Coleoptera',
           taxonRank: 'order',
-          name: 'Lispe Custom Morpho A', // Genus + morphospecies
+          name: 'Coleoptera',
         },
       },
     },
@@ -436,8 +436,8 @@ describe('Detection Identification Scenarios', () => {
         label: 'Lispe',
         taxon: {
           ...BASE_TAXON,
-          order: undefined,
-          family: undefined,
+          order: 'Diptera', // Genus comes with its order
+          family: 'Muscidae', // Genus comes with its family
           genus: 'Lispe',
           species: undefined,
           scientificName: '', // Empty for genus level (after normalization) - will be set to genus name
@@ -450,8 +450,8 @@ describe('Detection Identification Scenarios', () => {
         morphospecies: '111', // Should preserve morphospecies
         taxon: {
           ...BASE_TAXON,
-          order: 'Hymenoptera', // Should preserve existing order
-          family: undefined,
+          order: 'Diptera', // Should use order from genus identification (Lispe is Diptera, not Hymenoptera)
+          family: 'Muscidae', // Should use family from genus identification
           genus: 'Lispe', // Should add new genus
           species: undefined, // Should be undefined when genus is added
           scientificName: 'Lispe', // Should be set to genus name

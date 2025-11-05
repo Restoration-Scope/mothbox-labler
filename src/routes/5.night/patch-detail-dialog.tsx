@@ -11,6 +11,8 @@ import type { PhotoEntity } from '~/stores/entities/photos'
 import { useObjectUrl } from '~/utils/use-object-url'
 import type { TaxonRecord } from '~/features/species-identification/species-list.store'
 import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
+import { morphoLinksStore } from '~/stores/morphospecies/links'
+import { normalizeMorphoKey } from '~/stores/morphospecies/covers'
 
 export type PatchDetailDialogProps = {
   open: boolean
@@ -25,10 +27,21 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
   const detection = useStore(detectionStoreById(patchId || ''))
   const photos = useStore(photosStore)
   const photo = patch?.photoId ? photos?.[patch.photoId] : undefined
+  const morphoLinks = useStore(morphoLinksStore)
 
   const [identifyOpen, setIdentifyOpen] = useState(false)
 
   const projectId = useMemo(() => getProjectIdFromNightId(patch?.nightId), [patch?.nightId])
+
+  const morphospeciesKey = useMemo(() => {
+    const morpho = typeof detection?.morphospecies === 'string' ? detection.morphospecies : ''
+    return morpho ? normalizeMorphoKey(morpho) : undefined
+  }, [detection?.morphospecies])
+
+  const morphospeciesLink = useMemo(() => {
+    if (!morphospeciesKey) return undefined
+    return morphoLinks?.[morphospeciesKey]
+  }, [morphospeciesKey, morphoLinks])
 
   function onIdentifySubmit(label: string, taxon?: TaxonRecord) {
     const detectionId = patch?.id
@@ -100,6 +113,20 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
               <div>
                 <span className='font-medium'>Species:</span> {detection?.taxon?.species ?? '—'}
               </div>
+              {typeof detection?.morphospecies === 'string' && detection.morphospecies ? (
+                <div className='pt-4'>
+                  <div>
+                    <span className='font-medium'>Morphospecies:</span> {detection.morphospecies}
+                  </div>
+                  {morphospeciesLink ? (
+                    <div className='mt-2'>
+                      <a href={morphospeciesLink} target='_blank' rel='noreferrer' className='text-12 text-blue-600 hover:underline'>
+                        View link
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
+              ) : null}
             </div>
           </div>
 
@@ -152,11 +179,11 @@ function PatchDetails(props: { patch?: PatchEntity }) {
         </Button>
       </div>
 
-      <div className='text-12 text-neutral-700 break-all'>
+      <div className='text-12 text-neutral-700 break-all mt-12'>
         <span className='font-medium'>File path:</span> {patch?.imageFile?.path ?? '—'}
       </div>
 
-      <div className='text-12 text-neutral-700 break-all mt-12'>
+      <div className='text-12 text-neutral-700 break-all'>
         <span className='font-medium'>Patch ID:</span> {patch?.id}
       </div>
     </div>
@@ -191,11 +218,11 @@ function SourcePhoto(props: { photo?: PhotoEntity }) {
           Copy photo path
         </Button>
       </div>
-      <div className='text-12 text-neutral-700 break-all'>
+      <div className='text-12 text-neutral-700 break-all mt-12'>
         <div>
           <span className='font-medium'>Photo ID:</span> {photo?.id}
         </div>
-        <div>
+        <div className='mt-4'>
           <span className='font-medium'>File path:</span> {photo?.imageFile?.path ?? '—'}
         </div>
       </div>
