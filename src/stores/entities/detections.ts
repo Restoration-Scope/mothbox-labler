@@ -594,5 +594,18 @@ function mergeTaxonRanks(params: MergeTaxonRanksParams): TaxonRecord {
     if (!merged.species && existing?.species) merged.species = existing.species
   }
 
+  // Preserve metadata fields: prefer newTaxon values, fallback to existing
+  if (newTaxon?.taxonID) merged.taxonID = newTaxon.taxonID
+  else if (existing?.taxonID && !merged.taxonID) merged.taxonID = existing.taxonID
+
+  if (newTaxon?.acceptedTaxonKey) merged.acceptedTaxonKey = newTaxon.acceptedTaxonKey
+  else if (existing?.acceptedTaxonKey && !merged.acceptedTaxonKey) merged.acceptedTaxonKey = existing.acceptedTaxonKey
+
+  if (newTaxon?.acceptedScientificName) merged.acceptedScientificName = newTaxon.acceptedScientificName
+  else if (existing?.acceptedScientificName && !merged.acceptedScientificName) merged.acceptedScientificName = existing.acceptedScientificName
+
+  if (newTaxon?.vernacularName) merged.vernacularName = newTaxon.vernacularName
+  else if (existing?.vernacularName && !merged.vernacularName) merged.vernacularName = existing.vernacularName
+
   return merged as TaxonRecord
 }
