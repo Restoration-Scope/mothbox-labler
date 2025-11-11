@@ -1,6 +1,7 @@
 import { detectionsStore, type DetectionEntity } from '~/stores/entities/detections'
 import { photosStore, type PhotoEntity } from '~/stores/entities/photos'
 import { patchesStore, type PatchEntity } from '~/stores/entities/5.patches'
+import { userSessionStore } from '~/stores/ui'
 import { idbGet } from '~/utils/index-db'
 import { objectsToCSV } from '~/utils/csv'
 import { fsaaWriteText, type FileSystemDirectoryHandleLike } from '~/utils/fsaa'
@@ -8,10 +9,9 @@ import { ensureReadWritePermission, persistenceConstants } from '~/features/fold
 import { deriveTaxonName, getSpeciesValue, extractTaxonomyFields, extractTaxonMetadata } from '~/models/taxonomy'
 import { getPhotoBaseFromPhotoId, getNightDiskPathFromPhotos } from '~/utils/paths'
 
-const SOFTWARE_NAME = 'Mothbeam v2'
-
 const DARWIN_COLUMNS = [
   // Taxonomy columns
+  'species_list_doi',
   'kingdom',
   'phylum',
   'class',
@@ -24,45 +24,31 @@ const DARWIN_COLUMNS = [
   'commonName',
   'scientificName',
   'name',
-  'species_list',
 
+  // Mothbox specific Metadata
+  'deployment',
+  'image_id',
+  'identifiedBy',
+  'detectionBy',
+  'detection_confidence',
+  'ID_confidence',
+  'mothbox',
+  'filepath',
+
+  // Date/Time
+  'eventDate',
+  'eventTime',
+  'UTCOFFSET',
+  'verbatimEventDate',
+
+  // Other
   'basisOfRecord',
   'datasetID',
   'parentEventID',
   'eventID',
   'occurrenceID',
-  'verbatimEventDate',
-  'eventDate',
-  'eventTime',
-  'UTCOFFSET',
-  'detectionBy',
-  'detection_confidence',
-  'identifiedBy',
-  'ID_confidence',
-  'filepath',
-  'mothbox',
-  'software',
-  'sheet',
-  'country',
-  'area',
-  'point',
-  'latitude',
-  'longitude',
-  'ground_height',
-  'deployment_name',
-  'deployment_date',
-  'collect_date',
-  'data_storage_location',
-  'crew',
-  'notes',
-  'schedule',
-  'habitat',
-  'image_id',
-  'label',
-  'bbox',
-  'segmentation',
-  'attractor',
-  'attractor_location',
+
+  // TODO. In the future we should have taxonomy at the end
 ] as const
 
 type DarwinColumn = (typeof DARWIN_COLUMNS)[number]
@@ -274,17 +260,16 @@ export function buildDarwinShapeFromDetection(params: {
   const { eventDate, eventTime, utcOffset } = deriveEventDateTime({ verbatimEventDate })
   const filepath = patch?.imageFile?.path || ''
   const image_id = patch?.id || ''
-  const label = detection?.taxon?.scientificName || detection?.label || ''
-  const scientificName = label
 
   // Use shared taxonomy utilities
   const taxonomyFields = extractTaxonomyFields({ detection })
   const taxonMetadata = extractTaxonMetadata({ detection })
 
-  // Darwin CSV uses fixed values for kingdom/phylum/class
-  const kingdom = 'Animalia'
-  const phylum = 'Arthropoda'
-  const klass = 'Insecta'
+  // Darwin CSV uses fixed values for kingdom/phylum/class, unless it's an error
+  const isError = detection?.isError === true
+  const kingdom = isError ? '' : 'Animalia'
+  const phylum = isError ? '' : 'Arthropoda'
+  const klass = isError ? '' : 'Insecta'
   const order = taxonomyFields.order || ''
   const family = taxonomyFields.family || ''
   const genus = taxonomyFields.genus || ''
@@ -292,10 +277,11 @@ export function buildDarwinShapeFromDetection(params: {
   const morphospecies = detection?.morphospecies || ''
   const taxonID = String(taxonMetadata.taxonID || '')
   const commonName = taxonMetadata.vernacularName || ''
-  const species_list = String(taxonMetadata.speciesListDOI || '')
+  const species_list_doi = String(taxonMetadata.speciesListDOI || '')
 
-  // Name column: deepest taxonomic level identified, or morphospecies, or genus + species
-  const name = deriveTaxonName({ detection })
+  // For errors, scientificName should be blank, but name should be "ERROR"
+  const scientificName = isError ? '' : detection?.taxon?.scientificName || detection?.label || ''
+  const name = isError ? 'ERROR' : deriveTaxonName({ detection })
 
   const datasetID = nightId.replaceAll('/', '_')
   const parentEventID = datasetID
@@ -303,10 +289,10 @@ export function buildDarwinShapeFromDetection(params: {
   const occurrenceID = patch?.id || ''
 
   const mothbox = extractMothboxFromNightDiskPath({ nightDiskPath })
-  const software = SOFTWARE_NAME
   const detectionBy = extractDetectionByFromPatchId({ patchId: patch?.id || '', photoBase: baseName })
   const detection_confidence = detection?.score != null ? String(detection.score) : ''
-  const identifiedBy = detection?.detectedBy === 'user' ? 'user' : ''
+  const userInitials = userSessionStore.get()?.initials || ''
+  const identifiedBy = detection?.detectedBy === 'user' ? userInitials : ''
   const ID_confidence = ''
 
   const row: DarwinRow = {
@@ -335,31 +321,11 @@ export function buildDarwinShapeFromDetection(params: {
     commonName,
     scientificName,
     name,
-    species_list,
+    species_list_doi,
     filepath,
     mothbox,
-    software,
-    sheet: '',
-    country: '',
-    area: '',
-    point: '',
-    latitude: '',
-    longitude: '',
-    ground_height: '',
-    deployment_name: '',
-    deployment_date: '',
-    collect_date: '',
-    data_storage_location: '',
-    crew: '',
-    notes: '',
-    schedule: '',
-    habitat: '',
+    deployment: '',
     image_id,
-    label,
-    bbox: '',
-    segmentation: '',
-    attractor: '',
-    attractor_location: '',
   }
   return row
 }

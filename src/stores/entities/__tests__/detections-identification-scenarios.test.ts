@@ -293,6 +293,36 @@ describe('Detection Identification Scenarios', () => {
       },
     },
 
+    // Scenario 6b: Full taxonomy with morphospecies -> Mark as ERROR (should clear everything)
+    {
+      name: 'Mark detection with full taxonomy and morphospecies as ERROR (should clear all taxonomy)',
+      initial: {
+        ...BASE_DETECTION,
+        label: 'Musca domestica',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Muscidae',
+          genus: 'Musca',
+          species: 'domestica',
+          scientificName: 'Musca domestica',
+          taxonRank: 'species',
+        },
+        detectedBy: 'user',
+        morphospecies: 'Custom Morpho X',
+      },
+      action: {
+        label: 'ERROR',
+      },
+      expected: {
+        label: 'ERROR',
+        detectedBy: 'user',
+        isError: true,
+        morphospecies: undefined, // Should clear morphospecies
+        taxon: undefined, // Should clear all taxon fields (kingdom, phylum, class, order, family, genus, species)
+      },
+    },
+
     // Scenario 7: Morphospecies with genus -> Change order (should reset lower ranks)
     {
       name: 'Change order to morphospecies that already has genus (should reset lower ranks)',
