@@ -105,7 +105,7 @@ const RANK_SPECIFIC_ID_KEYS: Record<string, readonly string[]> = {
   species: ['speciesKey'],
 }
 
-function mapRowToTaxonRecords(row: any): TaxonRecord[] {
+export function mapRowToTaxonRecords(row: any): TaxonRecord[] {
   const lower = buildLowerKeyMap(row)
 
   const kingdom = normalizeTaxonValue(getStringCI(lower, FIELD_KEYS.kingdom as unknown as string[]))
@@ -134,6 +134,8 @@ function mapRowToTaxonRecords(row: any): TaxonRecord[] {
 
   const out: TaxonRecord[] = []
 
+  const rankOrder = ['kingdom', 'phylum', 'class', 'order', 'family', 'genus', 'species'] as const
+
   for (const { rank, value } of rankPairs) {
     const rankValue = (value ?? '').trim()
     if (!rankValue) continue
@@ -141,19 +143,21 @@ function mapRowToTaxonRecords(row: any): TaxonRecord[] {
     const rankId = getFirstDefined(row, lower, RANK_SPECIFIC_ID_KEYS[rank] || []) as any
     const taxonID = rankId != null && rankId !== '' ? rankId : (getFirstDefined(row, lower, NUMERIC_ID_KEYS.taxonID) as any)
 
+    const rankIndex = rankOrder.indexOf(rank as any)
     const record: TaxonRecord = {
       taxonID,
       // scientificName only meaningful at species level; keep empty otherwise
       scientificName: rank === 'species' ? species || '' : '',
       taxonRank: rank,
       taxonomicStatus,
-      kingdom,
-      phylum,
-      class: className,
-      order,
-      family,
-      genus,
-      species,
+      // Only include fields up to and including the record's rank
+      kingdom: rankIndex >= 0 ? kingdom : undefined,
+      phylum: rankIndex >= 1 ? phylum : undefined,
+      class: rankIndex >= 2 ? className : undefined,
+      order: rankIndex >= 3 ? order : undefined,
+      family: rankIndex >= 4 ? family : undefined,
+      genus: rankIndex >= 5 ? genus : undefined,
+      species: rankIndex >= 6 ? species : undefined,
       acceptedTaxonKey,
       acceptedScientificName,
       iucnRedListCategory,
