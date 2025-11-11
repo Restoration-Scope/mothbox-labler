@@ -14,9 +14,6 @@ import { detectionsStore } from '~/stores/entities/detections'
 import { useObjectUrl } from '~/utils/use-object-url'
 import { patchFileMapByNightStore, type IndexedFile } from '~/features/folder-processing/files.state'
 import { MorphoSpeciesDetailsDialog } from './morpho-details-dialog'
-import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
-import { mapRankToVariant } from '~/utils/ranks'
-import { colorVariantsMap } from '~/utils/colors'
 import { cn } from '~/utils/cn'
 import { useRouter, useRouterState } from '@tanstack/react-router'
 import { toast } from 'sonner'
@@ -24,6 +21,9 @@ import { morphoCoversStore, normalizeMorphoKey } from '~/stores/morphospecies/co
 import { setMorphoLink } from '~/stores/morphospecies/links'
 import { Column, Row } from '~/styles'
 import { ImageWithDownloadName } from '~/components/atomic/image-with-download-name'
+import { TaxonomySection } from '~/features/left-panel/taxonomy-section'
+import type { TaxonomyNode } from '~/features/left-panel/left-panel.types'
+import { CountsRow } from '~/features/left-panel/counts-row'
 
 export type MorphoCatalogDialogProps = {
   open: boolean
@@ -85,49 +85,24 @@ export function MorphoCatalogDialog(props: MorphoCatalogDialogProps) {
   }, [usageScope, summaries, projectId, siteId, deploymentId, nightId])
 
   const list = useMorphoIndexWithContext({ allowedNightIds })
+  const detections = useStore(detectionsStore)
 
-  const [rankFilter, setRankFilter] = useState<'all' | 'order' | 'family' | 'genus' | 'species'>('all')
+  const [selectedTaxon, setSelectedTaxon] = useState<
+    { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string } | undefined
+  >(undefined)
 
-  const filterCounts = useMemo(() => {
-    const all = list.length
-    let order = 0
-    let family = 0
-    let genus = 0
-    const species = list.length
-    for (const it of list) {
-      if (it.hasOrder) order++
-      if (it.hasFamily) family++
-      if (it.hasGenus) genus++
-    }
-    return { all, order, family, genus, species }
-  }, [list])
+  const taxonomyTree = useMemo(() => {
+    return buildMorphoTaxonomyTree({ morphoList: list, allowedNightIds, detections })
+  }, [list, allowedNightIds, detections])
 
   const filtered = useMemo(() => {
-    if (rankFilter === 'all' || rankFilter === 'species') return list
-    const res = list.filter((it) => {
-      if (rankFilter === 'genus') return it.hasGenus
-      if (rankFilter === 'family') return it.hasFamily
-      if (rankFilter === 'order') return it.hasOrder
-      return true
-    })
-    return res
-  }, [list, rankFilter])
-
-  const filters = useMemo(
-    () => [
-      { key: 'all' as const, label: 'All', count: filterCounts.all },
-      { key: 'order' as const, label: 'Order', count: filterCounts.order, rank: 'order' as const },
-      { key: 'family' as const, label: 'Family', count: filterCounts.family, rank: 'family' as const },
-      { key: 'genus' as const, label: 'Genus', count: filterCounts.genus, rank: 'genus' as const },
-      { key: 'species' as const, label: 'Species', count: filterCounts.species, rank: 'species' as const },
-    ],
-    [filterCounts],
-  )
+    return filterMorphospeciesByTaxon({ morphoList: list, selectedTaxon, allowedNightIds, detections })
+  }, [list, selectedTaxon, allowedNightIds, detections])
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent align='vhSide' className='max-w-[900px] col justify-start !p-0 gap-0 '>
-        <Column className='border-b p-16 gap-12'>
+      <DialogContent align='vhSide' className='max-w-[1400px] col justify-start !p-0 gap-0 h-[90vh]'>
+        <Column className='border-b p-16 gap-12 flex-shrink-0'>
           <Row className='items-center gap-20'>
             <h3 className='!text-16 font-medium'>Morphospecies</h3>
             <ScopeFilters
@@ -140,30 +115,44 @@ export function MorphoCatalogDialog(props: MorphoCatalogDialogProps) {
               counts={scopeCounts}
             />
           </Row>
-
-          <Row className='items-center gap-8'>
-            {filters.map((f) => (
-              <RankFilterButton
-                key={f.key}
-                rank={f.rank}
-                label={f.label}
-                count={f.count}
-                active={rankFilter === f.key}
-                onClick={() => setRankFilter(f.key)}
-              />
-            ))}
-          </Row>
         </Column>
 
-        {!filtered.length ? (
-          <p className='mt-12 text-sm text-neutral-500'>No morphospecies found.</p>
-        ) : (
-          <ul className='grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] p-16 gap-12 overflow-y-auto'>
-            {filtered.map((it) => (
-              <MorphoCard key={it.key} morphoKey={it.key} count={it.count} />
-            ))}
-          </ul>
-        )}
+        <Row className='flex-1 min-h-0 overflow-hidden gap-16'>
+          <Column className='w-[300px] border-r overflow-y-auto px-16 py-20'>
+            <CountsRow
+              label='All morphospecies'
+              count={list.length}
+              selected={!selectedTaxon}
+              onSelect={() => {
+                setSelectedTaxon(undefined)
+              }}
+            />
+            <TaxonomySection
+              title='Taxonomy'
+              nodes={taxonomyTree}
+              bucket='user'
+              selectedTaxon={selectedTaxon}
+              selectedBucket={selectedTaxon ? 'user' : undefined}
+              onSelectTaxon={(params) => {
+                setSelectedTaxon(params.taxon)
+              }}
+              emptyText='No taxonomy data'
+              className='mt-16'
+            />
+          </Column>
+
+          <Column className='flex-1 min-h-0 overflow-y-auto p-16'>
+            {!filtered.length ? (
+              <p className='text-sm text-neutral-500'>No morphospecies found.</p>
+            ) : (
+              <ul className='grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-12'>
+                {filtered.map((it) => (
+                  <MorphoCard key={it.key} morphoKey={it.key} count={it.count} />
+                ))}
+              </ul>
+            )}
+          </Column>
+        </Row>
       </DialogContent>
     </Dialog>
   )
@@ -242,35 +231,6 @@ function ScopeFilters(props: {
         </button>
       ))}
     </div>
-  )
-}
-
-function RankFilterButton(props: {
-  label: string
-  count?: number
-  rank?: 'order' | 'family' | 'genus' | 'species'
-  active?: boolean
-  onClick: () => void
-}) {
-  const { label, count, rank, active, onClick } = props
-
-  const variant = rank ? mapRankToVariant({ rank }) : undefined
-  const colorClass = rank && variant ? colorVariantsMap[variant as keyof typeof colorVariantsMap] : undefined
-
-  return (
-    <button
-      className={cn(
-        'text-12 pl-6 pr-8 py-4 rounded ring-1 ring-inset ring-black/10 inline-flex items-center gap-6  text-opacity-20 !text-ink-primary/80',
-        // colorClass,
-        active && 'ring-black/50 !text-ink-primary',
-        ' text-ink-primary',
-      )}
-      onClick={onClick}
-    >
-      {rank ? <TaxonRankLetterBadge rank={rank} /> : null}
-      <span>{label}</span>
-      {typeof count === 'number' ? <CountPill value={count} /> : null}
-    </button>
   )
 }
 
@@ -457,6 +417,138 @@ function buildContextByMorphoKey(params: { detections?: Record<string, any>; all
     map.set(key, next)
   }
   return map
+}
+
+function buildMorphoTaxonomyTree(params: {
+  morphoList: Array<{ key: string; count: number; hasOrder: boolean; hasFamily: boolean; hasGenus: boolean }>
+  allowedNightIds?: Set<string> | undefined
+  detections?: Record<string, any>
+}): TaxonomyNode[] {
+  const { morphoList, allowedNightIds, detections } = params
+  const roots: TaxonomyNode[] = []
+  const UNASSIGNED_LABEL = 'Unassigned'
+
+  function ensureChild(nodes: TaxonomyNode[], rank: TaxonomyNode['rank'], name: string, isMorphoSpecies?: boolean): TaxonomyNode {
+    let node = nodes.find((n) => n.rank === rank && n.name === name)
+    if (!node) {
+      node = { rank, name, count: 0, children: [] }
+      nodes.push(node)
+    }
+    node.count++
+    if (rank === 'species' && isMorphoSpecies) node.isMorpho = true
+    return node
+  }
+
+  const morphoKeyToTaxonomy = new Map<string, Array<{ rank: TaxonomyNode['rank']; name: string }>>()
+
+  for (const morphoItem of morphoList) {
+    const morphoKey = morphoItem.key
+    let path: Array<{ rank: TaxonomyNode['rank']; name: string }> | undefined = morphoKeyToTaxonomy.get(morphoKey)
+
+    if (!path) {
+      let foundTaxonomy = false
+      let klass: string | undefined
+      let order: string | undefined
+      let family: string | undefined
+      let genus: string | undefined
+      let species: string | undefined
+      let morphospecies: string | undefined
+
+      for (const d of Object.values(detections ?? {})) {
+        const det = d as any
+        if (det?.detectedBy !== 'user') continue
+        if (typeof det?.morphospecies !== 'string' || !det?.morphospecies) continue
+        if (allowedNightIds && det?.nightId && !allowedNightIds.has(det.nightId)) continue
+        const label = (det?.morphospecies ?? '').trim()
+        if (!label) continue
+        const key = normalizeMorphoKey(label)
+        if (key !== morphoKey) continue
+
+        klass = klass || (det?.taxon?.class as string | undefined)
+        order = order || (det?.taxon?.order as string | undefined)
+        family = family || (det?.taxon?.family as string | undefined)
+        genus = genus || (det?.taxon?.genus as string | undefined)
+        species = species || (det?.taxon?.species as string | undefined)
+        morphospecies = morphospecies || (det?.morphospecies as string | undefined)
+
+        foundTaxonomy = true
+      }
+
+      if (!foundTaxonomy) continue
+
+      path = []
+      const hasSpecies = !!species || !!morphospecies
+      const speciesName = morphospecies || species
+      const hasGenus = !!genus
+      const hasFamily = !!family
+      const hasOrder = !!order
+      const hasAnyLowerThanClass = hasOrder || hasFamily || hasGenus || hasSpecies
+
+      if (klass) path.push({ rank: 'class', name: klass })
+      const orderName = hasAnyLowerThanClass ? order || UNASSIGNED_LABEL : undefined
+      const familyName = hasFamily || hasGenus || hasSpecies ? family || UNASSIGNED_LABEL : undefined
+      const genusName = hasGenus || hasSpecies ? genus || UNASSIGNED_LABEL : undefined
+      if (orderName) path.push({ rank: 'order', name: orderName })
+      if (familyName) path.push({ rank: 'family', name: familyName })
+      if (genusName) path.push({ rank: 'genus', name: genusName })
+      if (hasSpecies && speciesName) path.push({ rank: 'species', name: speciesName })
+
+      if (path.length === 0) continue
+      morphoKeyToTaxonomy.set(morphoKey, path)
+    }
+
+    let currentLevel = roots
+    for (const seg of path) {
+      const node = ensureChild(currentLevel, seg.rank, seg.name, seg.rank === 'species')
+      if (!node.children) node.children = []
+      currentLevel = node.children
+    }
+  }
+
+  function sortTree(nodes: TaxonomyNode[]) {
+    nodes.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    for (const n of nodes) sortTree(n.children || [])
+  }
+  sortTree(roots)
+  return roots
+}
+
+function filterMorphospeciesByTaxon(params: {
+  morphoList: Array<{ key: string; count: number; hasOrder: boolean; hasFamily: boolean; hasGenus: boolean }>
+  selectedTaxon?: { rank: 'class' | 'order' | 'family' | 'genus' | 'species'; name: string }
+  allowedNightIds?: Set<string> | undefined
+  detections?: Record<string, any>
+}) {
+  const { morphoList, selectedTaxon, allowedNightIds, detections } = params
+  if (!selectedTaxon) return morphoList
+  const result = morphoList.filter((morphoItem) => {
+    const morphoKey = morphoItem.key
+    for (const d of Object.values(detections ?? {})) {
+      const det = d as any
+      if (det?.detectedBy !== 'user') continue
+      if (typeof det?.morphospecies !== 'string' || !det?.morphospecies) continue
+      if (allowedNightIds && det?.nightId && !allowedNightIds.has(det.nightId)) continue
+      const label = (det?.morphospecies ?? '').trim()
+      if (!label) continue
+      const key = normalizeMorphoKey(label)
+      if (key !== morphoKey) continue
+
+      const tax = det?.taxon
+      const morphospecies = det?.morphospecies
+      const speciesName = morphospecies || tax?.species
+      let matches = false
+      if (selectedTaxon.rank === 'class') matches = tax?.class === selectedTaxon.name
+      else if (selectedTaxon.rank === 'order') matches = tax?.order === selectedTaxon.name
+      else if (selectedTaxon.rank === 'family') matches = tax?.family === selectedTaxon.name
+      else if (selectedTaxon.rank === 'genus') matches = tax?.genus === selectedTaxon.name
+      else if (selectedTaxon.rank === 'species') matches = speciesName === selectedTaxon.name
+
+      if (matches) return true
+    }
+    return false
+  })
+
+  return result
 }
 
 function getLabelForMorphoKey(params: { detections?: Record<string, any>; morphoKey: string }) {
