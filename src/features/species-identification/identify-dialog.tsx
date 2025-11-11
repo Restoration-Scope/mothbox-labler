@@ -10,6 +10,8 @@ import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-ba
 import { detectionsStore, type DetectionEntity } from '~/stores/entities/detections'
 import { Column } from '~/styles'
 import { deriveTaxonName } from '~/models/taxonomy'
+import { openGlobalDialog } from '~/components/dialogs/global-dialog'
+import { TaxonKeyDialogContent } from './taxon-key-dialog'
 
 const MAX_SPECIES_UI_RESULTS = 50
 
@@ -195,53 +197,110 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     onOpenChange(false)
   }
 
+  function finalizeTaxonIdentification(partialTaxon: TaxonRecord, taxonID: string | number) {
+    const completeTaxon: TaxonRecord = {
+      ...partialTaxon,
+      taxonID,
+    }
+    handleSelectTaxon(completeTaxon)
+  }
+
   function handleSubmitClass() {
     const value = (query ?? '').trim()
     if (!value) return
-    const t: TaxonRecord = { scientificName: value, taxonRank: 'class', class: value }
-    handleSelectTaxon(t)
+    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'class', class: value }
+    openGlobalDialog({
+      component: TaxonKeyDialogContent as any,
+      props: {
+        taxon: partialTaxon,
+        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
+      },
+      align: 'center',
+    })
   }
 
   function handleSubmitOrder() {
     const value = (query ?? '').trim()
     if (!value) return
-    const t: TaxonRecord = { scientificName: value, taxonRank: 'order', order: value }
-    handleSelectTaxon(t)
+    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'order', order: value }
+    openGlobalDialog({
+      component: TaxonKeyDialogContent as any,
+      props: {
+        taxon: partialTaxon,
+        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
+      },
+      align: 'center',
+    })
   }
 
   function handleSubmitGenus() {
     const value = (query ?? '').trim()
     if (!value) return
-    const t: TaxonRecord = { scientificName: value, taxonRank: 'genus', genus: value }
-    handleSelectTaxon(t)
+    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'genus', genus: value }
+    openGlobalDialog({
+      component: TaxonKeyDialogContent as any,
+      props: {
+        taxon: partialTaxon,
+        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
+      },
+      align: 'center',
+    })
   }
 
   function handleSubmitFamily() {
     const value = (query ?? '').trim()
     if (!value) return
-    const t: TaxonRecord = { scientificName: value, taxonRank: 'family', family: value }
-    handleSelectTaxon(t)
+    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'family', family: value }
+    openGlobalDialog({
+      component: TaxonKeyDialogContent as any,
+      props: {
+        taxon: partialTaxon,
+        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
+      },
+      align: 'center',
+    })
   }
 
   function handleSubmitTribe() {
     const value = (query ?? '').trim()
     if (!value) return
-    const t: TaxonRecord = { scientificName: value, taxonRank: 'tribe' }
-    handleSelectTaxon(t)
+    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'tribe' }
+    openGlobalDialog({
+      component: TaxonKeyDialogContent as any,
+      props: {
+        taxon: partialTaxon,
+        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
+      },
+      align: 'center',
+    })
   }
 
   function handleSubmitSubfamily() {
     const value = (query ?? '').trim()
     if (!value) return
-    const t: TaxonRecord = { scientificName: value, taxonRank: 'subfamily' }
-    handleSelectTaxon(t)
+    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'subfamily' }
+    openGlobalDialog({
+      component: TaxonKeyDialogContent as any,
+      props: {
+        taxon: partialTaxon,
+        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
+      },
+      align: 'center',
+    })
   }
 
   function handleSubmitSuborder() {
     const value = (query ?? '').trim()
     if (!value) return
-    const t: TaxonRecord = { scientificName: value, taxonRank: 'suborder' }
-    handleSelectTaxon(t)
+    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'suborder' }
+    openGlobalDialog({
+      component: TaxonKeyDialogContent as any,
+      props: {
+        taxon: partialTaxon,
+        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
+      },
+      align: 'center',
+    })
   }
 
   return (
