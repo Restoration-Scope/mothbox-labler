@@ -34,7 +34,8 @@ export function TaxonKeyDialogContent(props: TaxonKeyDialogProps) {
     }
   }
 
-  const displayName = taxon.scientificName || taxon.class || taxon.order || taxon.family || taxon.genus || taxon.species || ''
+  const displayName = taxon?.scientificName || taxon?.class || taxon?.order || taxon?.family || taxon?.genus || taxon?.species || ''
+  const rank = taxon?.taxonRank || 'taxon'
 
   return (
     <div className='w-[480px]'>
@@ -45,10 +46,10 @@ export function TaxonKeyDialogContent(props: TaxonKeyDialogProps) {
       <div className='mt-16 space-y-12'>
         <div>
           <div className='flex items-center gap-8 mb-8'>
-            <TaxonRankBadge rank={taxon.taxonRank} />
+            <TaxonRankBadge rank={taxon?.taxonRank} />
             <span className='text-14 font-medium'>{displayName}</span>
           </div>
-          <p className='text-13 text-neutral-600'>Enter a taxon ID/key for this {taxon.taxonRank}.</p>
+          <p className='text-13 text-neutral-600'>Enter a taxon ID/key for this {rank}.</p>
         </div>
 
         <div>
