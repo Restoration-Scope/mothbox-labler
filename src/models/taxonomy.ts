@@ -4,8 +4,8 @@ import type { TaxonRecord } from '~/features/species-identification/species-list
 /**
  * Derives the name column value from a detection's taxonomy.
  * Logic:
- * - If there's both genus and species (or morphospecies), use "genus species"
- * - If there's a morphospecies, use it
+ * - If there's a morphospecies, use it (morphospecies takes precedence over genus+species combination)
+ * - If there's both genus and species (but no morphospecies), use "genus species"
  * - Otherwise, use the deepest taxonomic level identified (species > genus > family > order > class > phylum > kingdom)
  * - Fallback to label if nothing else is available
  */
@@ -13,14 +13,13 @@ export function deriveTaxonName(params: { detection: DetectionEntity }): string 
   const { detection } = params
   const taxon = detection?.taxon
 
-  const hasGenus = !!taxon?.genus
-  const hasSpecies = !!taxon?.species || !!detection?.morphospecies
-  if (hasGenus && hasSpecies) {
-    const speciesValue = getSpeciesValue({ detection })
-    return buildGenusSpeciesName({ genus: taxon.genus, species: speciesValue })
-  }
-
   if (detection?.morphospecies) return detection.morphospecies
+
+  const hasGenus = !!taxon?.genus
+  const hasSpecies = !!taxon?.species
+  if (hasGenus && hasSpecies && taxon?.genus && taxon?.species) {
+    return buildGenusSpeciesName({ genus: taxon.genus, species: taxon.species })
+  }
 
   const deepestLevel = getDeepestTaxonomicLevel({ taxon })
   if (deepestLevel) return deepestLevel

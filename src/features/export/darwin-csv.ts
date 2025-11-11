@@ -6,7 +6,7 @@ import { idbGet } from '~/utils/index-db'
 import { objectsToCSV } from '~/utils/csv'
 import { fsaaWriteText, type FileSystemDirectoryHandleLike } from '~/utils/fsaa'
 import { ensureReadWritePermission, persistenceConstants } from '~/features/folder-processing/files.persistence'
-import { deriveTaxonName, getSpeciesValue, extractTaxonomyFields, extractTaxonMetadata } from '~/models/taxonomy'
+import { deriveTaxonName, extractTaxonomyFields, extractTaxonMetadata } from '~/models/taxonomy'
 import { getPhotoBaseFromPhotoId, getNightDiskPathFromPhotos } from '~/utils/paths'
 
 const DARWIN_COLUMNS = [
@@ -192,6 +192,7 @@ export async function generateNightDarwinCSVString(params: { nightId: string }):
   const allPatches = patchesStore.get() || {}
 
   const detections = Object.values(allDetections).filter((d) => (d as any)?.nightId === nightId)
+  console.log('📥 Export: incoming detections', { nightId, count: detections.length, detections })
 
   const photos = Object.values(allPhotos).filter((p) => (p as any)?.nightId === nightId)
   if (!photos.length) return null
@@ -206,6 +207,8 @@ export async function generateNightDarwinCSVString(params: { nightId: string }):
     const rowObj = buildDarwinShapeFromDetection({ detection: d, patch, photo, nightId, nightDiskPath })
     rowObjs.push(rowObj)
   }
+
+  console.log('📤 Export: output rows', { nightId, count: rowObjs.length, rows: rowObjs })
 
   const csv = objectsToCSV({ objects: rowObjs as any[], headers: [...(DARWIN_COLUMNS as readonly string[])] as string[] })
   return { csv, nightDiskPath }
@@ -273,7 +276,7 @@ export function buildDarwinShapeFromDetection(params: {
   const order = taxonomyFields.order || ''
   const family = taxonomyFields.family || ''
   const genus = taxonomyFields.genus || ''
-  const species = getSpeciesValue({ detection })
+  const species = taxonomyFields.species || ''
   const morphospecies = detection?.morphospecies || ''
   const taxonID = String(taxonMetadata.taxonID || '')
   const commonName = taxonMetadata.vernacularName || ''
