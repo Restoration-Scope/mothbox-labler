@@ -3,7 +3,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { TaxonRankBadge } from '~/components/taxon-rank-badge'
 import { Button } from '~/components/ui/button'
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '~/components/ui/dialog'
-import { detectionStoreById, labelDetections } from '~/stores/entities/detections'
+import { detectionStoreById, labelDetections, type DetectionEntity } from '~/stores/entities/detections'
 import { patchStoreById } from '~/stores/entities/patch-selectors'
 import { photosStore } from '~/stores/entities/photos'
 import type { PatchEntity } from '~/stores/entities/5.patches'
@@ -13,6 +13,8 @@ import type { TaxonRecord } from '~/features/species-identification/species-list
 import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
 import { morphoLinksStore } from '~/stores/morphospecies/links'
 import { normalizeMorphoKey } from '~/stores/morphospecies/covers'
+import { deriveTaxonName } from '~/models/taxonomy'
+import { ImageWithDownloadName } from '~/components/atomic/image-with-download-name'
 
 export type PatchDetailDialogProps = {
   open: boolean
@@ -60,7 +62,7 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
         </DialogHeader>
 
         <div className='grid grid-cols-1 gap-12 md:grid-cols-2'>
-          <PatchDetails patch={patch} />
+          <PatchDetails patch={patch} detection={detection} />
           <SourcePhoto photo={photo} />
         </div>
 
@@ -153,22 +155,22 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
   )
 }
 
-function PatchDetails(props: { patch?: PatchEntity }) {
-  const { patch } = props
+function PatchDetails(props: { patch?: PatchEntity; detection?: DetectionEntity }) {
+  const { patch, detection } = props
 
   const patchUrl = useObjectUrl(patch?.imageFile?.file)
 
+  const finestTaxonLevel = detection ? deriveTaxonName({ detection }) : undefined
+
   return (
     <div className='space-y-8'>
-      {patchUrl ? (
-        <img
-          src={patchUrl}
-          alt={patch?.name ?? 'patch'}
-          className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
-        />
-      ) : (
-        <div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />
-      )}
+      <ImageWithDownloadName
+        src={patchUrl}
+        alt={finestTaxonLevel ?? patch?.name ?? 'patch'}
+        downloadName={finestTaxonLevel ?? patch?.name ?? undefined}
+        className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
+        fallback={<div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />}
+      />
       <div className='flex flex-wrap gap-8'>
         {patchUrl ? (
           <a href={patchUrl} target='_blank' rel='noreferrer'>
@@ -200,15 +202,13 @@ function SourcePhoto(props: { photo?: PhotoEntity }) {
 
   return (
     <div className='space-y-8'>
-      {photoUrl ? (
-        <img
-          src={photoUrl}
-          alt={photo?.name ?? 'photo'}
-          className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
-        />
-      ) : (
-        <div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />
-      )}
+      <ImageWithDownloadName
+        src={photoUrl}
+        alt={photo?.name ?? 'photo'}
+        downloadName={photo?.name ?? undefined}
+        className='w-full max-h-[300px] object-contain rounded-md border border-black/10'
+        fallback={<div className='w-full h-[300px] rounded-md border border-black/10 bg-neutral-50' />}
+      />
       <div className='flex flex-wrap gap-8'>
         {photoUrl ? (
           <a href={photoUrl} target='_blank' rel='noreferrer'>

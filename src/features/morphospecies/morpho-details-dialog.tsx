@@ -10,6 +10,7 @@ import { patchFileMapByNightStore, type IndexedFile } from '~/features/folder-pr
 import { morphoCoversStore, normalizeMorphoKey } from '~/stores/morphospecies/covers'
 import { Button } from '~/components/ui/button'
 import { aggregateTaxonomyFromDetections, getTaxonomyFieldLabel } from '~/models/taxonomy'
+import { ImageWithDownloadName } from '~/components/atomic/image-with-download-name'
 
 export type MorphoSpeciesDetailsDialogProps = PropsWithChildren<{
   morphoKey: string
@@ -97,11 +98,9 @@ export function MorphoSpeciesDetailsDialog(props: MorphoSpeciesDetailsDialogProp
       <DialogContent align='max'>
         <DialogTitle>Morphospecies: {morphoKey}</DialogTitle>
 
-        {previewUrl ? (
-          <div className='mt-8'>
-            <img src={previewUrl} alt={morphoKey} className='max-h-[240px] rounded border' />
-          </div>
-        ) : null}
+        <div className='mt-8'>
+          <ImageWithDownloadName src={previewUrl} alt={morphoKey} downloadName={morphoKey} className='max-h-[240px] rounded border' />
+        </div>
 
         <div className='mt-12 text-13 text-neutral-700'>
           <span className='mr-12'>Projects: {usage.projectIds.length}</span>

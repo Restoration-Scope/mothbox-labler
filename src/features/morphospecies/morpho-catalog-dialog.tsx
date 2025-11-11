@@ -23,6 +23,7 @@ import { toast } from 'sonner'
 import { morphoCoversStore, normalizeMorphoKey } from '~/stores/morphospecies/covers'
 import { setMorphoLink } from '~/stores/morphospecies/links'
 import { Column, Row } from '~/styles'
+import { ImageWithDownloadName } from '~/components/atomic/image-with-download-name'
 
 export type MorphoCatalogDialogProps = {
   open: boolean
@@ -291,17 +292,21 @@ type MorphoCardProps = { morphoKey: string; count: number }
 
 function MorphoCard(props: MorphoCardProps) {
   const { morphoKey, count } = props
+  console.log('morphoKey: ', morphoKey)
   const previewUrl = useMorphoPreviewUrl({ morphoKey })
   const links = useStore(morphoLinksStore)
   const link = links?.[normalizeMorphoKey(morphoKey)]
 
   return (
     <li className='rounded-md border bg-white p-12'>
-      {previewUrl ? (
-        <div className='-mt-12 -mx-12 mb-8'>
-          <img src={previewUrl} alt={morphoKey} className='w-full h-[200px] object-contain rounded' />
-        </div>
-      ) : null}
+      <div className='-mt-12 -mx-12 mb-8'>
+        <ImageWithDownloadName
+          src={previewUrl}
+          alt={morphoKey}
+          downloadName={morphoKey}
+          className='w-full h-[200px] object-contain rounded'
+        />
+      </div>
       <div className='flex items-center gap-8'>
         <span className='font-medium text-ink-primary truncate'>{displayFromKey(morphoKey)}</span>
         <span className='ml-auto text-12 text-neutral-600'>{count}</span>
