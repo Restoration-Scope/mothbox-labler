@@ -15,6 +15,8 @@ import { chunkIds, computeDetectionArea, getRankValue, getHorizontalPadding } fr
 import { colorVariantsMap } from '~/utils/colors'
 import { mapRankToVariant } from '~/utils/ranks'
 
+const DEBUG = false
+
 const GRID_GAP_DEFAULT = 8
 const GRID_GAP_COMPACT = 6
 const FOOTER_HIDE_THRESHOLD = 100
@@ -106,7 +108,13 @@ export function PatchGrid(props: PatchGridProps) {
     return map
   }, [orderedIds])
 
-  type GridBlockHeader = { kind: 'header'; key: string; title: string; rank?: 'order' | 'family' | 'genus' | 'species' | 'morphospecies'; count: number }
+  type GridBlockHeader = {
+    kind: 'header'
+    key: string
+    title: string
+    rank?: 'order' | 'family' | 'genus' | 'species' | 'morphospecies'
+    count: number
+  }
   type GridBlockRow = { kind: 'row'; key: string; itemIds: string[] }
   type GridBlock = GridBlockHeader | GridBlockRow
 
@@ -123,24 +131,25 @@ export function PatchGrid(props: PatchGridProps) {
     }
 
     const anchorRank: 'order' | 'family' | 'genus' | 'species' = (selectedTaxon?.rank as any) || 'order'
-    console.log('🔍 PatchGrid blocks - anchorRank:', anchorRank, 'selectedTaxon:', selectedTaxon)
+    if (DEBUG) console.log('🔍 PatchGrid blocks - anchorRank:', anchorRank, 'selectedTaxon:', selectedTaxon)
     const anchorGroups = new Map<string, string[]>()
     for (const id of orderedIds) {
       const det = detections?.[id]
       const rankValue = getRankValue({ det, rank: anchorRank })
       const name = rankValue || UNASSIGNED_LABEL
-      console.log('🔍 PatchGrid - id:', id, 'rankValue:', rankValue, 'name:', name, 'det:', {
-        morphospecies: det?.morphospecies,
-        taxon: det?.taxon,
-        detectedBy: det?.detectedBy,
-      })
+      if (DEBUG)
+        console.log('🔍 PatchGrid - id:', id, 'rankValue:', rankValue, 'name:', name, 'det:', {
+          morphospecies: det?.morphospecies,
+          taxon: det?.taxon,
+          detectedBy: det?.detectedBy,
+        })
       const arr = anchorGroups.get(name) || []
       arr.push(id)
       anchorGroups.set(name, arr)
     }
-    console.log('🔍 PatchGrid - anchorGroups:', Array.from(anchorGroups.entries()))
+    if (DEBUG) console.log('🔍 PatchGrid - anchorGroups:', Array.from(anchorGroups.entries()))
     const sortedAnchor = Array.from(anchorGroups.entries()).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
-    console.log('🔍 PatchGrid - sortedAnchor:', sortedAnchor)
+    if (DEBUG) console.log('🔍 PatchGrid - sortedAnchor:', sortedAnchor)
 
     function isMorphospeciesHeader(params: { name: string; ids: string[]; rank: string }) {
       const { name, ids, rank } = params
@@ -190,7 +199,13 @@ export function PatchGrid(props: PatchGridProps) {
       for (const [subName, subIds] of sortedSub) {
         const isSubMorpho = isMorphospeciesHeader({ name: subName, ids: subIds, rank: subRank })
         const displaySubRank = isSubMorpho ? 'morphospecies' : subRank
-        out.push({ kind: 'header', key: `hdr:${subRank}:${anchorName}/${subName}`, title: subName, rank: displaySubRank, count: subIds.length })
+        out.push({
+          kind: 'header',
+          key: `hdr:${subRank}:${anchorName}/${subName}`,
+          title: subName,
+          rank: displaySubRank,
+          count: subIds.length,
+        })
         const rows = chunkIds(subIds, Math.max(1, columns))
         rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:${subRank}:${anchorName}/${subName}:${idx}`, itemIds: ids }))
       }
@@ -515,7 +530,12 @@ function computeItemWidth(params: { containerWidth: number; columns: number; gap
   return colWidth
 }
 
-function GroupHeader(props: { title: string; rank?: 'order' | 'family' | 'genus' | 'species' | 'morphospecies'; count: number; className?: string }) {
+function GroupHeader(props: {
+  title: string
+  rank?: 'order' | 'family' | 'genus' | 'species' | 'morphospecies'
+  count: number
+  className?: string
+}) {
   const { title, rank, count, className } = props
 
   const colorVariant = mapRankToVariant({ rank })

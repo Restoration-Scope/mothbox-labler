@@ -1,5 +1,7 @@
 import type { DetectionEntity } from '~/stores/entities/detections'
 
+const DEBUG = false
+
 export function chunkIds(ids: string[], size: number) {
   const res: string[][] = []
   if (!Array.isArray(ids) || ids.length === 0 || size <= 0) return res
@@ -33,39 +35,40 @@ export function computeDetectionArea(params: { detection?: DetectionEntity }) {
 export function getRankValue(params: { det?: DetectionEntity; rank: 'order' | 'family' | 'genus' | 'species' }) {
   const { det, rank } = params
   if (!det) {
-    console.log('🔍 getRankValue - no det, rank:', rank)
+    if (DEBUG) console.log('🔍 getRankValue - no det, rank:', rank)
     return undefined
   }
   const tax = det?.taxon
   if (rank === 'order') {
     const result = tax?.order || undefined
-    console.log('🔍 getRankValue - order:', result, 'tax:', tax)
+    if (DEBUG) console.log('🔍 getRankValue - order:', result, 'tax:', tax)
     return result
   }
   if (rank === 'family') {
     const result = tax?.family || undefined
-    console.log('🔍 getRankValue - family:', result, 'tax:', tax)
+    if (DEBUG) console.log('🔍 getRankValue - family:', result, 'tax:', tax)
     return result
   }
   if (rank === 'genus') {
     const result = tax?.genus || undefined
-    console.log('🔍 getRankValue - genus:', result, 'tax:', tax)
+    if (DEBUG) console.log('🔍 getRankValue - genus:', result, 'tax:', tax)
     return result
   }
   if (rank === 'species') {
     const morphospecies = typeof det?.morphospecies === 'string' ? det.morphospecies : undefined
     const species = tax?.species || undefined
-    console.log('🔍 getRankValue - species:', {
-      morphospecies,
-      taxonSpecies: species,
-      hasMorphospecies: !!morphospecies,
-      hasTaxonSpecies: !!species,
-      returning: morphospecies || species,
-    })
+    if (DEBUG)
+      console.log('🔍 getRankValue - species:', {
+        morphospecies,
+        taxonSpecies: species,
+        hasMorphospecies: !!morphospecies,
+        hasTaxonSpecies: !!species,
+        returning: morphospecies || species,
+      })
     if (morphospecies) return morphospecies
     return species
   }
-  console.log('🔍 getRankValue - no match, rank:', rank)
+  if (DEBUG) console.log('🔍 getRankValue - no match, rank:', rank)
   return undefined
 }
 
