@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 import { searchSpecies } from '~/features/species-identification/species-search'
@@ -27,10 +27,17 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   const [query, setQuery] = useState('')
   const selection = useStore(projectSpeciesSelectionStore)
   const detections = useStore(detectionsStore)
+  const listRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (open) setQuery('')
   }, [open])
+
+  useEffect(() => {
+    if (listRef.current) {
+      listRef.current.scrollTop = 0
+    }
+  }, [query])
 
   const speciesOptions = useMemo(() => {
     const res = getSpeciesOptions({ selection, projectId, query })
@@ -165,8 +172,8 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   function handleSelect(label: string) {
     const value = (label ?? '').trim()
     if (!value) return
-    onSubmit(value)
     logIdentificationResult({ detectionIds })
+    onSubmit(value)
     onOpenChange(false)
   }
 
@@ -175,16 +182,16 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     const preferred = (t?.scientificName ?? '').trim()
     const label = preferred || getDisplayLabelForTaxon(t)
     if (!label) return
-    onSubmit(label, t)
     logIdentificationResult({ detectionIds })
+    onSubmit(label, t)
     onOpenChange(false)
   }
 
   function handleSubmitFreeText() {
     const value = query.trim()
     if (!value) return
-    onSubmit(value)
     logIdentificationResult({ detectionIds })
+    onSubmit(value)
     onOpenChange(false)
   }
 
@@ -254,7 +261,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
             }
           }}
         ></CommandInput>
-        <CommandList>
+        <CommandList ref={listRef}>
           <CommandEmpty>No matches. Press Enter to use your text.</CommandEmpty>
 
           {query.trim().toUpperCase() === 'ERROR' ? (
@@ -455,33 +462,19 @@ function logIdentificationResult(params: LogIdentificationResultParams) {
   const { detectionIds } = params
   if (!detectionIds || detectionIds.length === 0) return
 
+  const prevState = detectionsStore.get() || {}
+  const prevEntities = detectionIds.map((id) => prevState?.[id]).filter(Boolean) as DetectionEntity[]
+
   // Use setTimeout to ensure store has been updated after onSubmit callback
   setTimeout(() => {
     const updated = detectionsStore.get() || {}
-    const entities = detectionIds.map((id) => updated?.[id]).filter(Boolean) as DetectionEntity[]
+    const identifiedEntities = detectionIds.map((id) => updated?.[id]).filter(Boolean) as DetectionEntity[]
 
-    if (entities.length > 0) {
+    if (identifiedEntities.length > 0) {
       console.log('✅ identify: stored entities', {
-        count: entities.length,
-        entities: entities.map((e) => ({
-          id: e.id,
-          patchId: e.patchId,
-          label: e.label,
-          taxon: e.taxon
-            ? {
-                scientificName: e.taxon.scientificName,
-                taxonRank: e.taxon.taxonRank,
-                order: e.taxon.order,
-                family: e.taxon.family,
-                genus: e.taxon.genus,
-                species: e.taxon.species,
-              }
-            : undefined,
-          detectedBy: e.detectedBy,
-          identifiedAt: e.identifiedAt,
-          isError: e.isError,
-          morphospecies: e.morphospecies,
-        })),
+        count: identifiedEntities.length,
+        prevEntities: prevEntities.map((e) => e?.taxon),
+        identifiedEntities: identifiedEntities.map((e) => e?.taxon),
       })
     }
   }, 0)
