@@ -149,6 +149,45 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     return res
   }, [morphoOptions])
 
+  useEffect(() => {
+    const recentToShow = query.trim() ? filteredRecentOptions : recentOptions
+    const hasAnyOptions =
+      (recentToShow?.length ?? 0) > 0 || (morphoOptionsLimited?.length ?? 0) > 0 || (speciesOptionsLimited?.length ?? 0) > 0
+
+    if (hasAnyOptions || query.trim()) {
+      console.log('🔍 identify: search options', {
+        query: query.trim() || '(empty)',
+        recent: {
+          count: recentToShow?.length ?? 0,
+          items: recentToShow?.map((r) => ({
+            label: r.label,
+            taxonRank: r.taxon?.taxonRank,
+            isMorphospecies: r.isMorphospecies,
+          })),
+        },
+        morphospecies: {
+          count: morphoOptionsLimited?.length ?? 0,
+          items: morphoOptionsLimited?.map((r) => ({
+            label: r.label,
+            taxonRank: r.taxon?.taxonRank,
+          })),
+        },
+        species: {
+          count: speciesOptionsLimited?.length ?? 0,
+          items: speciesOptionsLimited?.map((t) => ({
+            label: getDisplayLabelForTaxon(t),
+            scientificName: t.scientificName,
+            taxonRank: t.taxonRank,
+            order: t.order,
+            family: t.family,
+            genus: t.genus,
+            species: t.species,
+          })),
+        },
+      })
+    }
+  }, [query, filteredRecentOptions, recentOptions, morphoOptionsLimited, speciesOptionsLimited])
+
   function handleSelect(label: string) {
     const value = (label ?? '').trim()
     if (!value) return
