@@ -146,7 +146,10 @@ function PatchItemImpl(props: PatchItemProps) {
 
   return (
     <Column
-      className={cn('group w-full select-none relative bg-neutral-100 rounded-md cursor-pointer outline-none')}
+      className={cn(
+        'group w-full select-none relative bg-neutral-100 rounded-md cursor-pointer outline-none',
+        isSelected && 'bg-blue-500/20',
+      )}
       tabIndex={0}
       data-index={index}
       data-id={id}
@@ -191,8 +194,8 @@ function PatchItemImpl(props: PatchItemProps) {
       </Row>
       <div
         className={cn(
-          'absolute pointer-events-none inset-0 ring-inset rounded-md ring-1 ring-black/10',
-          'group-hover:ring-black/40 group-hover:ring-[1.5px]',
+          'absolute pointer-events-none inset-0 ring-inset rounded-md ring-1 ring-black/5',
+          'group-hover:ring-black/20 ',
           (() => {
             const topId = typeof clusterId === 'number' ? Math.trunc(clusterId) : undefined
             const previewByTop = typeof hoveredTopClusterId === 'number' && typeof topId === 'number' && hoveredTopClusterId === topId
@@ -201,7 +204,7 @@ function PatchItemImpl(props: PatchItemProps) {
             const preview = (previewByTop || previewBySub) && !isSelected
             return preview ? 'ring-[1.5px] ring-black/40 ring-inset' : ''
           })(),
-          isSelected && 'ring-2 group-hover:ring-2 group-hover:ring-black ring-brand',
+          isSelected && 'ring-2 group-hover:ring-2 group-hover:ring-blue-400 ring-blue-600',
         )}
       />
       {url ? (
