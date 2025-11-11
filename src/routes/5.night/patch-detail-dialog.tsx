@@ -88,6 +88,9 @@ export function PatchDetailDialog(props: PatchDetailDialogProps) {
               <div>
                 <span className='font-medium'>Scientific name:</span> {detection?.taxon?.scientificName ?? '—'}
               </div>
+              <div>
+                <span className='font-medium'>Taxon ID:</span> {detection?.taxon?.taxonID ?? '—'}
+              </div>
               <div className='flex items-center gap-8'>
                 <span className='font-medium'>Rank:</span>
                 {detection?.taxon?.taxonRank ? <TaxonRankBadge rank={detection?.taxon?.taxonRank} /> : '—'}
