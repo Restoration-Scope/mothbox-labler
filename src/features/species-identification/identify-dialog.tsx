@@ -123,8 +123,21 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   const speciesOptionsLimited = useMemo(() => {
     const list = speciesOptions || []
     const res = list.slice(0, MAX_SPECIES_UI_RESULTS)
+    console.log('🔍 identify: species options', {
+      query: query.trim() || '(empty)',
+      count: res.length,
+      items: res.map((t) => ({
+        label: getDisplayLabelForTaxon(t),
+        scientificName: t.scientificName,
+        taxonRank: t.taxonRank,
+        order: t.order,
+        family: t.family,
+        genus: t.genus,
+        species: t.species,
+      })),
+    })
     return res
-  }, [speciesOptions])
+  }, [speciesOptions, query])
 
   const recentOptions = useMemo(() => {
     const res = getRecentOptions({ detections })
@@ -148,45 +161,6 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     const res = list.slice(0, MAX_SPECIES_UI_RESULTS)
     return res
   }, [morphoOptions])
-
-  useEffect(() => {
-    const recentToShow = query.trim() ? filteredRecentOptions : recentOptions
-    const hasAnyOptions =
-      (recentToShow?.length ?? 0) > 0 || (morphoOptionsLimited?.length ?? 0) > 0 || (speciesOptionsLimited?.length ?? 0) > 0
-
-    if (hasAnyOptions || query.trim()) {
-      console.log('🔍 identify: search options', {
-        query: query.trim() || '(empty)',
-        recent: {
-          count: recentToShow?.length ?? 0,
-          items: recentToShow?.map((r) => ({
-            label: r.label,
-            taxonRank: r.taxon?.taxonRank,
-            isMorphospecies: r.isMorphospecies,
-          })),
-        },
-        morphospecies: {
-          count: morphoOptionsLimited?.length ?? 0,
-          items: morphoOptionsLimited?.map((r) => ({
-            label: r.label,
-            taxonRank: r.taxon?.taxonRank,
-          })),
-        },
-        species: {
-          count: speciesOptionsLimited?.length ?? 0,
-          items: speciesOptionsLimited?.map((t) => ({
-            label: getDisplayLabelForTaxon(t),
-            scientificName: t.scientificName,
-            taxonRank: t.taxonRank,
-            order: t.order,
-            family: t.family,
-            genus: t.genus,
-            species: t.species,
-          })),
-        },
-      })
-    }
-  }, [query, filteredRecentOptions, recentOptions, morphoOptionsLimited, speciesOptionsLimited])
 
   function handleSelect(label: string) {
     const value = (label ?? '').trim()
