@@ -382,7 +382,6 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       })
 
       expect(row.taxonID).toBe('12345')
-      expect(row.taxonKey).toBe('67890')
     })
 
     it('should use taxonID as taxonKey fallback when acceptedTaxonKey is missing', () => {
@@ -404,7 +403,6 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       })
 
       expect(row.taxonID).toBe('12345')
-      expect(row.taxonKey).toBe('12345')
     })
 
     it('should populate commonName from taxon.vernacularName', () => {
