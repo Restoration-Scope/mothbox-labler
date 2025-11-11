@@ -26,6 +26,7 @@ import { setMorphoCover, normalizeMorphoKey } from '~/stores/morphospecies/cover
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
 import { Column, Row } from '~/styles'
 import { toast } from 'sonner'
+import { deriveTaxonName } from '~/models/taxonomy'
 
 export type PatchItemProps = {
   id: string
@@ -46,7 +47,7 @@ function PatchItemImpl(props: PatchItemProps) {
   const hoveredTopClusterId = useStore(selectedClusterIdStore)
   const hoveredSubClusterId = useStore(selectedSubClusterIdStore)
   const selected = useStore(selectedPatchIdsStore)
-  const label = detection?.label || 'Unlabeled'
+  const label = detection ? deriveTaxonName({ detection }) || 'Unlabeled' : 'Unlabeled'
   const rank = typeof detection?.morphospecies === 'string' && !!detection?.morphospecies ? 'morphospecies' : detection?.taxon?.taxonRank
   const morphoKeyForDetection = (detection?.morphospecies || '').trim() ? normalizeMorphoKey(detection?.morphospecies || '') : ''
   const isMorphoBySummary = !!(
