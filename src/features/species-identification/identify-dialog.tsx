@@ -9,6 +9,7 @@ import { DialogTitle } from '@radix-ui/react-dialog'
 import { TaxonRankBadge, TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
 import { detectionsStore, type DetectionEntity } from '~/stores/entities/detections'
 import { Column } from '~/styles'
+import { deriveTaxonName } from '~/models/taxonomy'
 
 const MAX_SPECIES_UI_RESULTS = 50
 
@@ -42,46 +43,62 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
         count: speciesOptions.length,
         results: speciesOptions.map((r) => {
           const parts: string[] = []
-          const kingdom = String(r?.kingdom ?? '').trim().toLowerCase()
+          const kingdom = String(r?.kingdom ?? '')
+            .trim()
+            .toLowerCase()
           if (!kingdom) return { ...r, stableKey: '' }
           parts.push(kingdom)
 
-          const rank = String(r?.taxonRank ?? '').trim().toLowerCase()
+          const rank = String(r?.taxonRank ?? '')
+            .trim()
+            .toLowerCase()
           if (rank === 'kingdom') {
             return { ...r, stableKey: parts.join(':') }
           }
 
-          const phylum = String(r?.phylum ?? '').trim().toLowerCase()
+          const phylum = String(r?.phylum ?? '')
+            .trim()
+            .toLowerCase()
           if (phylum) parts.push(phylum)
           if (rank === 'phylum') {
             return { ...r, stableKey: parts.join(':') }
           }
 
-          const className = String(r?.class ?? '').trim().toLowerCase()
+          const className = String(r?.class ?? '')
+            .trim()
+            .toLowerCase()
           if (className) parts.push(className)
           if (rank === 'class') {
             return { ...r, stableKey: parts.join(':') }
           }
 
-          const order = String(r?.order ?? '').trim().toLowerCase()
+          const order = String(r?.order ?? '')
+            .trim()
+            .toLowerCase()
           if (order) parts.push(order)
           if (rank === 'order') {
             return { ...r, stableKey: parts.join(':') }
           }
 
-          const family = String(r?.family ?? '').trim().toLowerCase()
+          const family = String(r?.family ?? '')
+            .trim()
+            .toLowerCase()
           if (family) parts.push(family)
           if (rank === 'family') {
             return { ...r, stableKey: parts.join(':') }
           }
 
-          const genus = String(r?.genus ?? '').trim().toLowerCase()
+          const genus = String(r?.genus ?? '')
+            .trim()
+            .toLowerCase()
           if (genus) parts.push(genus)
           if (rank === 'genus') {
             return { ...r, stableKey: parts.join(':') }
           }
 
-          const species = String(r?.species ?? '').trim().toLowerCase()
+          const species = String(r?.species ?? '')
+            .trim()
+            .toLowerCase()
           if (species) parts.push(species)
           if (rank === 'species') {
             return { ...r, stableKey: parts.join(':') }
@@ -245,6 +262,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
                   key={r.label}
                   label={r.label}
                   taxon={r.taxon}
+                  isMorphospecies={r.isMorphospecies}
                   onSelect={() => (r.taxon ? handleSelectTaxon(r.taxon) : handleSelect(r.label))}
                   subtitleClassName='text-11 text-neutral-500 flex items-center gap-4'
                 />
@@ -374,13 +392,16 @@ function RankLettersInline(props: RankLettersInlineProps) {
 type SpeciesOptionRowProps = {
   label: string
   taxon?: TaxonRecord
+  isMorphospecies?: boolean
   onSelect: () => void
   itemClassName?: string
   subtitleClassName?: string
 }
 
 function SpeciesOptionRow(props: SpeciesOptionRowProps) {
-  const { label, taxon, onSelect, itemClassName, subtitleClassName } = props
+  const { label, taxon, isMorphospecies, onSelect, itemClassName, subtitleClassName } = props
+
+  const rankToShow = isMorphospecies ? 'morphospecies' : taxon?.taxonRank
 
   return (
     <CommandItem onSelect={onSelect} className={itemClassName}>
@@ -394,7 +415,7 @@ function SpeciesOptionRow(props: SpeciesOptionRowProps) {
         )}
       </Column>
 
-      {taxon?.taxonRank && <TaxonRankBadge rank={taxon.taxonRank} />}
+      {rankToShow && <TaxonRankBadge rank={rankToShow} />}
     </CommandItem>
   )
 }
@@ -483,17 +504,21 @@ function getRecentOptions(params: GetRecentOptionsParams) {
   const { detections } = params
 
   const all = Object.values(detections ?? {})
-    .filter((d: DetectionEntity | undefined) => d?.detectedBy === 'user' && (!!d?.taxon?.scientificName || !!d?.label))
+    .filter(
+      (d: DetectionEntity | undefined) => d?.detectedBy === 'user' && (!!d?.taxon?.scientificName || !!d?.label || !!d?.morphospecies),
+    )
     .sort((a, b) => ((b?.identifiedAt ?? 0) as number) - ((a?.identifiedAt ?? 0) as number))
 
-  const unique: Array<{ label: string; taxon?: TaxonRecord }> = []
+  const unique: Array<{ label: string; taxon?: TaxonRecord; isMorphospecies?: boolean }> = []
   const seen = new Set<string>()
   for (const d of all) {
-    const text = (d?.taxon?.scientificName ?? d?.label ?? '').trim()
+    if (!d) continue
+    const text = deriveTaxonName({ detection: d }).trim()
     const key = text.toLowerCase()
     if (!key || seen.has(key)) continue
     seen.add(key)
-    unique.push({ label: text, taxon: d?.taxon })
+    const isMorphospecies = !!d?.morphospecies
+    unique.push({ label: text, taxon: d?.taxon, isMorphospecies })
     if (unique.length >= 5) break
   }
 
