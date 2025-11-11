@@ -6,7 +6,7 @@ import type { DetectionEntity } from '~/stores/entities/detections'
 
 import { extractNightDiskPathFromIndexedPath } from './ingest-paths'
 import { extractPatchFilename, parseBotDetectionJsonSafely, parseUserDetectionJsonSafely } from './ingest-json'
-import { buildDetectionFromIdentifiedJsonShape } from '~/models/detection-shapes'
+import { buildDetectionFromIdentifiedJsonShape, buildDetectionFromBotShape } from '~/models/detection-shapes'
 
 export async function parseNightBotDetections(params: {
   photos: Record<string, PhotoEntity>
@@ -62,22 +62,13 @@ export async function parseNightBotDetections(params: {
       } as any
 
       const detectionId = patchId
-      const taxon = deriveTaxonFromShape(shape)
-
-      detections[detectionId] = {
+      const existingDetection: DetectionEntity = {
         id: detectionId,
         patchId,
         photoId: photo.id,
         nightId: photo.nightId,
-        label: taxon?.scientificName || safeLabel(shape?.label),
-        taxon,
-        score: safeNumber(shape?.score),
-        direction: safeNumber(shape?.direction),
-        shapeType: safeLabel(shape?.shape_type),
-        points: Array.isArray(shape?.points) ? (shape.points as any) : undefined,
-        detectedBy: 'auto',
-        clusterId: safeNumber(shape?.clusterID),
-      } as any
+      }
+      detections[detectionId] = buildDetectionFromBotShape({ shape, existingDetection })
 
       if (targetNightId && !processedPatchIds.has(patchId) && !!patches?.[patchId]?.imageFile) {
         processedPatchIds.add(patchId)
@@ -157,64 +148,4 @@ async function ensureFileHydrated(fileLike: IndexedFile): Promise<IndexedFile> {
     }
   }
   return fileLike
-}
-
-function safeLabel(value: unknown) {
-  return typeof value === 'string' ? value : undefined
-}
-function safeNumber(value: unknown) {
-  return typeof value === 'number' ? value : undefined
-}
-
-function deriveTaxonFromShape(shape: any) {
-  const kingdom = safeLabel(shape?.kingdom)
-  const phylum = safeLabel(shape?.phylum)
-  const klass = safeLabel(shape?.class)
-  const order = safeLabel(shape?.order)
-  const family = safeLabel(shape?.family)
-  const genus = safeLabel(shape?.genus)
-  const species = safeLabel(shape?.species)
-
-  let scientificName: string | undefined
-  let taxonRank: string | undefined
-  if (species) {
-    scientificName = species
-    taxonRank = 'species'
-  } else if (genus) {
-    scientificName = genus
-    taxonRank = 'genus'
-  } else if (family) {
-    scientificName = family
-    taxonRank = 'family'
-  } else if (order) {
-    scientificName = order
-    taxonRank = 'order'
-  } else if (klass) {
-    scientificName = klass
-    taxonRank = 'class'
-  } else if (phylum) {
-    scientificName = phylum
-    taxonRank = 'phylum'
-  } else if (kingdom) {
-    scientificName = kingdom
-    taxonRank = 'kingdom'
-  } else {
-    scientificName = undefined
-    taxonRank = undefined
-  }
-
-  if (!scientificName && !kingdom && !phylum && !klass && !order && !family && !genus && !species) return undefined as any
-
-  const taxon = {
-    scientificName: scientificName || '',
-    taxonRank,
-    kingdom,
-    phylum,
-    class: klass,
-    order,
-    family,
-    genus,
-    species,
-  } as any
-  return taxon
 }

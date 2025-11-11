@@ -1,4 +1,6 @@
 import { atom, computed } from 'nanostores'
+import { buildDetectionFromBotShape } from '~/models/detection-shapes'
+import type { DetectionEntity as FullDetectionEntity } from '~/stores/entities/detections'
 
 export type IndexedFile = {
   file: File
@@ -128,17 +130,24 @@ export async function ingestFilesToStores(params: { files: IndexedFile[]; parseD
             findPatchFileForPatchId({ files, patchId, nightDiskPath: extractNightDiskPathFromIndexedPath((jsonFile as any)?.path ?? '') }),
         }
         const detectionId = patchId
-        detections[detectionId] = {
+        const existingDetection: FullDetectionEntity = {
           id: detectionId,
           patchId,
           photoId: photo.id,
           nightId: photo.nightId,
-          label: safeLabel(shape?.label),
-          score: safeNumber(shape?.score),
-          direction: safeNumber(shape?.direction),
-          shapeType: safeLabel(shape?.shape_type),
-          points: Array.isArray(shape?.points) ? shape.points : undefined,
-          detectedBy: 'auto',
+        }
+        const builtDetection = buildDetectionFromBotShape({ shape, existingDetection })
+        detections[detectionId] = {
+          id: builtDetection.id,
+          patchId: builtDetection.patchId,
+          photoId: builtDetection.photoId,
+          nightId: builtDetection.nightId,
+          label: builtDetection.label,
+          score: builtDetection.score,
+          direction: builtDetection.direction,
+          shapeType: builtDetection.shapeType,
+          points: builtDetection.points,
+          detectedBy: builtDetection.detectedBy,
         }
         detectionsParsed++
       }

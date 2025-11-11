@@ -6,7 +6,7 @@ import { speciesListsStore } from '~/features/species-identification/species-lis
 import { photosStore, type PhotoEntity } from '~/stores/entities/photos'
 import { parseBotDetectionJsonSafely, extractPatchFilename } from '~/features/ingest/ingest-json'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
-import { deriveTaxonName } from '~/models/taxonomy'
+import { deriveTaxonName, taxonWithName } from '~/models/taxonomy'
 import { buildDetectionFromBotShape } from '~/models/detection-shapes'
 
 export type DetectionEntity = {
@@ -167,20 +167,19 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
     const speciesListDOI = speciesListId ? (speciesLists?.[speciesListId]?.doi as string | undefined) : undefined
 
     // Compute name field for taxon if present
-    let taxonWithName: (TaxonRecord & { name?: string }) | undefined = nextTaxon
-    if (nextTaxon) {
-      taxonWithName = {
-        ...nextTaxon,
-        name: deriveTaxonName({ detection: { ...existing, taxon: nextTaxon, morphospecies: nextMorphospecies } }),
-      }
-    }
+    const taxonWithNameField = nextTaxon
+      ? taxonWithName({
+          taxon: nextTaxon,
+          detection: { ...existing, taxon: nextTaxon, morphospecies: nextMorphospecies },
+        })
+      : undefined
 
     const next: DetectionEntity = {
       ...existing,
       label: isError ? 'ERROR' : finalLabel,
       detectedBy: 'user',
       identifiedAt,
-      taxon: taxonWithName,
+      taxon: taxonWithNameField,
       isError,
       // legacy flag no longer used; left undefined
       isMorpho: undefined,
