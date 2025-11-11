@@ -1,6 +1,6 @@
 import { useStore } from '@nanostores/react'
 import { useEffect, useMemo, useState } from 'react'
-import { useRouter } from '@tanstack/react-router'
+import { useRouter, useParams } from '@tanstack/react-router'
 import { expandMany, makeKey } from '~/features/left-panel/collapse.store'
 import { ensureSpeciesListSelection } from '~/features/species-picker/species-picker.state'
 import { nightsStore } from '~/stores/entities/4.nights'
@@ -24,6 +24,7 @@ export function NightView(props: { nightId: string }) {
   const { nightId } = props
 
   const router = useRouter()
+  const params = useParams({ from: '/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId' })
   const nights = useStore(nightsStore)
   const patches = useStore(patchesStore)
   const detections = useStore(detectionsStore)
@@ -175,6 +176,26 @@ export function NightView(props: { nightId: string }) {
         onSelectTaxon={({ taxon, bucket }) => {
           setSelectedTaxon(taxon as any)
           setSelectedBucket(bucket)
+
+          const search: { bucket?: 'auto' | 'user'; rank?: 'class' | 'order' | 'family' | 'genus' | 'species'; name?: string } = {
+            bucket,
+          }
+
+          if (taxon) {
+            search.rank = taxon.rank
+            search.name = taxon.name
+          }
+
+          router.navigate({
+            to: '/projects/$projectId/sites/$siteId/deployments/$deploymentId/nights/$nightId',
+            params: {
+              projectId: params.projectId,
+              siteId: params.siteId,
+              deploymentId: params.deploymentId,
+              nightId: params.nightId,
+            },
+            search,
+          })
         }}
         className='w-[300px] overflow-y-auto'
       />
