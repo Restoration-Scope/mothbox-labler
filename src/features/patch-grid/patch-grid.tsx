@@ -119,6 +119,14 @@ export function PatchGrid(props: PatchGridProps) {
     return buildGridBlocks({ orderedIds, detections, columns, selectedTaxon, selectedBucket })
   }, [orderedIds, detections, columns, selectedTaxon, selectedBucket])
 
+  const visualOrderIds = useMemo(() => {
+    return flattenBlocksToVisualOrder({ blocks })
+  }, [blocks])
+
+  const visualIndexById = useMemo(() => {
+    return buildVisualIndexMap({ visualOrderIds })
+  }, [visualOrderIds])
+
   const itemIndexToBlockIndex = useMemo(() => {
     const map: number[] = []
     if (!blocks.length) return map
@@ -219,9 +227,9 @@ export function PatchGrid(props: PatchGridProps) {
 
   const hoveredId = useMemo(() => {
     if (hoverIndex == null) return null
-    const id = orderedIds[hoverIndex]
+    const id = visualOrderIds[hoverIndex]
     return id ?? null
-  }, [hoverIndex, orderedIds])
+  }, [hoverIndex, visualOrderIds])
 
   useHotkeys(
     'space',
@@ -235,7 +243,6 @@ export function PatchGrid(props: PatchGridProps) {
   )
 
   function focusItem(index: number) {
-    const blockIndex = itemIndexToBlockIndex[index]
     requestAnimationFrame(() => {
       const el = containerRef.current?.querySelector(`[data-index="${index}"]`) as HTMLElement | null
       el?.focus({ preventScroll: true })
@@ -245,9 +252,7 @@ export function PatchGrid(props: PatchGridProps) {
   function handleItemMouseDown(e: React.MouseEvent, index: number, patchId: string) {
     e.preventDefault()
     if (e.shiftKey) {
-      const start = anchorIndex ?? index
-      const [lo, hi] = start <= index ? [start, index] : [index, start]
-      const rangeIds = orderedIds.slice(lo, hi + 1)
+      const rangeIds = computeShiftSelectionRange({ anchorIndex, currentIndex: index, visualOrderIds })
       const current = new Set(selected ?? new Set())
       for (const id of rangeIds) current.add(id)
       setSelection({ nightId, patchIds: Array.from(current) })
@@ -277,23 +282,19 @@ export function PatchGrid(props: PatchGridProps) {
   }
 
   function onMouseDownContainer(e: React.MouseEvent) {
-    const target = e.target as HTMLElement
-    const indexAttr = target?.closest('[data-index]')?.getAttribute('data-index')
-    if (indexAttr == null) return
-    const index = Number(indexAttr)
-    const id = orderedIds[index]
+    const index = getVisualIndexFromEvent(e)
+    if (index == null) return
+    const id = visualOrderIds[index]
     if (!id) return
     handleItemMouseDown(e, index, id)
   }
 
   function onMouseMoveContainer(e: React.MouseEvent) {
-    const target = e.target as HTMLElement
-    const indexAttr = target?.closest('[data-index]')?.getAttribute('data-index')
-    if (indexAttr != null) {
-      const index = Number(indexAttr)
-      if (!Number.isNaN(index) && index !== hoverIndex) setHoverIndex(index)
+    const index = getVisualIndexFromEvent(e)
+    if (index != null) {
+      if (index !== hoverIndex) setHoverIndex(index)
       if (isDragging) {
-        const id = orderedIds[index]
+        const id = visualOrderIds[index]
         if (id) handleItemMouseEnter(id)
       }
     } else if (hoverIndex != null) {
@@ -306,11 +307,11 @@ export function PatchGrid(props: PatchGridProps) {
   }
 
   function onKeyDown(e: React.KeyboardEvent) {
-    if (!orderedIds.length) return
+    if (!visualOrderIds.length) return
     if (e.key === 'ArrowLeft' || e.key === 'ArrowRight') {
       e.preventDefault()
       const delta = e.key === 'ArrowLeft' ? -1 : 1
-      const next = Math.max(0, Math.min(orderedIds.length - 1, focusIndex + delta))
+      const next = Math.max(0, Math.min(visualOrderIds.length - 1, focusIndex + delta))
       setFocusIndex(next)
       focusItem(next)
       return
@@ -318,7 +319,7 @@ export function PatchGrid(props: PatchGridProps) {
     if (e.key === ' ') {
       e.preventDefault()
       if (hoverIndex != null) return
-      const id = orderedIds[focusIndex]
+      const id = visualOrderIds[focusIndex]
       if (id) togglePatchSelection({ patchId: id })
       return
     }
@@ -356,7 +357,7 @@ export function PatchGrid(props: PatchGridProps) {
                   columns={columns}
                   gapPx={gapPx}
                   itemWidth={itemWidth}
-                  itemIndexById={itemIndexById}
+                  itemIndexById={visualIndexById}
                   onOpenPatchDetail={onOpenPatchDetail}
                   onImageLoad={(id) => setLoadedCount((c) => c + 1)}
                   onImageError={(id) => setLoadedCount((c) => c + 1)}
@@ -712,7 +713,8 @@ function RowGrid(props: RowGridProps) {
       }}
     >
       {itemIds.map((id) => {
-        const index = itemIndexById.get(id) ?? 0
+        const index = itemIndexById.get(id)
+        if (typeof index !== 'number') return null
         return (
           <PatchItem
             id={id}
@@ -727,4 +729,41 @@ function RowGrid(props: RowGridProps) {
       })}
     </div>
   )
+}
+
+function flattenBlocksToVisualOrder(params: { blocks: GridBlock[] }) {
+  const { blocks } = params
+  const ids: string[] = []
+  for (const block of blocks) {
+    if (block.kind === 'row') {
+      for (const id of block.itemIds) {
+        ids.push(id)
+      }
+    }
+  }
+  return ids
+}
+
+function buildVisualIndexMap(params: { visualOrderIds: string[] }) {
+  const { visualOrderIds } = params
+  const map = new Map<string, number>()
+  for (let i = 0; i < visualOrderIds.length; i++) {
+    map.set(visualOrderIds[i]!, i)
+  }
+  return map
+}
+
+function computeShiftSelectionRange(params: { anchorIndex: number | null; currentIndex: number; visualOrderIds: string[] }) {
+  const { anchorIndex, currentIndex, visualOrderIds } = params
+  const start = anchorIndex != null ? anchorIndex : currentIndex
+  const [lo, hi] = start <= currentIndex ? [start, currentIndex] : [currentIndex, start]
+  return visualOrderIds.slice(lo, hi + 1)
+}
+
+function getVisualIndexFromEvent(e: React.MouseEvent) {
+  const target = e.target as HTMLElement
+  const indexAttr = target?.closest('[data-index]')?.getAttribute('data-index')
+  if (indexAttr == null) return null
+  const index = Number(indexAttr)
+  return Number.isNaN(index) ? null : index
 }
