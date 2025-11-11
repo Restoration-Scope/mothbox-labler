@@ -509,13 +509,29 @@ function orderPatchIds(params: { patches: PatchEntity[]; detections: Record<stri
     return { id: p.id, name: p.name, clusterId, area }
   })
   withSortKey.sort((a, b) => {
-    const aHas = typeof a.clusterId === 'number'
-    const bHas = typeof b.clusterId === 'number'
-    if (aHas && bHas && (a.clusterId as any) !== (b.clusterId as any)) return (a.clusterId as any) - (b.clusterId as any)
-    if (aHas && !bHas) return -1
-    if (!aHas && bHas) return 1
-    if (b.area !== a.area) return b.area - a.area
-    return (a?.name || '').localeCompare(b?.name || '')
+    const aClusterId = a.clusterId
+    const bClusterId = b.clusterId
+    const aIsValid = typeof aClusterId === 'number' && aClusterId >= 0
+    const bIsValid = typeof bClusterId === 'number' && bClusterId >= 0
+    const aIsUnclustered = aClusterId === -1
+    const bIsUnclustered = bClusterId === -1
+
+    if (aIsValid && bIsValid) return aClusterId - bClusterId
+    if (aIsValid && bIsUnclustered) return -1
+    if (aIsValid && bClusterId === undefined) return -1
+    if (aIsUnclustered && bIsValid) return 1
+    if (aIsUnclustered && bIsUnclustered) {
+      if (b.area !== a.area) return b.area - a.area
+      return (a?.name || '').localeCompare(b?.name || '')
+    }
+    if (aIsUnclustered && bClusterId === undefined) return -1
+    if (aClusterId === undefined && bIsValid) return 1
+    if (aClusterId === undefined && bIsUnclustered) return 1
+    if (aClusterId === undefined && bClusterId === undefined) {
+      if (b.area !== a.area) return b.area - a.area
+      return (a?.name || '').localeCompare(b?.name || '')
+    }
+    return 0
   })
   const ids = withSortKey.map((x) => x.id)
   return ids

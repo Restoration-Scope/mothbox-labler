@@ -340,14 +340,31 @@ function sortPatchesByClusterThenArea(params: { patches: PatchEntity[]; detectio
     return { patch: p, clusterId, area }
   })
   withKeys.sort((a, b) => {
-    const aHas = typeof a.clusterId === 'number'
-    const bHas = typeof b.clusterId === 'number'
-    if (aHas && bHas && (a.clusterId as any) !== (b.clusterId as any)) return (a.clusterId as any) - (b.clusterId as any)
-    if (aHas && !bHas) return -1
-    if (!aHas && bHas) return 1
-    if (b.area !== a.area) return b.area - a.area
-    const byName = (a.patch?.name || '').localeCompare(b.patch?.name || '')
-    return byName
+    const aClusterId = a.clusterId
+    const bClusterId = b.clusterId
+    const aIsValid = typeof aClusterId === 'number' && aClusterId >= 0
+    const bIsValid = typeof bClusterId === 'number' && bClusterId >= 0
+    const aIsUnclustered = aClusterId === -1
+    const bIsUnclustered = bClusterId === -1
+
+    if (aIsValid && bIsValid) return aClusterId - bClusterId
+    if (aIsValid && bIsUnclustered) return -1
+    if (aIsValid && bClusterId === undefined) return -1
+    if (aIsUnclustered && bIsValid) return 1
+    if (aIsUnclustered && bIsUnclustered) {
+      if (b.area !== a.area) return b.area - a.area
+      const byName = (a.patch?.name || '').localeCompare(b.patch?.name || '')
+      return byName
+    }
+    if (aIsUnclustered && bClusterId === undefined) return -1
+    if (aClusterId === undefined && bIsValid) return 1
+    if (aClusterId === undefined && bIsUnclustered) return 1
+    if (aClusterId === undefined && bClusterId === undefined) {
+      if (b.area !== a.area) return b.area - a.area
+      const byName = (a.patch?.name || '').localeCompare(b.patch?.name || '')
+      return byName
+    }
+    return 0
   })
   const result = withKeys.map((x) => x.patch)
   return result
