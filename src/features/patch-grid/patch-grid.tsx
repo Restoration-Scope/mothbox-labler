@@ -11,7 +11,15 @@ import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 import { TaxonRankLetterBadge } from '~/components/taxon-rank-badge'
 import { PatchItem } from './patch-item'
 import { selectedPatchIdsStore, selectionNightIdStore, setSelection, togglePatchSelection } from '~/stores/ui'
-import { chunkIds, computeDetectionArea, getRankValue } from './grid-utils'
+import {
+  addRowBlocks,
+  chunkIds,
+  computeDetectionArea,
+  getRankValue,
+  isMorphospeciesDetection,
+  separateRegularAndMorphoItems,
+  sortGroupsByCount,
+} from './grid-utils'
 import { useContainerWidth } from '~/utils/use-container-width'
 import { colorVariantsMap } from '~/utils/colors'
 import { mapRankToVariant } from '~/utils/ranks'
@@ -155,25 +163,23 @@ export function PatchGrid(props: PatchGridProps) {
   // Only reset scroll when the viewing context changes (night, bucket, or selected taxon)
   const lastContextRef = useRef<string>(`${nightId}|${selectedBucket || ''}|${selectedTaxon?.rank || ''}:${selectedTaxon?.name || ''}`)
   useEffect(() => {
-    const count = orderedIds.length
-    if (count === prevCountRef.current) return
+    const currentContext = `${nightId}|${selectedBucket || ''}|${selectedTaxon?.rank || ''}:${selectedTaxon?.name || ''}`
+    const contextChanged = currentContext !== lastContextRef.current
+    lastContextRef.current = currentContext
 
+    if (!contextChanged) return
+
+    const count = orderedIds.length
     setIsDragging(false)
     setDragToggled(new Set())
     setAnchorIndex(null)
     setFocusIndex(0)
 
-    const currentContext = `${nightId}|${selectedBucket || ''}|${selectedTaxon?.rank || ''}:${selectedTaxon?.name || ''}`
-    const contextChanged = currentContext !== lastContextRef.current
-    lastContextRef.current = currentContext
-
-    if (contextChanged) {
-      const el = containerRef.current
-      if (el) el.scrollTo({ top: 0 })
-      rowVirtualizer.scrollToIndex(0, { align: 'start' })
-      rowVirtualizer.scrollToOffset(0)
-      const totalSize = rowVirtualizer.getTotalSize()
-    }
+    const el = containerRef.current
+    if (el) el.scrollTo({ top: 0 })
+    rowVirtualizer.scrollToIndex(0, { align: 'start' })
+    rowVirtualizer.scrollToOffset(0)
+    const totalSize = rowVirtualizer.getTotalSize()
 
     prevCountRef.current = count
   }, [orderedIds.length, rowVirtualizer, columns, rowHeight, nightId, selectedBucket, selectedTaxon?.rank, selectedTaxon?.name])
@@ -329,7 +335,7 @@ export function PatchGrid(props: PatchGridProps) {
       onMouseMove={onMouseMoveContainer}
       onMouseLeave={onMouseLeaveContainer}
     >
-      <div style={{ height: rowVirtualizer.getTotalSize(), width: '100%', position: 'relative' }}>
+      <div style={{ height: rowVirtualizer.getTotalSize() + 88, width: '100%', position: 'relative' }}>
         {!orderedIds.length ? <div className='p-8 text-sm text-neutral-500'>No patches found</div> : null}
 
         {rowVirtualizer.getVirtualItems().map((stripe) => {
@@ -359,6 +365,7 @@ export function PatchGrid(props: PatchGridProps) {
             </div>
           )
         })}
+        <div style={{ position: 'absolute', top: rowVirtualizer.getTotalSize(), left: 0, width: '100%', height: '88px' }} />
       </div>
     </GridContainer>
   )
@@ -404,8 +411,7 @@ function buildGridBlocks(params: {
 
   if (selectedBucket === 'user' && selectedTaxon?.name === 'ERROR') {
     out.push({ kind: 'header', key: 'hdr:errors', title: 'Errors', rank: 'species', count: orderedIds.length })
-    const rows = chunkIds(orderedIds, Math.max(1, columns))
-    rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:errors:${idx}`, itemIds: ids }))
+    addRowBlocks({ itemIds: orderedIds, columns, keyPrefix: 'row:errors', out })
     return out
   }
 
@@ -426,8 +432,7 @@ function buildGridBlocks(params: {
       const det = detections?.[id]
       const rankValue = getRankValue({ det, rank: anchorRank })
       if (!rankValue) {
-        const isMorpho = typeof det?.morphospecies === 'string' && det.morphospecies.length > 0
-        if (isMorpho) noOrderMorpho.push(id)
+        if (isMorphospeciesDetection({ detection: det })) noOrderMorpho.push(id)
         else noOrderItems.push(id)
       } else {
         const arr = anchorGroups.get(rankValue) || []
@@ -437,15 +442,13 @@ function buildGridBlocks(params: {
     }
 
     if (noOrderItems.length) {
-      const rows = chunkIds(noOrderItems, Math.max(1, columns))
-      rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:class:${selectedTaxon.name}:noorder:${idx}`, itemIds: ids }))
+      addRowBlocks({ itemIds: noOrderItems, columns, keyPrefix: `row:class:${selectedTaxon.name}:noorder`, out })
     }
     if (noOrderMorpho.length) {
-      const rows = chunkIds(noOrderMorpho, Math.max(1, columns))
-      rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:class:${selectedTaxon.name}:noordermorpho:${idx}`, itemIds: ids }))
+      addRowBlocks({ itemIds: noOrderMorpho, columns, keyPrefix: `row:class:${selectedTaxon.name}:noordermorpho`, out })
     }
 
-    const sortedAnchor = Array.from(anchorGroups.entries()).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+    const sortedAnchor = sortGroupsByCount({ groups: anchorGroups })
 
     const regularGroups: Array<[string, string[]]> = []
     const morphoGroups: Array<[string, string[]]> = []
@@ -484,7 +487,7 @@ function buildGridBlocks(params: {
     anchorGroups.set(name, arr)
   }
   if (DEBUG) console.log('🔍 PatchGrid - anchorGroups:', Array.from(anchorGroups.entries()))
-  const sortedAnchor = Array.from(anchorGroups.entries()).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+  const sortedAnchor = sortGroupsByCount({ groups: anchorGroups })
   if (DEBUG) console.log('🔍 PatchGrid - sortedAnchor:', sortedAnchor)
 
   const regularGroups: Array<[string, string[]]> = []
@@ -526,21 +529,12 @@ function processAnchorGroup(params: {
 
   const subRank = anchorRank === 'order' ? 'family' : anchorRank === 'family' ? 'genus' : undefined
   if (!subRank) {
-    const regularItems: string[] = []
-    const morphoItems: string[] = []
-    for (const id of idsOfAnchor) {
-      const det = detections?.[id]
-      const isMorpho = typeof det?.morphospecies === 'string' && det.morphospecies.length > 0
-      if (isMorpho) morphoItems.push(id)
-      else regularItems.push(id)
-    }
+    const { regularItems, morphoItems } = separateRegularAndMorphoItems({ itemIds: idsOfAnchor, detections })
     if (regularItems.length) {
-      const rows = chunkIds(regularItems, Math.max(1, columns))
-      rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:${anchorRank}:${anchorName}:${idx}`, itemIds: ids }))
+      addRowBlocks({ itemIds: regularItems, columns, keyPrefix: `row:${anchorRank}:${anchorName}`, out })
     }
     if (morphoItems.length) {
-      const rows = chunkIds(morphoItems, Math.max(1, columns))
-      rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:${anchorRank}:${anchorName}:morpho:${idx}`, itemIds: ids }))
+      addRowBlocks({ itemIds: morphoItems, columns, keyPrefix: `row:${anchorRank}:${anchorName}:morpho`, out })
     }
     return
   }
@@ -552,8 +546,7 @@ function processAnchorGroup(params: {
     const det = detections?.[id]
     const sub = getRankValue({ det, rank: subRank })
     if (!sub) {
-      const isMorpho = typeof det?.morphospecies === 'string' && det.morphospecies.length > 0
-      if (isMorpho) noSubMorpho.push(id)
+      if (isMorphospeciesDetection({ detection: det })) noSubMorpho.push(id)
       else noSub.push(id)
     } else {
       const arr = bySub.get(sub) || []
@@ -562,14 +555,12 @@ function processAnchorGroup(params: {
     }
   }
   if (noSub.length) {
-    const rows = chunkIds(noSub, Math.max(1, columns))
-    rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:${anchorRank}:${anchorName}:__nosub:${idx}`, itemIds: ids }))
+    addRowBlocks({ itemIds: noSub, columns, keyPrefix: `row:${anchorRank}:${anchorName}:__nosub`, out })
   }
   if (noSubMorpho.length) {
-    const rows = chunkIds(noSubMorpho, Math.max(1, columns))
-    rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:${anchorRank}:${anchorName}:__nosubmorpho:${idx}`, itemIds: ids }))
+    addRowBlocks({ itemIds: noSubMorpho, columns, keyPrefix: `row:${anchorRank}:${anchorName}:__nosubmorpho`, out })
   }
-  const sortedSub = Array.from(bySub.entries()).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+  const sortedSub = sortGroupsByCount({ groups: bySub })
 
   const regularSub: Array<[string, string[]]> = []
   const morphoSub: Array<[string, string[]]> = []
@@ -593,21 +584,12 @@ function processAnchorGroup(params: {
         rank: displaySubRank,
         count: subIds.length,
       })
-      const regularItems: string[] = []
-      const morphoItems: string[] = []
-      for (const id of subIds) {
-        const det = detections?.[id]
-        const isMorpho = typeof det?.morphospecies === 'string' && det.morphospecies.length > 0
-        if (isMorpho) morphoItems.push(id)
-        else regularItems.push(id)
-      }
+      const { regularItems, morphoItems } = separateRegularAndMorphoItems({ itemIds: subIds, detections })
       if (regularItems.length) {
-        const rows = chunkIds(regularItems, Math.max(1, columns))
-        rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:${subRank}:${anchorName}/${subName}:${idx}`, itemIds: ids }))
+        addRowBlocks({ itemIds: regularItems, columns, keyPrefix: `row:${subRank}:${anchorName}/${subName}`, out })
       }
       if (morphoItems.length) {
-        const rows = chunkIds(morphoItems, Math.max(1, columns))
-        rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:${subRank}:${anchorName}/${subName}:morpho:${idx}`, itemIds: ids }))
+        addRowBlocks({ itemIds: morphoItems, columns, keyPrefix: `row:${subRank}:${anchorName}/${subName}:morpho`, out })
       }
     }
   }
@@ -620,8 +602,7 @@ function processAnchorGroup(params: {
       rank: 'morphospecies',
       count: subIds.length,
     })
-    const rows = chunkIds(subIds, Math.max(1, columns))
-    rows.forEach((ids, idx) => out.push({ kind: 'row', key: `row:${subRank}:${anchorName}/${subName}:${idx}`, itemIds: ids }))
+    addRowBlocks({ itemIds: subIds, columns, keyPrefix: `row:${subRank}:${anchorName}/${subName}`, out })
   }
 }
 

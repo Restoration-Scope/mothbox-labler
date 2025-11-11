@@ -80,3 +80,48 @@ export function getHorizontalPadding(el: HTMLElement) {
   const total = (isFinite(left) ? left : 0) + (isFinite(right) ? right : 0)
   return total
 }
+
+export function isMorphospeciesDetection(params: { detection?: DetectionEntity }) {
+  const { detection } = params
+  return typeof detection?.morphospecies === 'string' && detection.morphospecies.length > 0
+}
+
+export function separateRegularAndMorphoItems(params: { itemIds: string[]; detections: Record<string, DetectionEntity> }) {
+  const { itemIds, detections } = params
+  const regularItems: string[] = []
+  const morphoItems: string[] = []
+  for (const id of itemIds) {
+    const det = detections?.[id]
+    if (isMorphospeciesDetection({ detection: det })) morphoItems.push(id)
+    else regularItems.push(id)
+  }
+  return { regularItems, morphoItems }
+}
+
+export function sortGroupsByCount(params: { groups: Map<string, string[]> }) {
+  const { groups } = params
+  return Array.from(groups.entries()).sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+}
+
+export function addRowBlocks(params: {
+  itemIds: string[]
+  columns: number
+  keyPrefix: string
+  out: Array<
+    | { kind: 'row'; key: string; itemIds: string[] }
+    | {
+        kind: 'header'
+        key: string
+        title: string
+        rank?: 'class' | 'order' | 'family' | 'genus' | 'species' | 'morphospecies'
+        count: number
+      }
+  >
+}) {
+  const { itemIds, columns, keyPrefix, out } = params
+  if (itemIds.length === 0) return
+  const rows = chunkIds(itemIds, Math.max(1, columns))
+  rows.forEach((ids, idx) => {
+    out.push({ kind: 'row', key: `${keyPrefix}:${idx}`, itemIds: ids })
+  })
+}
