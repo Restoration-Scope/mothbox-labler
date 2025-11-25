@@ -137,18 +137,7 @@ export async function ingestFilesToStores(params: { files: IndexedFile[]; parseD
           nightId: photo.nightId,
         }
         const builtDetection = buildDetectionFromBotShape({ shape, existingDetection })
-        detections[detectionId] = {
-          id: builtDetection.id,
-          patchId: builtDetection.patchId,
-          photoId: builtDetection.photoId,
-          nightId: builtDetection.nightId,
-          label: builtDetection.label,
-          score: builtDetection.score,
-          direction: builtDetection.direction,
-          shapeType: builtDetection.shapeType,
-          points: builtDetection.points,
-          detectedBy: builtDetection.detectedBy,
-        }
+        detections[detectionId] = builtDetection
         detectionsParsed++
       }
     }

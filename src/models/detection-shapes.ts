@@ -52,6 +52,7 @@ export function buildDetectionFromBotShape(params: { shape: any; existingDetecti
     morphospecies: undefined,
     speciesListId: undefined,
     speciesListDOI: undefined,
+    originalMothboxLabel: existingDetection?.originalMothboxLabel ?? safeLabel(shape?.label),
   }
 
   return detection
@@ -92,6 +93,7 @@ export function buildDetectionFromIdentifiedJsonShape(params: { shape: any; phot
     isError: isError ? true : undefined,
     morphospecies,
     speciesListDOI: shape?.species_list ?? existingDetection?.speciesListDOI,
+    originalMothboxLabel: existingDetection?.originalMothboxLabel,
   }
 
   return detection

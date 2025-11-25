@@ -34,6 +34,7 @@ const DARWIN_COLUMNS = [
   'ID_confidence',
   'mothbox',
   'filepath',
+  'original_mothbox_identifciation',
 
   // Date/Time
   'eventDate',
@@ -327,6 +328,7 @@ export function buildDarwinShapeFromDetection(params: {
     species_list_doi,
     filepath,
     mothbox,
+    original_mothbox_identifciation: detection?.originalMothboxLabel || '',
     deployment: '',
     image_id,
   }
