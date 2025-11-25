@@ -12,6 +12,7 @@ import { Column } from '~/styles'
 import { deriveTaxonName } from '~/models/taxonomy'
 import { openGlobalDialog } from '~/components/dialogs/global-dialog'
 import { TaxonKeyDialogContent } from './taxon-key-dialog'
+import { useConfirmDialog } from '~/components/dialogs/ConfirmDialog'
 
 const MAX_SPECIES_UI_RESULTS = 50
 
@@ -30,6 +31,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   const selection = useStore(projectSpeciesSelectionStore)
   const detections = useStore(detectionsStore)
   const listRef = useRef<HTMLDivElement>(null)
+  const { setConfirmDialog } = useConfirmDialog()
 
   useEffect(() => {
     if (open) setQuery('')
@@ -50,92 +52,28 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     if (query.trim().toLowerCase() === 'diptera' && speciesOptions?.length) {
       console.log('🔍 Diptera search results:', {
         count: speciesOptions.length,
-        results: speciesOptions.map((r) => {
-          const parts: string[] = []
-          const kingdom = String(r?.kingdom ?? '')
-            .trim()
-            .toLowerCase()
-          if (!kingdom) return { ...r, stableKey: '' }
-          parts.push(kingdom)
-
-          const rank = String(r?.taxonRank ?? '')
-            .trim()
-            .toLowerCase()
-          if (rank === 'kingdom') {
-            return { ...r, stableKey: parts.join(':') }
-          }
-
-          const phylum = String(r?.phylum ?? '')
-            .trim()
-            .toLowerCase()
-          if (phylum) parts.push(phylum)
-          if (rank === 'phylum') {
-            return { ...r, stableKey: parts.join(':') }
-          }
-
-          const className = String(r?.class ?? '')
-            .trim()
-            .toLowerCase()
-          if (className) parts.push(className)
-          if (rank === 'class') {
-            return { ...r, stableKey: parts.join(':') }
-          }
-
-          const order = String(r?.order ?? '')
-            .trim()
-            .toLowerCase()
-          if (order) parts.push(order)
-          if (rank === 'order') {
-            return { ...r, stableKey: parts.join(':') }
-          }
-
-          const family = String(r?.family ?? '')
-            .trim()
-            .toLowerCase()
-          if (family) parts.push(family)
-          if (rank === 'family') {
-            return { ...r, stableKey: parts.join(':') }
-          }
-
-          const genus = String(r?.genus ?? '')
-            .trim()
-            .toLowerCase()
-          if (genus) parts.push(genus)
-          if (rank === 'genus') {
-            return { ...r, stableKey: parts.join(':') }
-          }
-
-          const species = String(r?.species ?? '')
-            .trim()
-            .toLowerCase()
-          if (species) parts.push(species)
-          if (rank === 'species') {
-            return { ...r, stableKey: parts.join(':') }
-          }
-
-          return {
-            taxonID: r.taxonID,
-            scientificName: r.scientificName,
-            taxonRank: r.taxonRank,
-            order: r.order,
-            family: r.family,
-            genus: r.genus,
-            species: r.species,
-            taxonomicStatus: r.taxonomicStatus,
-            stableKey: parts.join(':'),
-          }
-        }),
+        results: speciesOptions.map((r) => ({
+          taxonID: r.taxonID,
+          scientificName: r.scientificName,
+          taxonRank: r.taxonRank,
+          order: r.order,
+          family: r.family,
+          genus: r.genus,
+          species: r.species,
+          taxonomicStatus: r.taxonomicStatus,
+          stableKey: buildStableKeyForTaxon(r),
+        })),
       })
     }
   }, [query, speciesOptions])
 
   const speciesOptionsLimited = useMemo(() => {
     const list = speciesOptions || []
-    const res = list.slice(0, MAX_SPECIES_UI_RESULTS)
+    const limited = limitOptions(list)
     console.log('🔍 identify: species options', {
       query: query.trim() || '(empty)',
-      count: res.length,
-      items: res.map((t) => ({
+      count: limited.length,
+      items: limited.map((t) => ({
         label: getDisplayLabelForTaxon(t),
         scientificName: t.scientificName,
         taxonRank: t.taxonRank,
@@ -145,30 +83,25 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
         species: t.species,
       })),
     })
-    return res
+    return limited
   }, [speciesOptions, query])
 
   const recentOptions = useMemo(() => {
-    const res = getRecentOptions({ detections })
-    return res
+    return getRecentOptions({ detections })
   }, [detections])
 
   const filteredRecentOptions = useMemo(() => {
     const q = (query ?? '').trim().toLowerCase()
     if (!q) return recentOptions
-    const filtered = (recentOptions || []).filter((r) => (r?.label || '').toLowerCase().includes(q))
-    return filtered
+    return (recentOptions || []).filter((r) => (r?.label || '').toLowerCase().includes(q))
   }, [recentOptions, query])
 
   const morphoOptions = useMemo(() => {
-    const res = getMorphoOptions({ detections, projectId, query })
-    return res
+    return getMorphoOptions({ detections, projectId, query })
   }, [detections, projectId, query])
 
   const morphoOptionsLimited = useMemo(() => {
-    const list = morphoOptions || []
-    const res = list.slice(0, MAX_SPECIES_UI_RESULTS)
-    return res
+    return limitOptions(morphoOptions || [])
   }, [morphoOptions])
 
   function handleSelect(label: string) {
@@ -209,98 +142,88 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     const value = (query ?? '').trim()
     if (!value) return
     const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'class', class: value }
-    openGlobalDialog({
-      component: TaxonKeyDialogContent as any,
-      props: {
-        taxon: partialTaxon,
-        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
-      },
-      align: 'center',
-    })
+    openTaxonKeyDialog({ partialTaxon, onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID) })
   }
 
   function handleSubmitOrder() {
     const value = (query ?? '').trim()
     if (!value) return
     const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'order', order: value }
-    openGlobalDialog({
-      component: TaxonKeyDialogContent as any,
-      props: {
-        taxon: partialTaxon,
-        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
-      },
-      align: 'center',
-    })
+    openTaxonKeyDialog({ partialTaxon, onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID) })
   }
 
   function handleSubmitGenus() {
     const value = (query ?? '').trim()
     if (!value) return
     const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'genus', genus: value }
-    openGlobalDialog({
-      component: TaxonKeyDialogContent as any,
-      props: {
-        taxon: partialTaxon,
-        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
-      },
-      align: 'center',
-    })
+    openTaxonKeyDialog({ partialTaxon, onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID) })
   }
 
   function handleSubmitFamily() {
     const value = (query ?? '').trim()
     if (!value) return
     const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'family', family: value }
-    openGlobalDialog({
-      component: TaxonKeyDialogContent as any,
-      props: {
-        taxon: partialTaxon,
-        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
-      },
-      align: 'center',
-    })
+    openTaxonKeyDialog({ partialTaxon, onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID) })
+  }
+
+  function submitRankWithParentValidation(params: {
+    value: string
+    rank: 'tribe' | 'subfamily' | 'suborder'
+    requiredParentRank: 'order' | 'family'
+    parentRankLabel: string
+  }) {
+    const { value, rank, requiredParentRank, parentRankLabel } = params
+
+    const hasParent = checkParentRankExists({ detectionIds, detections, requiredRank: requiredParentRank })
+    if (!hasParent) {
+      showParentRankMissingDialog({ setConfirmDialog, parentRankLabel })
+      return
+    }
+
+    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: rank }
+    logIdentificationResult({ detectionIds })
+    onSubmit(value, partialTaxon)
+    onOpenChange(false)
   }
 
   function handleSubmitTribe() {
     const value = (query ?? '').trim()
     if (!value) return
-    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'tribe' }
-    openGlobalDialog({
-      component: TaxonKeyDialogContent as any,
-      props: {
-        taxon: partialTaxon,
-        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
-      },
-      align: 'center',
+    submitRankWithParentValidation({
+      value,
+      rank: 'tribe',
+      requiredParentRank: 'family',
+      parentRankLabel: 'family',
     })
   }
 
   function handleSubmitSubfamily() {
     const value = (query ?? '').trim()
     if (!value) return
-    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'subfamily' }
-    openGlobalDialog({
-      component: TaxonKeyDialogContent as any,
-      props: {
-        taxon: partialTaxon,
-        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
-      },
-      align: 'center',
+    submitRankWithParentValidation({
+      value,
+      rank: 'subfamily',
+      requiredParentRank: 'family',
+      parentRankLabel: 'family',
     })
   }
 
   function handleSubmitSuborder() {
     const value = (query ?? '').trim()
     if (!value) return
-    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'suborder' }
-    openGlobalDialog({
-      component: TaxonKeyDialogContent as any,
-      props: {
-        taxon: partialTaxon,
-        onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID),
-      },
-      align: 'center',
+    submitRankWithParentValidation({
+      value,
+      rank: 'suborder',
+      requiredParentRank: 'order',
+      parentRankLabel: 'order',
     })
+  }
+
+  function handleSubmitSpecies() {
+    const value = (query ?? '').trim()
+    if (!value) return
+    const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: 'species', species: value }
+    openTaxonKeyDialog({ partialTaxon, onConfirm: (taxonID) => finalizeTaxonIdentification(partialTaxon, taxonID) })
   }
 
   return (
@@ -383,6 +306,13 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
                 <span className={`${rankToTextClass('morphospecies')} font-medium flex items-center gap-8`}>
                   <TaxonRankLetterBadge rank='morphospecies' size='xsm' />
                   Add morpho species: "{query}"
+                </span>
+              </CommandItem>
+
+              <CommandItem key='species' onSelect={() => handleSubmitSpecies()} className='aria-selected:bg-brand/20 '>
+                <span className={`${rankToTextClass('species')} font-medium flex items-center gap-8`}>
+                  <TaxonRankLetterBadge rank='species' size='xsm' />
+                  Add Species "{query}"
                 </span>
               </CommandItem>
 
@@ -513,6 +443,121 @@ function getDisplayLabelForTaxon(t: TaxonRecord) {
 
 // Helpers (atomic) — keep at bottom
 
+function limitOptions<T>(list: T[]): T[] {
+  return list.slice(0, MAX_SPECIES_UI_RESULTS)
+}
+
+type OpenTaxonKeyDialogParams = {
+  partialTaxon: TaxonRecord
+  onConfirm: (taxonID: string | number) => void
+}
+
+function openTaxonKeyDialog(params: OpenTaxonKeyDialogParams) {
+  const { partialTaxon, onConfirm } = params
+  openGlobalDialog({
+    component: TaxonKeyDialogContent as any,
+    props: {
+      taxon: partialTaxon,
+      onConfirm,
+    },
+    align: 'center',
+  })
+}
+
+type ShowParentRankMissingDialogParams = {
+  setConfirmDialog: (dialog: any) => void
+  parentRankLabel: string
+}
+
+function showParentRankMissingDialog(params: ShowParentRankMissingDialogParams) {
+  const { setConfirmDialog, parentRankLabel } = params
+  const article = parentRankLabel === 'order' ? 'an' : 'a'
+  setConfirmDialog({
+    content: `You need to add ${article} ${parentRankLabel} first: OK`,
+    confirmText: 'OK',
+    onConfirm: () => {},
+    closeAfterConfirm: true,
+  })
+}
+
+function buildStableKeyForTaxon(taxon: TaxonRecord): string {
+  const parts: string[] = []
+  const kingdom = String(taxon?.kingdom ?? '')
+    .trim()
+    .toLowerCase()
+  if (!kingdom) return ''
+  parts.push(kingdom)
+
+  const rank = String(taxon?.taxonRank ?? '')
+    .trim()
+    .toLowerCase()
+  if (rank === 'kingdom') return parts.join(':')
+
+  const phylum = String(taxon?.phylum ?? '')
+    .trim()
+    .toLowerCase()
+  if (phylum) parts.push(phylum)
+  if (rank === 'phylum') return parts.join(':')
+
+  const className = String(taxon?.class ?? '')
+    .trim()
+    .toLowerCase()
+  if (className) parts.push(className)
+  if (rank === 'class') return parts.join(':')
+
+  const order = String(taxon?.order ?? '')
+    .trim()
+    .toLowerCase()
+  if (order) parts.push(order)
+  if (rank === 'order') return parts.join(':')
+
+  const family = String(taxon?.family ?? '')
+    .trim()
+    .toLowerCase()
+  if (family) parts.push(family)
+  if (rank === 'family') return parts.join(':')
+
+  const genus = String(taxon?.genus ?? '')
+    .trim()
+    .toLowerCase()
+  if (genus) parts.push(genus)
+  if (rank === 'genus') return parts.join(':')
+
+  const species = String(taxon?.species ?? '')
+    .trim()
+    .toLowerCase()
+  if (species) parts.push(species)
+  if (rank === 'species') return parts.join(':')
+
+  return parts.join(':')
+}
+
+type CheckParentRankExistsParams = {
+  detectionIds?: string[]
+  detections?: Record<string, DetectionEntity>
+  requiredRank: 'order' | 'family'
+}
+
+function checkParentRankExists(params: CheckParentRankExistsParams) {
+  const { detectionIds, detections, requiredRank } = params
+
+  if (!detectionIds || detectionIds.length === 0) return false
+  if (!detections) return false
+
+  for (const id of detectionIds) {
+    const detection = detections[id]
+    if (!detection) continue
+
+    const taxon = detection.taxon
+    if (!taxon) continue
+
+    if (requiredRank === 'order' && taxon.order) return true
+    if (requiredRank === 'family' && taxon.family) return true
+  }
+
+  return false
+}
+
 type LogIdentificationResultParams = {
   detectionIds?: string[]
 }
@@ -551,14 +596,10 @@ function getSpeciesOptions(params: GetSpeciesOptionsParams) {
   const listId = projectId ? selection?.[projectId] : undefined
   if (!listId) {
     if (query.trim()) console.log('🌀 identify: no species list selected for project', { projectId, query })
-    const empty: TaxonRecord[] = []
-    return empty
+    return []
   }
 
-  const result = searchSpecies({ speciesListId: listId, query, limit: 20 })
-
-  const res = result
-  return res
+  return searchSpecies({ speciesListId: listId, query, limit: 20 })
 }
 
 type GetRecentOptionsParams = {
@@ -582,28 +623,26 @@ function getRecentOptions(params: GetRecentOptionsParams) {
     const key = text.toLowerCase()
     if (!key || seen.has(key)) continue
     seen.add(key)
-    const isMorphospecies = !!d?.morphospecies
-    unique.push({ label: text, taxon: d?.taxon, isMorphospecies })
-    if (unique.length >= 5) break
+    unique.push({ label: text, taxon: d?.taxon, isMorphospecies: !!d?.morphospecies })
+    if (unique.length >= 10) break
   }
 
-  const res = unique
-  return res
+  return unique
 }
 
 function rankToTextClass(rank?: string | null) {
   const value = (rank ?? '').toString().trim().toLowerCase()
-  if (value === 'morphospecies') return 'text-indigo-700'
-  if (value === 'species') return 'text-blue-700'
-  if (value === 'genus') return 'text-teal-700'
-  if (value === 'tribe') return 'text-teal-700'
-  if (value === 'subfamily') return 'text-green-700'
-  if (value === 'family') return 'text-green-700'
-  if (value === 'suborder') return 'text-yellow-700'
-  if (value === 'order') return 'text-yellow-700'
-  if (value === 'class') return 'text-orange-700'
-  if (value === 'phylum') return 'text-ink-primary'
   if (value === 'kingdom') return 'text-ink-primary'
+  if (value === 'phylum') return 'text-ink-primary'
+  if (value === 'class') return 'text-orange-700'
+  if (value === 'order') return 'text-yellow-700'
+  if (value === 'suborder') return 'text-yellow-700' // skip gbif keys
+  if (value === 'genus') return 'text-teal-700'
+  if (value === 'family') return 'text-green-700'
+  if (value === 'subfamily') return 'text-green-700' // skip gbif keys
+  if (value === 'tribe') return 'text-teal-700' // skip gbif keys
+  if (value === 'species') return 'text-blue-700'
+  if (value === 'morphospecies') return 'text-indigo-700'
   return 'text-brand'
 }
 
@@ -637,10 +676,7 @@ function getMorphoOptions(params: GetMorphoOptionsParams) {
     map.set(key, { label, taxon, count, last })
   }
 
-  const arr = Array.from(map.values())
+  return Array.from(map.values())
     .sort((a, b) => b.last - a.last || b.count - a.count || a.label.localeCompare(b.label))
     .map((it) => ({ label: it.label, taxon: it.taxon }))
-
-  const res = arr
-  return res
 }
