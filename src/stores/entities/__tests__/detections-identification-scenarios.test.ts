@@ -257,10 +257,10 @@ describe('Detection Identification Scenarios', () => {
           order: 'Diptera',
           family: 'Muscidae',
           genus: 'Musca',
-          species: 'Musca domestica', // Note: species field contains full binomial
+          species: 'domestica', // Should normalize to just epithet (not full binomial)
           scientificName: 'Musca domestica',
           taxonRank: 'species',
-          name: 'Musca Musca domestica', // Function concatenates genus + species field as-is
+          name: 'Musca domestica', // Genus + epithet
         },
       },
     },
@@ -487,6 +487,279 @@ describe('Detection Identification Scenarios', () => {
           scientificName: 'Lispe', // Should be set to genus name
           taxonRank: 'genus',
           name: 'Lispe 111', // Genus + morphospecies
+        },
+      },
+    },
+
+    // Scenario 11: Three-step identification flow (Anastrepha case)
+    // Step 1: Identify as genus Anastrepha (after auto detection as Diptera)
+    {
+      name: 'Step 1: Identify as genus Anastrepha (should preserve order and add family/genus)',
+      initial: {
+        ...BASE_DETECTION,
+        label: 'Diptera',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: undefined,
+          genus: undefined,
+          species: undefined,
+          scientificName: 'Diptera',
+          taxonRank: 'order',
+        },
+        detectedBy: 'auto',
+      },
+      action: {
+        label: 'Anastrepha',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Tephritidae',
+          genus: 'Anastrepha',
+          species: undefined,
+          scientificName: 'Anastrepha',
+          taxonRank: 'genus',
+        },
+      },
+      expected: {
+        label: 'Anastrepha',
+        detectedBy: 'user',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera', // Should preserve order
+          family: 'Tephritidae', // Should add family
+          genus: 'Anastrepha', // Should add genus
+          species: undefined, // Should be undefined when genus is added
+          scientificName: 'Anastrepha',
+          taxonRank: 'genus',
+          name: 'Anastrepha',
+        },
+      },
+    },
+
+    // Scenario 12: Three-step identification flow (continuation)
+    // Step 2: Manual species classification after genus identification
+    {
+      name: 'Step 2: Manual species classification after genus (should preserve order/family/genus and add species)',
+      initial: {
+        ...BASE_DETECTION,
+        label: 'Anastrepha',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Tephritidae',
+          genus: 'Anastrepha',
+          species: undefined,
+          scientificName: 'Anastrepha',
+          taxonRank: 'genus',
+        },
+        detectedBy: 'user',
+      },
+      action: {
+        label: 'Anastrepha serpentina',
+        taxon: {
+          ...BASE_TAXON,
+          order: undefined, // Manual species entry doesn't include higher ranks
+          family: undefined,
+          genus: undefined,
+          species: 'Anastrepha serpentina', // Full binomial name
+          scientificName: 'Anastrepha serpentina',
+          taxonRank: 'species',
+        },
+      },
+      expected: {
+        label: 'Anastrepha serpentina',
+        detectedBy: 'user',
+        morphospecies: undefined,
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera', // Should preserve order from existing taxonomy
+          family: 'Tephritidae', // Should preserve family from existing taxonomy
+          genus: 'Anastrepha', // Should preserve genus from existing taxonomy
+          species: 'serpentina', // Should normalize to just epithet (not full binomial)
+          scientificName: 'Anastrepha serpentina', // Full binomial preserved
+          taxonRank: 'species',
+          name: 'Anastrepha serpentina', // Genus + epithet
+        },
+      },
+    },
+
+    // Scenario 13: Species field normalization - selecting from list with full binomial in species field
+    {
+      name: 'Select species from list with full binomial in species field (should normalize to epithet only)',
+      initial: {
+        ...BASE_DETECTION,
+        label: 'Diptera',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: undefined,
+          genus: undefined,
+          species: undefined,
+          scientificName: 'Diptera',
+          taxonRank: 'order',
+        },
+        detectedBy: 'auto',
+      },
+      action: {
+        label: 'Anastrepha pallens',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Tephritidae',
+          genus: 'Anastrepha',
+          species: 'Anastrepha pallens', // Full binomial in species field (from CSV)
+          scientificName: 'Anastrepha pallens',
+          taxonRank: 'species',
+        },
+      },
+      expected: {
+        label: 'Anastrepha pallens',
+        detectedBy: 'user',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Tephritidae',
+          genus: 'Anastrepha',
+          species: 'pallens', // Should normalize to just epithet
+          scientificName: 'Anastrepha pallens', // Full binomial preserved
+          taxonRank: 'species',
+          name: 'Anastrepha pallens', // Genus + epithet
+        },
+      },
+    },
+
+    // Scenario 14: Species field normalization - manual entry with full binomial
+    {
+      name: 'Manual species entry with full binomial (should parse to genus and epithet)',
+      initial: {
+        ...BASE_DETECTION,
+        label: 'Anastrepha',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Tephritidae',
+          genus: 'Anastrepha',
+          species: undefined,
+          scientificName: 'Anastrepha',
+          taxonRank: 'genus',
+        },
+        detectedBy: 'user',
+      },
+      action: {
+        label: 'Anastrepha pallens',
+        taxon: {
+          ...BASE_TAXON,
+          order: undefined, // Manual entry doesn't include higher ranks
+          family: undefined,
+          genus: undefined,
+          species: 'Anastrepha pallens', // Full binomial entered manually
+          scientificName: 'Anastrepha pallens',
+          taxonRank: 'species',
+        },
+      },
+      expected: {
+        label: 'Anastrepha pallens',
+        detectedBy: 'user',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera', // Should preserve from existing
+          family: 'Tephritidae', // Should preserve from existing
+          genus: 'Anastrepha', // Should preserve from existing (matches parsed genus)
+          species: 'pallens', // Should normalize to just epithet
+          scientificName: 'Anastrepha pallens', // Full binomial preserved
+          taxonRank: 'species',
+          name: 'Anastrepha pallens', // Genus + epithet
+        },
+      },
+    },
+
+    // Scenario 15: Species field normalization - manual entry with full binomial, no existing genus
+    {
+      name: 'Manual species entry with full binomial, no existing genus (should parse to genus and epithet)',
+      initial: {
+        ...BASE_DETECTION,
+        label: 'Diptera',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: undefined,
+          genus: undefined,
+          species: undefined,
+          scientificName: 'Diptera',
+          taxonRank: 'order',
+        },
+        detectedBy: 'auto',
+      },
+      action: {
+        label: 'Anastrepha pallens',
+        taxon: {
+          ...BASE_TAXON,
+          order: undefined,
+          family: undefined,
+          genus: undefined,
+          species: 'Anastrepha pallens', // Full binomial entered manually
+          scientificName: 'Anastrepha pallens',
+          taxonRank: 'species',
+        },
+      },
+      expected: {
+        label: 'Anastrepha pallens',
+        detectedBy: 'user',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera', // Should preserve from existing
+          family: undefined,
+          genus: 'Anastrepha', // Should extract from binomial
+          species: 'pallens', // Should normalize to just epithet
+          scientificName: 'Anastrepha pallens', // Full binomial preserved
+          taxonRank: 'species',
+          name: 'Anastrepha pallens', // Genus + epithet
+        },
+      },
+    },
+
+    // Scenario 16: Species field normalization - selecting species with epithet only (already correct)
+    {
+      name: 'Select species from list with epithet only in species field (should remain as-is)',
+      initial: {
+        ...BASE_DETECTION,
+        label: 'Diptera',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: undefined,
+          genus: undefined,
+          species: undefined,
+          scientificName: 'Diptera',
+          taxonRank: 'order',
+        },
+        detectedBy: 'auto',
+      },
+      action: {
+        label: 'Anastrepha pallens',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Tephritidae',
+          genus: 'Anastrepha',
+          species: 'pallens', // Already just epithet (correct format)
+          scientificName: 'Anastrepha pallens',
+          taxonRank: 'species',
+        },
+      },
+      expected: {
+        label: 'Anastrepha pallens',
+        detectedBy: 'user',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Tephritidae',
+          genus: 'Anastrepha',
+          species: 'pallens', // Should remain as-is (already correct)
+          scientificName: 'Anastrepha pallens',
+          taxonRank: 'species',
+          name: 'Anastrepha pallens', // Genus + epithet
         },
       },
     },
