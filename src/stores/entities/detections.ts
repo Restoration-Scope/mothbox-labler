@@ -8,6 +8,8 @@ import { parseBotDetectionJsonSafely, extractPatchFilename } from '~/features/in
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 import { deriveTaxonName, taxonWithName } from '~/models/taxonomy'
 import { buildDetectionFromBotShape } from '~/models/detection-shapes'
+import { searchSpecies } from '~/features/species-identification/species-search'
+import { toast } from 'sonner'
 
 export type DetectionEntity = {
   id: string
@@ -30,6 +32,8 @@ export type DetectionEntity = {
   morphospecies?: string
   speciesListId?: string
   speciesListDOI?: string
+  // Original label from bot detection JSON (e.g., "ORDER_Diptera")
+  originalMothboxLabel?: string
 }
 
 export const detectionsStore = atom<Record<string, DetectionEntity>>({})
@@ -38,9 +42,9 @@ export function detectionStoreById(id: string) {
   return computed(detectionsStore, (all) => all?.[id])
 }
 
-export function labelDetections(params: { detectionIds: string[]; label?: string; taxon?: TaxonRecord }) {
-  const { detectionIds, taxon } = params
-  const trimmed = (params?.label ?? '').trim()
+function identifyDetectionsWithTaxon(params: { detectionIds: string[]; taxon: TaxonRecord; label?: string; isError?: boolean }) {
+  const { detectionIds, taxon, label, isError: explicitIsError } = params
+  const trimmed = (label ?? '').trim()
   // Check if taxon exists (has taxonRank or any rank fields), not just scientificName
   const hasTaxon = !!taxon && (!!taxon.taxonRank || !!taxon.genus || !!taxon.family || !!taxon.order || !!taxon.species)
   // For species-level, use scientificName; for higher ranks, use the rank value or label
@@ -50,7 +54,7 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
       : taxon?.genus || taxon?.family || taxon?.order || taxon?.scientificName || trimmed
     : trimmed
   if (!Array.isArray(detectionIds) || detectionIds.length === 0) return
-  if (!finalLabel) return
+  if (!finalLabel && !explicitIsError) return
 
   const current = detectionsStore.get() || {}
   const selectionByProject = projectSpeciesSelectionStore.get() || {}
@@ -61,7 +65,7 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
     if (!existing) continue
     const identifiedAt = Date.now()
     // Special-case: explicit ERROR selection (case-insensitive) marks detection as error and clears taxonomy
-    const isError = !hasTaxon && trimmed.toUpperCase() === 'ERROR'
+    const isError = explicitIsError || (!hasTaxon && trimmed.toUpperCase() === 'ERROR')
 
     // If user provides a custom text (no explicit taxon) and is not ERROR, treat it as a morphospecies (species level)
     // and inherit existing higher taxonomy (order/family/genus) from the detection, when present.
@@ -86,11 +90,12 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
       // Only check for rank changes if it's not a full species replacement
       const existingRankValue = getExistingRankValue(existingTaxon, newRank)
       const newRankValue = getNewRankValue(taxon, newRank)
-      const isRankChanged = !isFullSpecies && existingRankValue !== undefined && newRankValue !== undefined && existingRankValue !== newRankValue
+      const isRankChanged =
+        !isFullSpecies && existingRankValue !== undefined && newRankValue !== undefined && existingRankValue !== newRankValue
 
       // Debug: log when merging genus with morphospecies
       if (existing?.morphospecies && (isHigherRank || (hasGenusField && !isFullSpecies)) && !isRankChanged) {
-        console.log('🌀 labelDetections: merging taxon with morphospecies', {
+        console.log('🌀 identifyDetectionsWithTaxon: merging taxon with morphospecies', {
           detectionId: id,
           existingMorphospecies: existing.morphospecies,
           newTaxon: { taxonRank: taxon?.taxonRank, genus: taxon?.genus, scientificName: taxon?.scientificName },
@@ -102,11 +107,14 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
 
       if (isFullSpecies) {
         // Full species replacement: new taxon replaces everything (including morphospecies)
-        nextTaxon = taxon
+        // Normalize species field to contain only epithet, not full binomial
+        nextTaxon = normalizeSpeciesField(taxon)
         nextMorphospecies = undefined
       } else if (isRankChanged) {
         // Changing a rank means we're changing our mind - reset everything below and clear morphospecies
         nextTaxon = mergeTaxonRanks({ existing: existingTaxon, newTaxon: taxon })
+        // Normalize species field if rank is species
+        if (newRank === 'species') nextTaxon = normalizeSpeciesField(nextTaxon)
         nextMorphospecies = undefined
       } else if (isHigherRank && existing?.morphospecies) {
         // Adding genus/family/order to morphospecies: merge and preserve morphospecies
@@ -135,9 +143,42 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
         else if (hasFamilyField && !isHigherRank) nextTaxon.taxonRank = 'family'
         else if (hasOrderField && !isHigherRank) nextTaxon.taxonRank = 'order'
         nextMorphospecies = existing.morphospecies
+      } else if (newRank === 'species' && hasSpeciesField && !hasGenusField && !hasFamilyField && !hasOrderField) {
+        // Manual species entry: has species field but missing genus/family/order fields
+        // Check if existing detection has genus/family/order to preserve
+        const hasExistingGenus = !!existingTaxon?.genus
+        const hasExistingFamily = !!existingTaxon?.family
+        const hasExistingOrder = !!existingTaxon?.order
+
+        // Parse binomial to extract genus if present in species field
+        const parsed = parseBinomialName(taxon.species)
+        let taxonToMerge = taxon
+
+        // If species field contains a full binomial, extract genus and epithet
+        if (parsed?.genus) {
+          taxonToMerge = {
+            ...taxon,
+            genus: parsed.genus,
+            species: parsed.epithet,
+            scientificName: taxon.scientificName || `${parsed.genus} ${parsed.epithet}`,
+          }
+        }
+
+        if (hasExistingGenus || hasExistingFamily || hasExistingOrder) {
+          // Merge species with existing taxonomy, preserving order/family/genus
+          nextTaxon = mergeTaxonRanks({ existing: existingTaxon, newTaxon: taxonToMerge })
+          // Ensure species field is normalized after merge
+          nextTaxon = normalizeSpeciesField(nextTaxon)
+          nextMorphospecies = undefined
+        } else {
+          // No existing taxonomy to preserve: normalize and store
+          nextTaxon = normalizeSpeciesField(taxonToMerge)
+          nextMorphospecies = undefined
+        }
       } else {
         // No morphospecies or other cases: full replacement
-        nextTaxon = taxon
+        // Normalize species field if it's a species rank
+        nextTaxon = newRank === 'species' ? normalizeSpeciesField(taxon) : taxon
         nextMorphospecies = undefined
       }
     } else if (!isError && trimmed) {
@@ -150,12 +191,7 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
       }
       // Preserve existing taxon hierarchy; morphospecies is a temporary unaccepted concept
       // so the scientific/valid taxonomy stays the same
-      nextTaxon = {
-        ...prev,
-        scientificName: prev?.scientificName ?? '', // Ensure scientificName is always a string
-        // Keep all existing fields (kingdom, phylum, class, order, family, genus, taxonRank, etc.)
-        // Do not override with morphospecies - it's stored separately in morphospecies field
-      }
+      nextTaxon = buildMorphospeciesTaxon({ existingTaxon: prev })
       nextMorphospecies = trimmed
     } else if (isError) {
       nextTaxon = undefined
@@ -190,15 +226,73 @@ export function labelDetections(params: { detectionIds: string[]; label?: string
     updated[id] = next
   }
   detectionsStore.set(updated)
-  // Schedule save per night for touched detections
-  const touchedNightIds = new Set<string>()
-  for (const id of detectionIds) {
-    const n = updated?.[id]?.nightId
-    if (n) touchedNightIds.add(n)
+  updateNightSummariesAndScheduleSave({ detectionIds, detections: updated })
+}
+
+export function labelDetections(params: { detectionIds: string[]; label?: string; taxon?: TaxonRecord }) {
+  const { detectionIds, taxon, label } = params
+  const trimmed = (label ?? '').trim()
+  // Check if taxon exists (has taxonRank or any rank fields), not just scientificName
+  const hasTaxon = !!taxon && (!!taxon.taxonRank || !!taxon.genus || !!taxon.family || !!taxon.order || !!taxon.species)
+  // For species-level, use scientificName; for higher ranks, use the rank value or label
+  const finalLabel = hasTaxon
+    ? taxon?.taxonRank === 'species'
+      ? taxon?.scientificName ?? ''
+      : taxon?.genus || taxon?.family || taxon?.order || taxon?.scientificName || trimmed
+    : trimmed
+  if (!Array.isArray(detectionIds) || detectionIds.length === 0) return
+  if (!finalLabel && trimmed.toUpperCase() !== 'ERROR') return
+
+  const isError = !hasTaxon && trimmed.toUpperCase() === 'ERROR'
+
+  if (hasTaxon) {
+    identifyDetectionsWithTaxon({ detectionIds, taxon, label: finalLabel })
+  } else if (isError) {
+    identifyDetectionsWithTaxon({ detectionIds, taxon: {} as TaxonRecord, label: 'ERROR', isError: true })
+  } else if (trimmed) {
+    // Morphospecies case - need to handle separately as it doesn't have a taxon
+    const current = detectionsStore.get() || {}
+    const selectionByProject = projectSpeciesSelectionStore.get() || {}
+    const speciesLists = speciesListsStore.get() || {}
+    const updated: Record<string, DetectionEntity> = { ...current }
+    for (const id of detectionIds) {
+      const existing = current?.[id]
+      if (!existing) continue
+      const identifiedAt = Date.now()
+      const prev: Partial<TaxonRecord> = existing?.taxon ?? {}
+      const hasOrderFamilyOrGenus = !!prev?.order || !!prev?.family || !!prev?.genus
+      if (!hasOrderFamilyOrGenus) {
+        // Do not assign morphospecies when no higher taxonomic context
+        // Keep detection unchanged for this id
+        continue
+      }
+      // Preserve existing taxon hierarchy; morphospecies is a temporary unaccepted concept
+      // so the scientific/valid taxonomy stays the same
+      const nextTaxon = buildMorphospeciesTaxon({ existingTaxon: prev })
+      const projectId = getProjectIdFromNightId(existing?.nightId)
+      const speciesListId = projectId ? selectionByProject?.[projectId] : undefined
+      const speciesListDOI = speciesListId ? (speciesLists?.[speciesListId]?.doi as string | undefined) : undefined
+      const taxonWithNameField = taxonWithName({
+        taxon: nextTaxon as TaxonRecord,
+        detection: { ...existing, taxon: nextTaxon as TaxonRecord, morphospecies: trimmed },
+      }) as TaxonRecord | undefined
+      const next: DetectionEntity = {
+        ...existing,
+        label: trimmed,
+        detectedBy: 'user',
+        identifiedAt,
+        taxon: taxonWithNameField,
+        isError: false,
+        isMorpho: undefined,
+        morphospecies: trimmed,
+        speciesListId: speciesListId || existing?.speciesListId,
+        speciesListDOI: speciesListDOI || existing?.speciesListDOI,
+      }
+      updated[id] = next
+    }
+    detectionsStore.set(updated)
+    updateNightSummariesAndScheduleSave({ detectionIds, detections: updated })
   }
-  // Update summaries in-memory immediately for instant UI feedback
-  updateNightSummariesInMemory({ nightIds: touchedNightIds, detections: updated })
-  for (const nightId of touchedNightIds) scheduleSaveUserDetections({ nightId })
 }
 
 export function acceptDetections(params: { detectionIds: string[] }) {
@@ -206,23 +300,65 @@ export function acceptDetections(params: { detectionIds: string[] }) {
   if (!Array.isArray(detectionIds) || detectionIds.length === 0) return
 
   const current = detectionsStore.get() || {}
-  const updated: Record<string, DetectionEntity> = { ...current }
+  const selectionByProject = projectSpeciesSelectionStore.get() || {}
+  const errors: Array<{ detectionId: string; message: string }> = []
+
+  // Group detections by (speciesListId, order) to batch process and avoid duplicate searches
+  const detectionsByOrder = new Map<string, { ids: string[]; order: string; speciesListId: string }>()
+
   for (const id of detectionIds) {
     const existing = current?.[id]
     if (!existing) continue
-    const identifiedAt = Date.now()
-    // TODO: Accept may be deprecated; kept for discussion. Currently it only marks as user without changing label/taxon.
-    updated[id] = { ...existing, detectedBy: 'user', identifiedAt }
+
+    const order = existing?.taxon?.order
+    if (!order) {
+      errors.push({ detectionId: id, message: 'Cannot accept: detection missing order' })
+      continue
+    }
+
+    const projectId = getProjectIdFromNightId(existing?.nightId)
+    const speciesListId = projectId ? selectionByProject?.[projectId] : undefined
+
+    if (!speciesListId) {
+      errors.push({ detectionId: id, message: `Cannot accept: no species list selected for project` })
+      continue
+    }
+
+    const key = `${speciesListId}:${order}`
+    const group = detectionsByOrder.get(key)
+    if (group) {
+      group.ids.push(id)
+    } else {
+      detectionsByOrder.set(key, { ids: [id], order, speciesListId })
+    }
   }
-  detectionsStore.set(updated)
-  // Update summaries in-memory immediately for instant UI feedback
-  const touchedNightIds = new Set<string>()
-  for (const id of detectionIds) {
-    const n = updated?.[id]?.nightId
-    if (n) touchedNightIds.add(n)
+
+  // Show errors for failed detections
+  for (const error of errors) {
+    toast.error(error.message)
   }
-  updateNightSummariesInMemory({ nightIds: touchedNightIds, detections: updated })
-  for (const nightId of touchedNightIds) scheduleSaveUserDetections({ nightId })
+
+  // Process each group: search once per order and apply to all detections with that order
+  for (const { ids, order, speciesListId } of detectionsByOrder.values()) {
+    const searchResults = searchSpecies({ speciesListId, query: order, limit: 1 })
+    if (!searchResults || searchResults.length === 0) {
+      for (const id of ids) {
+        toast.error(`Cannot accept: order '${order}' not found in species list`)
+      }
+      continue
+    }
+
+    const orderTaxon = searchResults[0]
+    if (!orderTaxon) {
+      for (const id of ids) {
+        toast.error(`Cannot accept: order '${order}' not found in species list`)
+      }
+      continue
+    }
+
+    // Use shared identification function to update all detections with this order
+    identifyDetectionsWithTaxon({ detectionIds: ids, taxon: orderTaxon })
+  }
 }
 
 export async function resetDetections(params: { detectionIds: string[] }) {
@@ -243,7 +379,6 @@ export async function resetDetections(params: { detectionIds: string[] }) {
   }
 
   const updated: Record<string, DetectionEntity> = { ...current }
-  const touchedNightIds = new Set<string>()
 
   for (const [photoId, ids] of Object.entries(idsByPhoto)) {
     const photo = photos?.[photoId] as PhotoEntity | undefined
@@ -261,8 +396,6 @@ export async function resetDetections(params: { detectionIds: string[] }) {
     for (const id of ids) {
       const existing = current?.[id]
       if (!existing) continue
-      const nightId = (existing as any)?.nightId as string | undefined
-      if (nightId) touchedNightIds.add(nightId)
 
       // Find matching bot shape by patch filename
       const match = shapes.find((s: any) => extractPatchFilename({ patchPath: (s as any)?.patch_path ?? '' }) === id)
@@ -288,9 +421,7 @@ export async function resetDetections(params: { detectionIds: string[] }) {
   }
 
   detectionsStore.set(updated)
-  // Update summaries in-memory immediately for instant UI feedback
-  updateNightSummariesInMemory({ nightIds: touchedNightIds, detections: updated })
-  for (const nightId of touchedNightIds) scheduleSaveUserDetections({ nightId })
+  updateNightSummariesAndScheduleSave({ detectionIds, detections: updated })
 }
 
 function safeLabel(value: unknown) {
@@ -356,6 +487,31 @@ function deriveTaxonFromShape(shape: any) {
   return taxon
 }
 
+function buildMorphospeciesTaxon(params: { existingTaxon: Partial<TaxonRecord> }): TaxonRecord {
+  const { existingTaxon } = params
+  return {
+    ...existingTaxon,
+    scientificName: existingTaxon?.scientificName ?? '',
+  } as TaxonRecord
+}
+
+function collectTouchedNightIds(params: { detectionIds: string[]; detections: Record<string, DetectionEntity> }): Set<string> {
+  const { detectionIds, detections } = params
+  const touchedNightIds = new Set<string>()
+  for (const id of detectionIds) {
+    const n = detections?.[id]?.nightId
+    if (n) touchedNightIds.add(n)
+  }
+  return touchedNightIds
+}
+
+function updateNightSummariesAndScheduleSave(params: { detectionIds: string[]; detections: Record<string, DetectionEntity> }) {
+  const { detectionIds, detections } = params
+  const touchedNightIds = collectTouchedNightIds({ detectionIds, detections })
+  updateNightSummariesInMemory({ nightIds: touchedNightIds, detections })
+  for (const nightId of touchedNightIds) scheduleSaveUserDetections({ nightId })
+}
+
 function updateNightSummariesInMemory(params: { nightIds: Set<string>; detections: Record<string, DetectionEntity> }) {
   const { nightIds, detections } = params
 
@@ -419,6 +575,70 @@ function isRankHigherThanSpecies(rank: string): boolean {
     lower === 'tribe' ||
     lower === 'genus'
   )
+}
+
+/**
+ * Parses a binomial species name to extract genus and species epithet.
+ * Handles cases where the input might be:
+ * - Full binomial: "Anastrepha pallens" -> { genus: "Anastrepha", epithet: "pallens" }
+ * - Just epithet: "pallens" -> { genus: undefined, epithet: "pallens" }
+ * - Invalid format: returns undefined
+ */
+function parseBinomialName(
+  binomial: string | undefined,
+): { genus: string; epithet: string } | { genus: undefined; epithet: string } | undefined {
+  if (!binomial) return undefined
+  const trimmed = binomial.trim()
+  if (!trimmed) return undefined
+
+  const parts = trimmed.split(/\s+/).filter(Boolean)
+  if (parts.length === 1) {
+    // Just epithet (or single word)
+    return { genus: undefined, epithet: parts[0] }
+  }
+  if (parts.length >= 2) {
+    // Full binomial: first word is genus, second is epithet
+    return { genus: parts[0], epithet: parts[1] }
+  }
+
+  return undefined
+}
+
+/**
+ * Normalizes a TaxonRecord to ensure species field contains only the epithet, not the full binomial.
+ * If species field contains a full binomial (e.g., "Anastrepha pallens"), extracts the epithet ("pallens")
+ * and sets the genus field if not already present.
+ */
+function normalizeSpeciesField(taxon: TaxonRecord): TaxonRecord {
+  if (!taxon?.species || taxon.taxonRank !== 'species') return taxon
+
+  const parsed = parseBinomialName(taxon.species)
+  if (!parsed) return taxon
+
+  // If species field contains a full binomial and we extracted genus
+  if (parsed.genus) {
+    // Only update if genus field is missing or matches the parsed genus
+    const shouldUpdateGenus = !taxon.genus || taxon.genus === parsed.genus
+    const shouldUpdateSpecies = taxon.species !== parsed.epithet
+
+    if (shouldUpdateGenus || shouldUpdateSpecies) {
+      return {
+        ...taxon,
+        genus: shouldUpdateGenus ? parsed.genus : taxon.genus,
+        species: parsed.epithet,
+        // Ensure scientificName is the full binomial
+        scientificName: taxon.scientificName || `${parsed.genus} ${parsed.epithet}`,
+      }
+    }
+  }
+
+  // If species field already contains just the epithet, check if it matches the genus+species pattern
+  // If genus exists and species doesn't match it, keep as-is (already normalized)
+  if (taxon.genus && taxon.species === parsed.epithet) {
+    return taxon
+  }
+
+  return taxon
 }
 
 function getRankHierarchy(): string[] {
@@ -578,6 +798,18 @@ function mergeTaxonRanks(params: MergeTaxonRanksParams): TaxonRecord {
     }
     merged.scientificName = newTaxon.scientificName
     merged.taxonRank = 'genus'
+  } else if (newRank === 'species') {
+    // Preserve existing order/family/genus when adding species
+    merged.order = newTaxon.order ?? existing?.order
+    merged.family = newTaxon.family ?? existing?.family
+    merged.genus = newTaxon.genus ?? existing?.genus
+    if (shouldResetLowerRanks) {
+      merged.species = newTaxon.species
+    } else {
+      merged.species = newTaxon.species ?? existingSpecies
+    }
+    merged.scientificName = newTaxon.scientificName
+    merged.taxonRank = 'species'
   }
 
   // Preserve existing higher ranks if not being replaced
@@ -586,7 +818,7 @@ function mergeTaxonRanks(params: MergeTaxonRanksParams): TaxonRecord {
   if (!merged.phylum && existing?.phylum) merged.phylum = existing.phylum
   if (!merged.class && existing?.class) merged.class = existing.class
   if (!merged.order && existing?.order) merged.order = existing.order
-  
+
   // Only preserve lower ranks if we didn't reset them
   if (!shouldResetLowerRanks) {
     if (!merged.family && existing?.family) merged.family = existing.family
@@ -602,7 +834,8 @@ function mergeTaxonRanks(params: MergeTaxonRanksParams): TaxonRecord {
   else if (existing?.acceptedTaxonKey && !merged.acceptedTaxonKey) merged.acceptedTaxonKey = existing.acceptedTaxonKey
 
   if (newTaxon?.acceptedScientificName) merged.acceptedScientificName = newTaxon.acceptedScientificName
-  else if (existing?.acceptedScientificName && !merged.acceptedScientificName) merged.acceptedScientificName = existing.acceptedScientificName
+  else if (existing?.acceptedScientificName && !merged.acceptedScientificName)
+    merged.acceptedScientificName = existing.acceptedScientificName
 
   if (newTaxon?.vernacularName) merged.vernacularName = newTaxon.vernacularName
   else if (existing?.vernacularName && !merged.vernacularName) merged.vernacularName = existing.vernacularName
