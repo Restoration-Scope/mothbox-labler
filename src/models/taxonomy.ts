@@ -13,6 +13,12 @@ export function deriveTaxonName(params: { detection: DetectionEntity }): string 
   const { detection } = params
   const taxon = detection?.taxon
 
+  // If there's a morphospecies and a genus, combine them
+  if (detection?.morphospecies && taxon?.genus) {
+    return `${taxon.genus} ${detection.morphospecies}`
+  }
+
+  // If there's just a morphospecies (no genus), use it alone
   if (detection?.morphospecies) return detection.morphospecies
 
   const hasGenus = !!taxon?.genus
