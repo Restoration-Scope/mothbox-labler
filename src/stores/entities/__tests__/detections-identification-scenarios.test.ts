@@ -2,34 +2,76 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // Mock dependencies BEFORE importing the module under test
 // Must match the exact import paths used in detections.ts
-vi.mock('~/features/folder-processing/files.writer', async () => {
+vi.mock('~/features/data-flow/3.persist/detection-persistence', () => ({
+  scheduleSaveForNight: vi.fn(),
+}))
+
+vi.mock('~/stores/entities/night-summaries', () => ({
+  nightSummariesStore: {
+    get: vi.fn(() => ({})),
+    set: vi.fn(),
+  },
+  buildNightSummary: vi.fn(() => ({})),
+}))
+
+vi.mock('~/features/data-flow/2.identify/species-list.store', () => ({
+  speciesListsStore: {
+    get: vi.fn(() => ({})),
+  },
+}))
+
+vi.mock('~/stores/species/project-species-list', () => ({
+  projectSpeciesSelectionStore: {
+    get: vi.fn(() => ({})),
+  },
+}))
+
+vi.mock('~/features/data-flow/3.persist/covers', () => ({
+  normalizeMorphoKey: vi.fn((key: string) => key?.toLowerCase?.() ?? ''),
+}))
+
+vi.mock('~/features/data-flow/2.identify/species-search', () => ({
+  searchSpecies: vi.fn(() => []),
+}))
+
+vi.mock('sonner', () => ({
+  toast: {
+    error: vi.fn(),
+    success: vi.fn(),
+  },
+}))
+
+vi.mock('~/stores/entities/photos', () => ({
+  photosStore: {
+    get: vi.fn(() => ({})),
+  },
+}))
+
+vi.mock('~/features/data-flow/1.ingest/ingest-json', () => ({
+  parseBotDetectionJsonSafely: vi.fn(() => null),
+  extractPatchFilename: vi.fn(() => ''),
+}))
+
+// Mock identify.ts to avoid circular dependency issues in tests
+// The actual identify.ts imports DetectionEntity from detections.ts
+vi.mock('~/features/data-flow/2.identify/identify', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('~/features/data-flow/2.identify/identify')>()
   return {
-    scheduleSaveUserDetections: vi.fn(),
+    ...actual,
+    identifyDetection: actual.identifyDetection,
+    identifyDetections: actual.identifyDetections,
   }
 })
 
-vi.mock('~/stores/entities/night-summaries', async () => {
+vi.mock('~/models/detection-shapes', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('~/models/detection-shapes')>()
   return {
-    nightSummariesStore: {
-      get: vi.fn(() => ({})),
-      set: vi.fn(),
-    },
-  }
-})
-
-vi.mock('~/features/species-identification/species-list.store', async () => {
-  return {
-    speciesListsStore: {
-      get: vi.fn(() => ({})),
-    },
-  }
-})
-
-vi.mock('~/stores/species/project-species-list', async () => {
-  return {
-    projectSpeciesSelectionStore: {
-      get: vi.fn(() => ({})),
-    },
+    ...actual,
+    buildDetectionFromBotShape: actual.buildDetectionFromBotShape,
+    updateDetectionWithTaxon: actual.updateDetectionWithTaxon,
+    updateDetectionAsMorphospecies: actual.updateDetectionAsMorphospecies,
+    updateDetectionAsError: actual.updateDetectionAsError,
+    acceptDetection: actual.acceptDetection,
   }
 })
 
@@ -37,7 +79,7 @@ vi.mock('~/stores/species/project-species-list', async () => {
 import { detectionsStore } from '../detections'
 import { labelDetections } from '../detections'
 import type { DetectionEntity } from '../detections'
-import type { TaxonRecord } from '~/features/species-identification/species-list.store'
+import type { TaxonRecord } from '~/models/taxonomy/types'
 
 describe('Detection Identification Scenarios', () => {
   beforeEach(() => {
@@ -146,7 +188,7 @@ describe('Detection Identification Scenarios', () => {
           species: undefined, // Should be undefined when genus is added
           scientificName: 'Lispe', // Should be genus name
           taxonRank: 'genus',
-          name: 'Lispe Custom Morpho A', // Genus + morphospecies
+          name: 'Custom Morpho A', // Morphospecies only (not genus + morphospecies)
         },
       },
     },
@@ -486,7 +528,7 @@ describe('Detection Identification Scenarios', () => {
           species: undefined, // Should be undefined when genus is added
           scientificName: 'Lispe', // Should be set to genus name
           taxonRank: 'genus',
-          name: 'Lispe 111', // Genus + morphospecies
+          name: '111', // Morphospecies only (not genus + morphospecies)
         },
       },
     },
