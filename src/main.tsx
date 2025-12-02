@@ -15,10 +15,10 @@ const queryClient = new QueryClient({
 })
 
 setMeta({
-  title: 'Mothbox Classify',
-  siteName: 'Mothbox Classify',
-  description: 'Local app to review and label MothBox insect detections per night.',
-  image: '/mothbox.svg',
+  title: 'Mothbot Classify',
+  siteName: 'Mothbot Classify',
+  description: 'Local app to review and label Mothbot insect detections per night.',
+  image: '/mothbot.svg',
   url: '/',
 })
 

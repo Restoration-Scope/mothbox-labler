@@ -17,7 +17,7 @@ export function Logo(props: Props) {
     <Row className={cn('row center gap-x-6', className)}>
       <LogoIcon size={size} className={iconClassName} color={color} />
       <div style={{ fontSize: size - 12 }} className={cn(' font-[600] tracking-tight')}>
-        MothBox Classify
+        Mothbot Classify
       </div>
     </Row>
   )
