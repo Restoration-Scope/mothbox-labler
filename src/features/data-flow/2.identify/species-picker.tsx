@@ -16,10 +16,6 @@ export function SpeciesPicker() {
   const lists = useStore(speciesListsStore)
   const selection = useStore(projectSpeciesSelectionStore)
 
-  // #region agent log
-  if (typeof window !== 'undefined') fetch('http://127.0.0.1:7242/ingest/19e6da83-9b8f-40fa-8c5e-2bf062370d64',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({location:'species-picker.tsx:16',message:'SpeciesPicker reading from store',data:{listCount:Object.keys(lists||{}).length,listIds:Object.keys(lists||{}),isOpen,projectId},timestamp:Date.now(),sessionId:'debug-session',runId:'run1',hypothesisId:'E'})}).catch(()=>{});
-  // #endregion
-
   const options = useMemo(() => Object.values(lists ?? {}), [lists])
 
   function handleSelect(listId: string) {

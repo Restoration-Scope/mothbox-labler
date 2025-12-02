@@ -130,12 +130,6 @@ export function incrementNightIngestProcessed(params: { nightId: string; by?: nu
   const current = nightIngestProgressStore.get() || { processed: 0, total: 0 }
   const processed = (current.nightId === nightId ? current.processed : 0) + by
   const total = current.nightId === nightId ? current.total : 0
-  console.log('➕ progress: increment processed', {
-    nightId,
-    by,
-    prev: { nightId: current.nightId, processed: current.processed, total: current.total },
-    next: { processed, total },
-  })
   nightIngestProgressStore.set({ nightId, processed, total })
 }
 

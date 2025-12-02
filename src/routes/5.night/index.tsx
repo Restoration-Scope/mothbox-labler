@@ -31,7 +31,6 @@ export function Night() {
   if (isNightLoading) {
     const processed = ingestProgress?.processed ?? 0
     const total = ingestProgress?.total ?? 0
-    console.log('🧪 night: loader progress snapshot', { nightId, processed, total, ingestProgress })
     return (
       <CenteredLoader>
         🌀 Processing patches {processed}/{total}

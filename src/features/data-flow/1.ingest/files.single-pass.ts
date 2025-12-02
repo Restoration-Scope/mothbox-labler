@@ -21,18 +21,10 @@ export async function singlePassIngest(params: {
 
   // Do not parse bot detection JSON at app load; only set up entities and file refs.
   // Per-night JSON parsing happens in the Night route via useNightIngest.
-  // Defer this heavy synchronous work to avoid blocking UI
-  const ingestPromise = new Promise<void>((resolve) => {
-    setTimeout(() => {
-      const tStart = performance.now()
-      ingestFilesToStores({ files: files as any, parseDetectionsForNightId: null })
-      const ms = Math.round(performance.now() - tStart)
-      console.log('🌀 singlePassIngest: ingested files (deferred)', { ms })
-      resolve()
-    }, 0)
+  const { ms: ingestMs } = await measureStep({
+    label: 'ingested files',
+    fn: () => ingestFilesToStores({ files: files as any, parseDetectionsForNightId: null }),
   })
-  await ingestPromise
-  const ingestMs = 0 // Already logged above
 
   const totalMs = Math.round(performance.now() - tStart)
   console.log('🌀 singlePassIngest: total', { totalMs })
