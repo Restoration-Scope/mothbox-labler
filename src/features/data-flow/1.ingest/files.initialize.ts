@@ -1,7 +1,5 @@
 import { directoryFilesStore, indexedFilesStore } from './files.state'
 import { buildNightIndexes } from './files.index'
-import { ingestSpeciesListsFromFiles } from './species.ingest'
-import { loadProjectSpeciesSelection } from '~/stores/species/project-species-list'
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
 import { loadMorphoCovers } from '~/features/data-flow/3.persist/covers'
 import { loadMorphoLinks } from '~/features/data-flow/3.persist/links'
@@ -21,9 +19,7 @@ export function applyIndexedFilesState(params: {
   preloadNightSummariesFromIndexed(indexed)
   preloadMorphoLinksFromIndexed(indexed)
 
-  // Ingest species lists from either File or Handle entries
-  void ingestSpeciesListsFromFiles({ files: indexed })
-  void loadProjectSpeciesSelection()
+  // Deferred work (non-blocking) - handled by useDeferredSpeciesIngest hook
   void loadMorphoCovers()
   void loadMorphoLinks()
 }

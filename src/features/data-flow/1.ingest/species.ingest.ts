@@ -75,4 +75,3 @@ async function readSpeciesCsvRows(params: { indexedFile: IndexedFile }) {
   const result = Array.isArray(rows) ? rows : []
   return result
 }
-
