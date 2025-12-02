@@ -14,10 +14,16 @@ export function applyIndexedFilesState(params: {
   directoryFilesStore.set(indexed.map((i) => i.file).filter((f): f is File => !!f))
   indexedFilesStore.set(indexed)
 
-  buildNightIndexes({ files: indexed })
+  // Defer heavy synchronous work to avoid blocking UI
+  setTimeout(() => {
+    const tStart = performance.now()
+    buildNightIndexes({ files: indexed })
+    const buildMs = Math.round(performance.now() - tStart)
+    console.log('🌀 applyIndexedFilesState: buildNightIndexes complete', { ms: buildMs, fileCount: indexed.length })
 
-  preloadNightSummariesFromIndexed(indexed)
-  preloadMorphoLinksFromIndexed(indexed)
+    preloadNightSummariesFromIndexed(indexed)
+    preloadMorphoLinksFromIndexed(indexed)
+  }, 0)
 
   // Deferred work (non-blocking) - handled by useDeferredSpeciesIngest hook
   void loadMorphoCovers()
