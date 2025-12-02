@@ -73,7 +73,7 @@ function identifyDetectionsWithTaxon(params: { detectionIds: string[]; taxon: Ta
     let nextMorphospecies: string | undefined = existing?.morphospecies
     if (hasTaxon) {
       // Merge taxonomy: preserve morphospecies and existing ranks when adding higher ranks
-      const existingTaxon = existing?.taxon ?? {}
+      const existingTaxon: Partial<TaxonRecord> = existing?.taxon ?? {}
       const newRank = (taxon?.taxonRank ?? '').toLowerCase()
       const isHigherRank = isRankHigherThanSpecies(newRank)
 

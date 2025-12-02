@@ -5,7 +5,7 @@ import { Button } from '~/components/ui/button'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
 import { clearPatchSelection } from '~/stores/ui'
 import { LeftPanelHeading } from '~/styles'
-import { collapsedKeysStore, collapseMany, expandMany, isExpandedKey, makeKey, toggleKey } from './collapse.store'
+import { collapsedKeysStore, collapseMany, expandMany, makeKey, toggleKey } from './collapse.store'
 import { CountsRow } from './counts-row'
 import type { TaxonomyNode } from './left-panel.types'
 import { TaxonomyRow } from './taxonomy-row'
@@ -28,7 +28,6 @@ export type TaxonomySectionProps = {
 
 export function TaxonomySection(props: TaxonomySectionProps) {
   const { title, nodes, bucket, selectedTaxon, selectedBucket, onSelectTaxon, emptyText, className, errorsCount = 0 } = props
-  const collapsedSet = useStore(collapsedKeysStore)
 
   const hasNodes = Array.isArray(nodes) && nodes.length > 0
   const hasErrors = bucket === 'user' && (errorsCount || 0) > 0
@@ -138,8 +137,9 @@ function ClassNode(props: {
   }) => void
 }) {
   const { bucket, classNode, selectedTaxon, selectedBucket, onSelectTaxon } = props
+  const collapsedSet = useStore(collapsedKeysStore)
   const classKey = makeKey({ bucket, rank: 'class', path: `${classNode.name}` })
-  const classExpanded = isExpandedKey(classKey)
+  const classExpanded = !collapsedSet.has(classKey)
   const hasChildren = !!(classNode.children && classNode.children.length)
   return (
     <div>
@@ -190,8 +190,9 @@ function OrderNode(props: {
   }) => void
 }) {
   const { bucket, orderNode, className, isFirstOfClass, selectedTaxon, selectedBucket, onSelectTaxon } = props
+  const collapsedSet = useStore(collapsedKeysStore)
   const orderKey = makeKey({ bucket, rank: 'order', path: `${className ? `${className}/` : ''}${orderNode.name}` })
-  const orderExpanded = isExpandedKey(orderKey)
+  const orderExpanded = !collapsedSet.has(orderKey)
   const hasChildren = !!(orderNode.children && orderNode.children.length)
   return (
     <div>
@@ -244,9 +245,10 @@ function FamilyNode(props: {
   }) => void
 }) {
   const { bucket, orderName, familyNode, isFirstChild, selectedTaxon, selectedBucket, onSelectTaxon } = props
+  const collapsedSet = useStore(collapsedKeysStore)
   const familyPath = `${orderName}/${familyNode.name}`
   const familyKey = makeKey({ bucket, rank: 'family', path: familyPath })
-  const familyExpanded = isExpandedKey(familyKey)
+  const familyExpanded = !collapsedSet.has(familyKey)
   const hasChildren = !!(familyNode.children && familyNode.children.length)
   return (
     <div className='relative'>
@@ -301,9 +303,10 @@ function GenusNode(props: {
   }) => void
 }) {
   const { bucket, orderName, familyName, genusNode, isFirstChild, selectedTaxon, selectedBucket, onSelectTaxon } = props
+  const collapsedSet = useStore(collapsedKeysStore)
   const genusPath = `${orderName}/${familyName}/${genusNode.name}`
   const genusKey = makeKey({ bucket, rank: 'genus', path: genusPath })
-  const genusExpanded = isExpandedKey(genusKey)
+  const genusExpanded = !collapsedSet.has(genusKey)
   const hasChildren = !!(genusNode.children && genusNode.children.length)
   return (
     <div className='relative'>
