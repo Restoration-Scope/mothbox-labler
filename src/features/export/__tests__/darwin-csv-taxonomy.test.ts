@@ -44,7 +44,7 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       expect(name).toBe('Homo sapiens')
     })
 
-    it('should return morphospecies when genus and morphospecies exist (morphospecies takes precedence)', () => {
+    it('should return genus + morphospecies when both exist', () => {
       const detection: DetectionEntity = {
         ...BASE_DETECTION,
         label: 'Lispe',
@@ -60,7 +60,7 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       }
 
       const name = deriveTaxonName({ detection })
-      expect(name).toBe('111')
+      expect(name).toBe('Lispe 111')
     })
 
     it('should return morphospecies when only morphospecies exists (no genus)', () => {
@@ -180,7 +180,7 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       }
 
       const name = deriveTaxonName({ detection })
-      expect(name).toBe('111')
+      expect(name).toBe('Lispe 111') // genus + morphospecies
     })
   })
 
@@ -216,7 +216,7 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       expect(row.species).toBe('domestica')
     })
 
-    it('should use morphospecies for species column when available', () => {
+    it('should NOT use morphospecies for species column - species stays empty', () => {
       const detection: DetectionEntity = {
         ...BASE_DETECTION,
         label: '111',
@@ -234,10 +234,12 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
         ...BASE_PARAMS,
       })
 
-      expect(row.species).toBe('111')
+      // Morphospecies should NOT leak into species column
+      expect(row.species).toBe('')
+      expect(row.morphospecies).toBe('111')
     })
 
-    it('should use morphospecies over taxon species when both exist', () => {
+    it('should keep species empty when morphospecies exists', () => {
       const detection: DetectionEntity = {
         ...BASE_DETECTION,
         label: 'Lispe',
@@ -255,7 +257,9 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
         ...BASE_PARAMS,
       })
 
-      expect(row.species).toBe('111')
+      // Morphospecies should NOT go to species column
+      expect(row.species).toBe('')
+      expect(row.morphospecies).toBe('111')
     })
 
     it('should populate partial taxonomy (genus only)', () => {

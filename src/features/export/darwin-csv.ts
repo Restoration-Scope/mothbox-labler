@@ -6,7 +6,7 @@ import { idbGet } from '~/utils/index-db'
 import { objectsToCSV } from '~/utils/csv'
 import { fsaaWriteText, type FileSystemDirectoryHandleLike } from '~/utils/fsaa'
 import { ensureReadWritePermission, persistenceConstants } from '~/features/folder-processing/files.persistence'
-import { deriveTaxonName, extractTaxonomyFields, extractTaxonMetadata } from '~/models/taxonomy'
+import { deriveTaxonName, extractTaxonomyFields, extractTaxonMetadata, getValidScientificName } from '~/models/taxonomy'
 import { getPhotoBaseFromPhotoId, getNightDiskPathFromPhotos } from '~/utils/paths'
 
 const DARWIN_COLUMNS = [
@@ -284,7 +284,8 @@ export function buildDarwinShapeFromDetection(params: {
   const species_list_doi = String(taxonMetadata.speciesListDOI || '')
 
   // For errors, scientificName should be blank, but name should be "ERROR"
-  const scientificName = isError ? '' : detection?.taxon?.scientificName || detection?.label || ''
+  // Use validated scientificName (no morphospecies/numbers)
+  const scientificName = isError ? '' : getValidScientificName({ detection })
   const name = isError ? 'ERROR' : deriveTaxonName({ detection })
 
   const datasetID = nightId.replaceAll('/', '_')
@@ -292,6 +293,8 @@ export function buildDarwinShapeFromDetection(params: {
   const eventID = photo?.id || ''
   const occurrenceID = patch?.id || ''
 
+  // Deployment is parentEventID without the trailing night date segment
+  const deployment = extractDeploymentFromDatasetID({ datasetID })
   const mothbox = extractMothboxFromNightDiskPath({ nightDiskPath })
   const detectionBy = extractDetectionByFromPatchId({ patchId: patch?.id || '', photoBase: baseName })
   const detection_confidence = detection?.score != null ? String(detection.score) : ''
@@ -329,7 +332,7 @@ export function buildDarwinShapeFromDetection(params: {
     filepath,
     mothbox,
     original_mothbox_identifciation: detection?.originalMothboxLabel || '',
-    deployment: '',
+    deployment,
     image_id,
   }
   return row
@@ -393,4 +396,30 @@ function extractDetectionByFromPatchId(params: { patchId: string; photoBase: str
 
   if (idx >= 0) name = name.slice(idx + 1)
   return name
+}
+
+/**
+ * Extracts deployment from datasetID by removing the trailing night date segment.
+ * Example: "Dinacon2025_Les_BeachPalm_grupoKite_2025-06-23_2025-06-22" -> "Dinacon2025_Les_BeachPalm_grupoKite_2025-06-23"
+ * The last segment is typically the night date (YYYY-MM-DD format).
+ */
+function extractDeploymentFromDatasetID(params: { datasetID: string }): string {
+  const { datasetID } = params
+
+  if (!datasetID) return ''
+
+  // Split by underscore and check if last segment is a date (YYYY-MM-DD)
+  const segments = datasetID.split('_')
+  if (segments.length < 2) return datasetID
+
+  const lastSegment = segments[segments.length - 1]
+  const isDate = /^\d{4}-\d{2}-\d{2}$/.test(lastSegment || '')
+
+  if (isDate) {
+    // Remove the last segment (night date)
+    const deployment = segments.slice(0, -1).join('_')
+    return deployment
+  }
+
+  return datasetID
 }

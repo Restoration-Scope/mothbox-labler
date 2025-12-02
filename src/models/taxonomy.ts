@@ -84,36 +84,119 @@ export function extractTaxonMetadata(params: { detection: DetectionEntity }) {
 }
 
 /**
- * Returns the species value from a detection, preferring morphospecies over taxon.species.
- * Handles morphospecies correctly for export/write operations.
+ * Returns the species value from a detection for export.
+ * Only returns actual taxonomic species - morphospecies goes in a separate column.
+ * Sanitizes the value to prevent morphospecies codes from leaking into species column.
  */
 export function getSpeciesValue(params: { detection: DetectionEntity }): string {
   const { detection } = params
-  return detection?.morphospecies || detection?.taxon?.species || ''
+
+  // Don't include morphospecies in species column - it has its own column
+  if (detection?.morphospecies) return ''
+
+  const rawSpecies = detection?.taxon?.species || ''
+
+  // Sanitize: if species looks like a morphospecies code, don't export it
+  if (looksLikeMorphospeciesCode(rawSpecies)) return ''
+
+  // Sanitize: if species equals the morphospecies value (data inconsistency), clear it
+  if (rawSpecies && rawSpecies === detection?.morphospecies) return ''
+
+  return rawSpecies
+}
+
+/**
+ * Checks if a value looks like a morphospecies code rather than a valid species name.
+ * Morphospecies codes are typically:
+ * - Pure numbers (e.g., "111", "42")
+ * - Short alphanumeric codes (e.g., "A1", "sp1")
+ * - Contain numbers without being a valid species epithet
+ */
+function looksLikeMorphospeciesCode(value: string): boolean {
+  if (!value) return false
+
+  const trimmed = value.trim()
+  if (!trimmed) return false
+
+  // Pure numbers are definitely morphospecies codes
+  if (/^\d+$/.test(trimmed)) return true
+
+  // Very short values with numbers are likely codes (e.g., "sp1", "A1")
+  if (trimmed.length <= 4 && /\d/.test(trimmed)) return true
+
+  // Values that are mostly numbers with some letters (e.g., "111a", "42b")
+  const digitCount = (trimmed.match(/\d/g) || []).length
+  const letterCount = (trimmed.match(/[a-zA-Z]/g) || []).length
+  if (digitCount > 0 && digitCount >= letterCount) return true
+
+  return false
 }
 
 /**
  * Returns the deepest taxonomic level from a taxon record.
  * Checks in order: species > genus > family > order > class > phylum > kingdom
+ * Skips values that look like morphospecies codes.
  */
 function getDeepestTaxonomicLevel(params: { taxon?: TaxonRecord }): string | undefined {
   const { taxon } = params
-  if (taxon?.species) return taxon.species
+
+  // Skip species if it looks like a morphospecies code
+  if (taxon?.species && !looksLikeMorphospeciesCode(taxon.species)) return taxon.species
   if (taxon?.genus) return taxon.genus
   if (taxon?.family) return taxon.family
   if (taxon?.order) return taxon.order
   if (taxon?.class) return taxon.class
   if (taxon?.phylum) return taxon.phylum
   if (taxon?.kingdom) return taxon.kingdom
+
   return undefined
 }
 
 /**
  * Builds a "genus species" formatted name from genus and species values.
+ * Avoids duplication if species already contains the genus (e.g., "Pygoda irrorate" stays as-is, not "Pygoda Pygoda irrorate")
  */
 function buildGenusSpeciesName(params: { genus?: string; species: string }): string {
   const { genus, species } = params
+
+  if (!genus) return species
+
+  // Check if species already starts with genus to avoid "Pygoda Pygoda irrorate"
+  if (species.toLowerCase().startsWith(genus.toLowerCase())) return species
+
   return `${genus} ${species}`.trim()
+}
+
+/**
+ * Returns a valid scientific name for export (GBIF-compatible).
+ * Scientific names should never contain numbers (morphospecies codes like "111" are not valid).
+ */
+export function getValidScientificName(params: { detection: DetectionEntity }): string {
+  const { detection } = params
+
+  // Don't export morphospecies as scientificName
+  if (detection?.morphospecies) {
+    // Return higher-level taxon name if available
+    const taxon = detection?.taxon
+    if (taxon?.genus) return taxon.genus
+    if (taxon?.family) return taxon.family
+    if (taxon?.order) return taxon.order
+
+    return ''
+  }
+
+  const candidate = detection?.taxon?.scientificName || ''
+
+  // Sanitize: don't export morphospecies codes or values with numbers
+  if (looksLikeMorphospeciesCode(candidate)) return ''
+
+  if (candidate) return candidate
+
+  // Fallback to label if valid (not a morphospecies code)
+  const label = detection?.label || ''
+  if (label && !looksLikeMorphospeciesCode(label)) return label
+
+  return ''
 }
 
 /**
