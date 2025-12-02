@@ -86,13 +86,13 @@ export function stableTaxonKey(record: TaxonRecord | undefined | null): string {
  * Preserves order, keeping the first occurrence of each unique key.
  */
 export function dedupeByTaxonKey(records: TaxonRecord[]): TaxonRecord[] {
-  const seen: Record<string, boolean> = {}
+  const seen = new Set<string>()
   const result: TaxonRecord[] = []
 
   for (const record of records) {
     const key = stableTaxonKey(record)
-    if (!key || seen[key]) continue
-    seen[key] = true
+    if (!key || seen.has(key)) continue
+    seen.add(key)
     result.push(record)
   }
 
