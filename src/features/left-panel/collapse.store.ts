@@ -1,7 +1,5 @@
 import { atom } from 'nanostores'
-import { idbGet, idbPut } from '~/utils/index-db'
-
-const DB_NAME = 'mothbox-labeler'
+import { DB_NAME, idbGet, idbPut } from '~/utils/index-db'
 const STORE_NAME = 'ui-collapse'
 const STORAGE_KEY = 'taxonomy-collapse-v1'
 

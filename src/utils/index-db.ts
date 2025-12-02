@@ -1,3 +1,5 @@
+export const DB_NAME = 'mothbox-labeler'
+
 export async function idbPut(dbName: string, storeName: string, key: string, value: unknown): Promise<void> {
   const db = await openIdb(dbName, storeName)
   return new Promise((resolve, reject) => {

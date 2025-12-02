@@ -5,10 +5,10 @@ export type MorphoLinksMap = Record<string, string>
 
 export const morphoLinksStore = atom<MorphoLinksMap>({})
 
+import { DB_NAME } from '~/utils/index-db'
+
 let idbGet: ((db: string, store: string, key: string) => Promise<unknown>) | undefined
 let idbPut: ((db: string, store: string, key: string, value: unknown) => Promise<void>) | undefined
-
-const IDB_DB = 'mothbox-labeler'
 const IDB_STORE = 'morpho-links'
 
 let saveTimer: number | undefined
@@ -19,7 +19,7 @@ export async function loadMorphoLinks() {
       const mod = await import('~/utils/index-db')
       idbGet = (mod as any).idbGet
     }
-    const saved = (await (idbGet as any)(IDB_DB, IDB_STORE, 'links')) as MorphoLinksMap | null
+    const saved = (await (idbGet as any)(DB_NAME, IDB_STORE, 'links')) as MorphoLinksMap | null
     if (saved && typeof saved === 'object') morphoLinksStore.set(saved)
   } catch {
     console.error('Error loading morpho links')
@@ -47,7 +47,7 @@ export async function setMorphoLink(params: { morphoKey?: string; label?: string
       const mod = await import('~/utils/index-db')
       idbPut = (mod as any).idbPut
     }
-    await (idbPut as any)(IDB_DB, IDB_STORE, 'links', next)
+    await (idbPut as any)(DB_NAME, IDB_STORE, 'links', next)
   } catch {
     console.error('Error saving morpho link')
   }

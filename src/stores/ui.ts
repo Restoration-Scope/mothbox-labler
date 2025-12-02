@@ -1,6 +1,6 @@
 import { atom, computed } from 'nanostores'
 import { patchesStore } from './entities/5.patches'
-import { idbGet, idbPut } from '~/utils/index-db'
+import { DB_NAME, idbGet, idbPut } from '~/utils/index-db'
 
 export const pickerErrorStore = atom<string | null>(null)
 
@@ -79,7 +79,7 @@ export const appReadyStore = computed(userSessionLoadedStore, (loaded) => !!load
 
 export async function loadUserSession() {
   try {
-    const saved = (await idbGet('mothbox-labeler', 'user-session', 'session')) as UserSession | null
+    const saved = (await idbGet(DB_NAME, 'user-session', 'session')) as UserSession | null
     if (saved && typeof saved === 'object') userSessionStore.set(saved)
   } catch {
     return null
@@ -91,7 +91,7 @@ export async function saveUserSession(params: UserSession) {
   const next = { initials: (params?.initials || '').trim() || undefined }
   userSessionStore.set(next)
   try {
-    await idbPut('mothbox-labeler', 'user-session', 'session', next)
+    await idbPut(DB_NAME, 'user-session', 'session', next)
   } catch {
     return null
   }
@@ -99,7 +99,7 @@ export async function saveUserSession(params: UserSession) {
 export async function clearUserSession() {
   userSessionStore.set({})
   try {
-    await idbPut('mothbox-labeler', 'user-session', 'session', {})
+    await idbPut(DB_NAME, 'user-session', 'session', {})
   } catch {
     return null
   }

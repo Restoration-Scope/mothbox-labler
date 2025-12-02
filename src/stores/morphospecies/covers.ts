@@ -4,10 +4,10 @@ export type MorphoCover = { nightId: string; patchId: string }
 
 export const morphoCoversStore = atom<Record<string, MorphoCover>>({})
 
+import { DB_NAME } from '~/utils/index-db'
+
 let idbGet: ((db: string, store: string, key: string) => Promise<unknown>) | undefined
 let idbPut: ((db: string, store: string, key: string, value: unknown) => Promise<void>) | undefined
-
-const IDB_DB = 'mothbox-labeler'
 const IDB_STORE = 'morpho-covers'
 
 export function normalizeMorphoKey(input: string): string {
@@ -22,7 +22,7 @@ export async function loadMorphoCovers() {
       const mod = await import('~/utils/index-db')
       idbGet = (mod as any).idbGet
     }
-    const saved = (await (idbGet as any)(IDB_DB, IDB_STORE, 'covers')) as Record<string, MorphoCover> | null
+    const saved = (await (idbGet as any)(DB_NAME, IDB_STORE, 'covers')) as Record<string, MorphoCover> | null
     if (saved && typeof saved === 'object') morphoCoversStore.set(saved)
   } catch {
     console.error('Error loading morpho covers')
@@ -47,7 +47,7 @@ export async function setMorphoCover(params: { morphoKey?: string; label?: strin
       const mod = await import('~/utils/index-db')
       idbPut = (mod as any).idbPut
     }
-    await (idbPut as any)(IDB_DB, IDB_STORE, 'covers', next)
+    await (idbPut as any)(DB_NAME, IDB_STORE, 'covers', next)
   } catch {
     console.error('Error saving morpho cover')
   }
