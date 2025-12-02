@@ -15,8 +15,8 @@ const queryClient = new QueryClient({
 })
 
 setMeta({
-  title: 'Mothbox Labeler',
-  siteName: 'Mothbox Labeler',
+  title: 'Mothbox Classify',
+  siteName: 'Mothbox Classify',
   description: 'Local app to review and label MothBox insect detections per night.',
   image: '/mothbox.svg',
   url: '/',
