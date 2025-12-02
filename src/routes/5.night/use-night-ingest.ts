@@ -3,7 +3,8 @@ import { useStore } from '@nanostores/react'
 import { filesByNightIdStore, patchFileMapByNightStore, indexedFilesStore } from '~/features/folder-processing/files.state'
 import { detectionsStore } from '~/stores/entities/detections'
 import { ingestDetectionsForNight } from '~/features/ingest/ingest'
-import { resetNightIngestProgress, setNightIngestTotal } from '~/stores/ui'
+import { resetNightIngestProgress, setNightIngestTotal, getActiveNightIds } from '~/stores/ui'
+import { clearFileObjectsForInactiveNights } from '~/stores/entities'
 
 const inFlightNightIds = new Set<string>()
 
@@ -43,6 +44,8 @@ export function useNightIngest(params: { nightId: string }) {
     void ingestDetectionsForNight({ files: perNight, nightId, patchMap }).finally(() => {
       if (ingestRunRef.current === runId) setIsNightIngesting(false)
       inFlightNightIds.delete(nightId)
+      const activeNightIds = getActiveNightIds()
+      clearFileObjectsForInactiveNights({ activeNightIds })
     })
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [nightId, indexedFiles])

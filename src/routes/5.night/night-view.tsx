@@ -9,7 +9,8 @@ import { patchesStore } from '~/stores/entities/5.patches'
 import type { DetectionEntity } from '~/stores/entities/detections'
 import { acceptDetections, detectionsStore, labelDetections, resetDetections } from '~/stores/entities/detections'
 import { photosStore } from '~/stores/entities/photos'
-import { clearPatchSelection, selectedPatchIdsStore, setSelection } from '~/stores/ui'
+import { clearPatchSelection, selectedPatchIdsStore, setSelection, markNightAsActive, getActiveNightIds } from '~/stores/ui'
+import { clearFileObjectsForInactiveNights } from '~/stores/entities'
 import { Row } from '~/styles'
 import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
 import { useConfirmDialog } from '~/components/dialogs/ConfirmDialog'
@@ -38,6 +39,17 @@ export function NightView(props: { nightId: string }) {
   const { setConfirmDialog } = useConfirmDialog()
 
   const night = nights[nightId]
+
+  useEffect(() => {
+    markNightAsActive({ nightId })
+    const activeNightIds = getActiveNightIds()
+    clearFileObjectsForInactiveNights({ activeNightIds })
+
+    return () => {
+      const activeNightIdsAfterUnmount = getActiveNightIds()
+      clearFileObjectsForInactiveNights({ activeNightIds: activeNightIdsAfterUnmount })
+    }
+  }, [nightId])
 
   // Sync selection with URL search params (bucket, rank, name)
   const search = router.state.location.search as unknown as {

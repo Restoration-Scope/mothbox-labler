@@ -1,6 +1,8 @@
 import { atom, computed } from 'nanostores'
 import { buildDetectionFromBotShape } from '~/models/detection-shapes'
 import type { DetectionEntity as FullDetectionEntity } from '~/stores/entities/detections'
+import { clearFileObjectsForNight as clearPhotosForNight } from './entities/photos'
+import { clearFileObjectsForNight as clearPatchesForNight } from './entities/5.patches'
 
 export type IndexedFile = {
   file: File
@@ -248,6 +250,37 @@ export function resetAllEntityStores() {
   photosStore.set({})
   patchesStore.set({})
   detectionsStore.set({})
+}
+
+export function clearFileObjectsForInactiveNights(params: { activeNightIds: Set<string> }) {
+  const { activeNightIds } = params
+  const photos = photosStore.get() || {}
+  const patches = patchesStore.get() || {}
+  const nightsToCleanup = new Set<string>()
+
+  for (const photo of Object.values(photos)) {
+    if (photo.nightId && !activeNightIds.has(photo.nightId)) {
+      nightsToCleanup.add(photo.nightId)
+    }
+  }
+
+  for (const patch of Object.values(patches)) {
+    if (patch.nightId && !activeNightIds.has(patch.nightId)) {
+      nightsToCleanup.add(patch.nightId)
+    }
+  }
+
+  for (const nightId of nightsToCleanup) {
+    clearPhotosForNight({ nightId })
+    clearPatchesForNight({ nightId })
+  }
+
+  if (nightsToCleanup.size > 0) {
+    console.log('🗑️ cleanup: cleared File objects for inactive nights', {
+      nightsCleared: Array.from(nightsToCleanup),
+      activeNights: Array.from(activeNightIds),
+    })
+  }
 }
 
 function parsePathParts(params: { path: string }) {

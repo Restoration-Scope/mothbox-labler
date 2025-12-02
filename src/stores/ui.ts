@@ -152,3 +152,38 @@ export function addNightIngestTotal(params: { nightId: string; by: number }) {
   })
   nightIngestProgressStore.set({ nightId, processed, total })
 }
+
+// Active nights tracking for memory management
+// Keeps track of currently active night and recently viewed nights
+// Used to determine which File objects to keep in memory
+export const activeNightIdStore = atom<string | null>(null)
+export const recentlyViewedNightIdsStore = atom<Set<string>>(new Set())
+
+const MAX_RECENTLY_VIEWED = 2
+
+export function markNightAsActive(params: { nightId: string }) {
+  const { nightId } = params
+  const currentActive = activeNightIdStore.get()
+  const recent = new Set(recentlyViewedNightIdsStore.get())
+
+  if (currentActive && currentActive !== nightId) {
+    recent.add(currentActive)
+    const recentArray = Array.from(recent)
+    if (recentArray.length > MAX_RECENTLY_VIEWED) {
+      const oldest = recentArray[0]
+      recent.delete(oldest)
+    }
+  }
+
+  activeNightIdStore.set(nightId)
+  recentlyViewedNightIdsStore.set(recent)
+}
+
+export function getActiveNightIds(): Set<string> {
+  const active = activeNightIdStore.get()
+  const recent = recentlyViewedNightIdsStore.get()
+  const result = new Set<string>()
+  if (active) result.add(active)
+  for (const id of recent) result.add(id)
+  return result
+}
