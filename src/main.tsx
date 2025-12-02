@@ -5,6 +5,8 @@ import { RouterProvider } from '@tanstack/react-router'
 import { router } from './router.tsx'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { setMeta } from './utils/meta'
+// Initialize detection save scheduler early to ensure it's available when needed
+import '~/features/data-flow/3.persist/files.writer'
 
 const rootElement = document.getElementById('root')!
 const queryClient = new QueryClient({

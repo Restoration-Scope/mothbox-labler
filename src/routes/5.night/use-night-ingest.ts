@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { useStore } from '@nanostores/react'
-import { filesByNightIdStore, patchFileMapByNightStore, indexedFilesStore } from '~/features/folder-processing/files.state'
+import { filesByNightIdStore, patchFileMapByNightStore, indexedFilesStore } from '~/features/data-flow/1.ingest/files.state'
 import { detectionsStore } from '~/stores/entities/detections'
-import { ingestDetectionsForNight } from '~/features/ingest/ingest'
+import { ingestDetectionsForNight } from '~/features/data-flow/1.ingest/ingest'
 import { resetNightIngestProgress, setNightIngestTotal, getActiveNightIds } from '~/stores/ui'
 import { clearFileObjectsForInactiveNights } from '~/stores/entities'
 

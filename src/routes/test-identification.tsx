@@ -1,9 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useStore } from '@nanostores/react'
 
-import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
-import { speciesListsStore } from '~/features/species-identification/species-list.store'
-import { ingestSpeciesListsFromFiles, type IndexedFile } from '~/features/species-identification/species.ingest'
+import { IdentifyDialog } from '~/features/data-flow/2.identify/identify-dialog'
+import { speciesListsStore } from '~/features/data-flow/2.identify/species-list.store'
+import { ingestSpeciesListsFromFiles, type IndexedFile } from '~/features/data-flow/1.ingest/species.ingest'
 import {
   loadProjectSpeciesSelection,
   projectSpeciesSelectionStore,

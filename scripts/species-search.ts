@@ -1,9 +1,9 @@
 import { readFile, stat } from 'node:fs/promises'
 import { basename, resolve } from 'node:path'
 
-import { ingestSpeciesListsFromFiles } from '../src/features/species-identification/species.ingest.ts'
-import { searchSpecies } from '../src/features/species-identification/species-search.ts'
-import { speciesListsStore } from '../src/features/species-identification/species-list.store.ts'
+import { ingestSpeciesListsFromFiles } from '../src/features/data-flow/1.ingest/species.ingest.ts'
+import { searchSpecies } from '../src/features/data-flow/2.identify/species-search.ts'
+import { speciesListsStore } from '../src/features/data-flow/2.identify/species-list.store.ts'
 
 type CliOptions = {
   csvPath?: string

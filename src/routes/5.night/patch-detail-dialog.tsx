@@ -9,11 +9,12 @@ import { photosStore } from '~/stores/entities/photos'
 import type { PatchEntity } from '~/stores/entities/5.patches'
 import type { PhotoEntity } from '~/stores/entities/photos'
 import { useObjectUrl } from '~/utils/use-object-url'
-import type { TaxonRecord } from '~/features/species-identification/species-list.store'
-import { IdentifyDialog } from '~/features/species-identification/identify-dialog'
-import { morphoLinksStore } from '~/stores/morphospecies/links'
-import { normalizeMorphoKey } from '~/stores/morphospecies/covers'
-import { deriveTaxonName } from '~/models/taxonomy'
+import type { TaxonRecord } from '~/features/data-flow/2.identify/species-list.store'
+import { IdentifyDialog } from '~/features/data-flow/2.identify/identify-dialog'
+import { morphoLinksStore } from '~/features/data-flow/3.persist/links'
+import { normalizeMorphoKey } from '~/models/taxonomy/morphospecies'
+import { deriveTaxonNameFromDetection } from '~/models/taxonomy/extract'
+import { getProjectIdFromNightId } from '~/utils/paths'
 import { ImageWithDownloadName } from '~/components/atomic/image-with-download-name'
 
 export type PatchDetailDialogProps = {
@@ -160,7 +161,7 @@ function PatchDetails(props: { patch?: PatchEntity; detection?: DetectionEntity 
 
   const patchUrl = useObjectUrl(patch?.imageFile?.file)
 
-  const finestTaxonLevel = detection ? deriveTaxonName({ detection }) : undefined
+  const finestTaxonLevel = detection ? deriveTaxonNameFromDetection({ detection }) : undefined
 
   return (
     <div className='space-y-8'>
@@ -237,13 +238,4 @@ function copyToClipboard(text?: string) {
   const value = (text ?? '').trim()
   if (!value) return
   void navigator?.clipboard?.writeText?.(value)
-}
-
-function getProjectIdFromNightId(nightId?: string | null) {
-  const id = (nightId ?? '').trim()
-  if (!id) return undefined
-  const parts = id.split('/').filter(Boolean)
-  if (!parts.length) return undefined
-  const projectId = parts[0]
-  return projectId
 }

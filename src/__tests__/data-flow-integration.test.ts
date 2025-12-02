@@ -1,9 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 
 // Mock dependencies
-vi.mock('~/features/folder-processing/files.writer', async () => {
+vi.mock('~/features/data-flow/3.persist/detection-persistence', async () => {
   return {
-    scheduleSaveUserDetections: vi.fn(),
+    scheduleSaveForNight: vi.fn(),
   }
 })
 
@@ -13,10 +13,15 @@ vi.mock('~/stores/entities/night-summaries', async () => {
       get: vi.fn(() => ({})),
       set: vi.fn(),
     },
+    buildNightSummary: vi.fn((params: { nightId: string; detections: any[] }) => ({
+      nightId: params.nightId,
+      totalDetections: params.detections.length,
+      totalIdentified: params.detections.filter((d: any) => d?.detectedBy === 'user').length,
+    })),
   }
 })
 
-vi.mock('~/features/species-identification/species-list.store', async () => {
+vi.mock('~/features/data-flow/2.identify/species-list.store', async () => {
   return {
     speciesListsStore: {
       get: vi.fn(() => ({})),
@@ -33,9 +38,11 @@ vi.mock('~/stores/species/project-species-list', async () => {
 })
 
 import { detectionsStore, labelDetections, type DetectionEntity } from '~/stores/entities/detections'
-import { buildDarwinShapeFromDetection } from '~/features/export/darwin-csv'
-import { deriveTaxonName, getSpeciesValue, getValidScientificName } from '~/models/taxonomy'
-import type { TaxonRecord } from '~/features/species-identification/species-list.store'
+import { buildDarwinShapeFromDetection } from '~/features/data-flow/4.export/darwin-csv'
+import { deriveTaxonNameFromDetection } from '~/models/taxonomy/extract'
+import { getSpeciesValue, getValidScientificName } from '~/models/taxonomy/morphospecies'
+import { buildIdentifiedJsonShapeFromDetection, buildDetectionFromIdentifiedJsonShape } from '~/models/detection-shapes'
+import type { TaxonRecord } from '~/features/data-flow/2.identify/species-list.store'
 
 /**
  * Integration tests for the full data flow:
@@ -168,7 +175,7 @@ describe('Data Flow Integration Tests', () => {
         },
       }
 
-      const name = deriveTaxonName({ detection })
+      const name = deriveTaxonNameFromDetection({ detection })
 
       // Should NOT be "Pygoda Pygoda irrorate"
       expect(name).toBe('Pygoda irrorate')
@@ -190,7 +197,7 @@ describe('Data Flow Integration Tests', () => {
         },
       }
 
-      const name = deriveTaxonName({ detection })
+      const name = deriveTaxonNameFromDetection({ detection })
 
       expect(name).toBe('Musca domestica')
     })
@@ -376,6 +383,118 @@ describe('Data Flow Integration Tests', () => {
       expect(row.species).toBe('')
       expect(row.scientificName).toBe('')
       expect(row.name).toBe('ERROR')
+    })
+  })
+
+  describe('Morphospecies Persistence Round-Trip', () => {
+    it('morphospecies survives save/load cycle via _identified.json', () => {
+      // Setup: Detection with morphospecies
+      const original: DetectionEntity = {
+        ...BASE_DETECTION,
+        label: '111',
+        morphospecies: '111',
+        detectedBy: 'user',
+        identifiedAt: Date.now(),
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          scientificName: 'Diptera',
+          taxonRank: 'order',
+        },
+      }
+
+      // Step 1: Build JSON shape (simulates saving to _identified.json)
+      const shape = buildIdentifiedJsonShapeFromDetection({ detection: original, identifierHuman: 'test' })
+
+      // Verify morphospecies is in the JSON shape
+      expect(shape.morphospecies).toBe('111')
+      expect(shape.order).toBe('Diptera')
+
+      // Step 2: Load from JSON shape (simulates loading from _identified.json)
+      const photo = { id: BASE_DETECTION.photoId, nightId: BASE_DETECTION.nightId } as any
+      const loaded = buildDetectionFromIdentifiedJsonShape({ shape, photo, existingDetection: undefined })
+
+      // Verify morphospecies was restored
+      expect(loaded.morphospecies).toBe('111')
+      expect(loaded.detectedBy).toBe('user')
+      expect(loaded.taxon?.order).toBe('Diptera')
+    })
+
+    it('morphospecies is preserved when loading with existing detection', () => {
+      // Setup: Existing auto detection
+      const existing: DetectionEntity = {
+        ...BASE_DETECTION,
+        label: 'Diptera',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          scientificName: 'Diptera',
+          taxonRank: 'order',
+        },
+      }
+
+      // User-identified shape with morphospecies
+      const shape = {
+        patch_path: 'patches/patch1.jpg',
+        morphospecies: '111',
+        order: 'Diptera',
+        identifier_human: 'test',
+        timestamp_ID_human: Date.now(),
+      }
+
+      const photo = { id: BASE_DETECTION.photoId, nightId: BASE_DETECTION.nightId } as any
+      const loaded = buildDetectionFromIdentifiedJsonShape({ shape, photo, existingDetection: existing })
+
+      expect(loaded.morphospecies).toBe('111')
+      expect(loaded.taxon?.order).toBe('Diptera')
+    })
+
+    it('JSON shape includes morphospecies field when present', () => {
+      const detection: DetectionEntity = {
+        ...BASE_DETECTION,
+        label: 'Morpho123',
+        morphospecies: 'Morpho123',
+        detectedBy: 'user',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Lepidoptera',
+          family: 'Geometridae',
+          genus: 'Pygoda',
+          scientificName: 'Pygoda',
+          taxonRank: 'genus',
+        },
+      }
+
+      const shape = buildIdentifiedJsonShapeFromDetection({ detection, identifierHuman: 'user' })
+
+      // Verify all fields are present
+      expect(shape.morphospecies).toBe('Morpho123')
+      expect(shape.genus).toBe('Pygoda')
+      expect(shape.family).toBe('Geometridae')
+      expect(shape.order).toBe('Lepidoptera')
+      expect(shape.identifier_human).toBe('user')
+    })
+
+    it('JSON shape omits morphospecies field when not present', () => {
+      const detection: DetectionEntity = {
+        ...BASE_DETECTION,
+        label: 'Musca domestica',
+        detectedBy: 'user',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          genus: 'Musca',
+          species: 'domestica',
+          scientificName: 'Musca domestica',
+          taxonRank: 'species',
+        },
+      }
+
+      const shape = buildIdentifiedJsonShapeFromDetection({ detection, identifierHuman: 'user' })
+
+      // morphospecies should be undefined (not in JSON)
+      expect(shape.morphospecies).toBeUndefined()
+      expect(shape.species).toBe('domestica')
     })
   })
 

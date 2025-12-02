@@ -1,7 +1,7 @@
 import { Outlet } from '@tanstack/react-router'
 import { Nav } from '~/components/nav'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
-import { useAppLoading } from '~/features/folder-processing/files-queries'
+import { useAppLoading } from '~/features/data-flow/1.ingest/files-queries'
 import { Toaster } from 'sonner'
 import { UserInitialsDialog } from '~/components/user-initials-dialog'
 import { ConfirmDialog } from '~/components/dialogs/ConfirmDialog'

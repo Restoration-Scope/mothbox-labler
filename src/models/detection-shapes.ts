@@ -1,6 +1,15 @@
 import type { PhotoEntity } from '~/stores/entities/photos'
-import type { DetectionEntity } from '~/stores/entities/detections'
-import { extractTaxonomyFields, extractTaxonMetadata } from '~/models/taxonomy'
+import type { DetectionEntity } from '~/models/detection.types'
+import type { TaxonRecord } from '~/models/taxonomy/types'
+import {
+  extractTaxonomyFromShape,
+  extractTaxonomyFieldsFromDetection,
+  extractTaxonMetadataFromDetection,
+  buildTaxonFromShape,
+} from '~/models/taxonomy/extract'
+import { safeString, safeNumber } from '~/models/taxonomy/normalize'
+import { extractMorphospeciesFromShape } from '~/models/taxonomy/morphospecies'
+import { identifyDetection } from '~/features/data-flow/2.identify/identify'
 
 /**
  * Builds an IdentifiedJSONShape object from a detection for JSON export.
@@ -10,15 +19,25 @@ export function buildIdentifiedJsonShapeFromDetection(params: { detection: Detec
   const { detection, identifierHuman } = params
 
   const baseFields = buildDetectionBaseFields({ detection })
-  const taxonomicFields = extractTaxonomyFields({ detection })
+  const taxonomicFields = extractTaxonomyFieldsFromDetection({ detection })
   const taxonMetadataFields = buildTaxonMetadataFields({ detection })
   const identityFields = buildDetectionIdentityFields({ detection, identifierHuman })
+
+  const morphospeciesValue = detection.morphospecies || undefined
+
+  if (morphospeciesValue) {
+    console.log('💾 persist: saving morphospecies to JSON shape', {
+      detectionId: detection.id,
+      morphospecies: morphospeciesValue,
+    })
+  }
 
   const shape: any = {
     ...baseFields,
     ...taxonomicFields,
     ...taxonMetadataFields,
     ...identityFields,
+    morphospecies: morphospeciesValue,
   }
 
   return shape
@@ -33,26 +52,24 @@ export function buildDetectionFromBotShape(params: { shape: any; existingDetecti
   const { shape, existingDetection } = params
 
   const extractedTaxonomy = extractTaxonomyFromShape({ shape })
-  const scientificNameAndRank = determineScientificNameAndRank({ taxonomy: extractedTaxonomy })
-  const taxon = buildTaxonFromShape({ shape, taxonomy: extractedTaxonomy, scientificNameAndRank, isError: false })
+  const taxon = buildTaxonFromShape({ shape, taxonomy: extractedTaxonomy, isError: false })
 
   const detection: DetectionEntity = {
     ...existingDetection,
-    label: taxon?.scientificName || safeLabel(shape?.label),
+    label: taxon?.scientificName || safeString(shape?.label),
     taxon: taxon as any,
     score: safeNumber(shape?.score),
     direction: safeNumber(shape?.direction),
-    shapeType: safeLabel(shape?.shape_type),
+    shapeType: safeString(shape?.shape_type),
     points: Array.isArray(shape?.points) ? (shape.points as any) : existingDetection?.points,
     clusterId: safeNumber(shape?.clusterID) as any,
     detectedBy: 'auto',
     identifiedAt: undefined,
     isError: undefined,
-    isMorpho: undefined,
     morphospecies: undefined,
     speciesListId: undefined,
     speciesListDOI: undefined,
-    originalMothboxLabel: existingDetection?.originalMothboxLabel ?? safeLabel(shape?.label),
+    originalMothboxLabel: existingDetection?.originalMothboxLabel ?? safeString(shape?.label),
   }
 
   return detection
@@ -71,8 +88,7 @@ export function buildDetectionFromIdentifiedJsonShape(params: { shape: any; phot
   const isError = shape?.is_error === true || String(shape?.label || '').toUpperCase() === 'ERROR'
 
   const extractedTaxonomy = extractTaxonomyFromShape({ shape })
-  const scientificNameAndRank = determineScientificNameAndRank({ taxonomy: extractedTaxonomy })
-  const taxon = buildTaxonFromShape({ shape, taxonomy: extractedTaxonomy, scientificNameAndRank, isError })
+  const taxon = buildTaxonFromShape({ shape, taxonomy: extractedTaxonomy, isError })
   const morphospecies = extractMorphospeciesFromShape({ shape, taxonomy: extractedTaxonomy, taxon, isError })
   const identifiedAt = extractIdentifiedAtTimestamp({ shape, existingDetection })
 
@@ -81,11 +97,11 @@ export function buildDetectionFromIdentifiedJsonShape(params: { shape: any; phot
     patchId: detectionId,
     photoId: existingDetection?.photoId || (photo as any).id,
     nightId: (photo as any).nightId,
-    label: isError ? 'ERROR' : taxon?.scientificName || safeLabel(shape?.label) || existingDetection?.label,
+    label: isError ? 'ERROR' : taxon?.scientificName || safeString(shape?.label) || existingDetection?.label,
     taxon: (taxon as any) ?? (isError ? undefined : existingDetection?.taxon),
     score: safeNumber(shape?.score) ?? existingDetection?.score,
     direction: safeNumber(shape?.direction) ?? existingDetection?.direction,
-    shapeType: safeLabel(shape?.shape_type) ?? existingDetection?.shapeType,
+    shapeType: safeString(shape?.shape_type) ?? existingDetection?.shapeType,
     points: Array.isArray(shape?.points) ? (shape.points as any) : existingDetection?.points,
     detectedBy: 'user',
     identifiedAt,
@@ -137,7 +153,7 @@ function buildDetectionIdentityFields(params: { detection: DetectionEntity; iden
  */
 function buildTaxonMetadataFields(params: { detection: DetectionEntity }) {
   const { detection } = params
-  const taxonMetadata = extractTaxonMetadata({ detection })
+  const taxonMetadata = extractTaxonMetadataFromDetection({ detection })
 
   return {
     taxonID: taxonMetadata.taxonID,
@@ -149,90 +165,6 @@ function buildTaxonMetadataFields(params: { detection: DetectionEntity }) {
   }
 }
 
-function extractTaxonomyFromShape(params: { shape: any }) {
-  const { shape } = params
-
-  return {
-    kingdom: safeLabel(shape?.kingdom),
-    phylum: safeLabel(shape?.phylum),
-    klass: safeLabel(shape?.class),
-    order: safeLabel(shape?.order),
-    family: safeLabel(shape?.family),
-    genus: safeLabel(shape?.genus),
-    species: safeLabel(shape?.species),
-  }
-}
-
-function determineScientificNameAndRank(params: { taxonomy: ReturnType<typeof extractTaxonomyFromShape> }) {
-  const { taxonomy } = params
-  const { species, genus, family, order, klass, phylum, kingdom } = taxonomy
-
-  if (species) return { scientificName: species, taxonRank: 'species' as const }
-  if (genus) return { scientificName: genus, taxonRank: 'genus' as const }
-  if (family) return { scientificName: family, taxonRank: 'family' as const }
-  if (order) return { scientificName: order, taxonRank: 'order' as const }
-  if (klass) return { scientificName: klass, taxonRank: 'class' as const }
-  if (phylum) return { scientificName: phylum, taxonRank: 'phylum' as const }
-  if (kingdom) return { scientificName: kingdom, taxonRank: 'kingdom' as const }
-
-  return { scientificName: undefined, taxonRank: undefined }
-}
-
-function buildTaxonFromShape(params: {
-  shape: any
-  taxonomy: ReturnType<typeof extractTaxonomyFromShape>
-  scientificNameAndRank: ReturnType<typeof determineScientificNameAndRank>
-  isError: boolean
-}) {
-  const { shape, taxonomy, scientificNameAndRank, isError } = params
-  const { kingdom, phylum, klass, order, family, genus, species } = taxonomy
-  const { scientificName, taxonRank } = scientificNameAndRank
-
-  const hasTaxon = !!(scientificName || kingdom || phylum || klass || order || family || genus || species)
-
-  if (isError || !hasTaxon) return undefined
-
-  const taxonBase = {
-    scientificName: scientificName || '',
-    taxonRank,
-    kingdom,
-    phylum,
-    class: klass,
-    order,
-    family,
-    genus,
-    species: undefined, // Species will be handled separately for morphospecies
-  }
-
-  return {
-    ...taxonBase,
-    taxonID: shape?.taxonID ?? undefined,
-    acceptedTaxonKey: shape?.acceptedTaxonKey ?? undefined,
-    acceptedScientificName: shape?.acceptedScientificName ?? undefined,
-    vernacularName: shape?.vernacularName ?? undefined,
-    taxonRank: shape?.taxonRank ?? taxonBase.taxonRank,
-  }
-}
-
-function extractMorphospeciesFromShape(params: {
-  shape: any
-  taxonomy: ReturnType<typeof extractTaxonomyFromShape>
-  taxon: ReturnType<typeof buildTaxonFromShape>
-  isError: boolean
-}) {
-  const { shape, taxonomy, taxon, isError } = params
-  const { species } = taxonomy
-
-  const labelValue = safeLabel(shape?.label)
-  const hasMorphospeciesInSpeciesField = !!species && !taxon?.species
-  const morphospeciesValue = hasMorphospeciesInSpeciesField ? species : undefined
-
-  if (isError) return undefined
-  if (!taxon?.scientificName && labelValue) return labelValue
-
-  return morphospeciesValue
-}
-
 function extractIdentifiedAtTimestamp(params: { shape: any; existingDetection?: DetectionEntity }) {
   const { shape, existingDetection } = params
 
@@ -242,10 +174,102 @@ function extractIdentifiedAtTimestamp(params: { shape: any; existingDetection?: 
   return existingDetection?.identifiedAt
 }
 
-function safeLabel(value: unknown): string | undefined {
-  return typeof value === 'string' ? value : undefined
+// ============================================================================
+// DETECTION UPDATE FUNCTIONS
+// Thin wrappers around identifyDetection() from identify.ts
+// These maintain the existing API while delegating to the single source of truth.
+// ============================================================================
+
+export type UpdateDetectionWithTaxonParams = {
+  existing: DetectionEntity
+  taxon: TaxonRecord
+  label?: string
+  speciesListId?: string
+  speciesListDOI?: string
 }
 
-function safeNumber(value: unknown): number | undefined {
-  return typeof value === 'number' ? value : undefined
+/**
+ * Updates a detection with a new taxon.
+ * Delegates to identifyDetection() for the actual logic.
+ */
+export function updateDetectionWithTaxon(params: UpdateDetectionWithTaxonParams): DetectionEntity {
+  const { existing, taxon, label, speciesListId, speciesListDOI } = params
+
+  const result = identifyDetection({
+    detection: existing,
+    input: { type: 'taxon', taxon, label },
+    context: { speciesListId, speciesListDOI },
+  })
+
+  return result.detection
+}
+
+export type UpdateDetectionAsMorphospeciesParams = {
+  existing: DetectionEntity
+  morphospecies: string
+  speciesListId?: string
+  speciesListDOI?: string
+}
+
+/**
+ * Updates a detection with a morphospecies label.
+ * Delegates to identifyDetection() for the actual logic.
+ * Returns null if the detection lacks required context.
+ */
+export function updateDetectionAsMorphospecies(params: UpdateDetectionAsMorphospeciesParams): DetectionEntity | null {
+  const { existing, morphospecies, speciesListId, speciesListDOI } = params
+
+  const result = identifyDetection({
+    detection: existing,
+    input: { type: 'morphospecies', text: morphospecies },
+    context: { speciesListId, speciesListDOI },
+  })
+
+  if (result.skipped) return null
+
+  return result.detection
+}
+
+export type UpdateDetectionAsErrorParams = {
+  existing: DetectionEntity
+  speciesListId?: string
+  speciesListDOI?: string
+}
+
+/**
+ * Marks a detection as an error.
+ * Delegates to identifyDetection() for the actual logic.
+ */
+export function updateDetectionAsError(params: UpdateDetectionAsErrorParams): DetectionEntity {
+  const { existing, speciesListId, speciesListDOI } = params
+
+  const result = identifyDetection({
+    detection: existing,
+    input: { type: 'error' },
+    context: { speciesListId, speciesListDOI },
+  })
+
+  return result.detection
+}
+
+export type AcceptDetectionParams = {
+  existing: DetectionEntity
+  speciesListId?: string
+  speciesListDOI?: string
+}
+
+/**
+ * Accepts a detection without changing its taxonomy.
+ * Delegates to identifyDetection() for the actual logic.
+ */
+export function acceptDetection(params: AcceptDetectionParams): DetectionEntity {
+  const { existing, speciesListId, speciesListDOI } = params
+
+  const result = identifyDetection({
+    detection: existing,
+    input: { type: 'accept' },
+    context: { speciesListId, speciesListDOI },
+  })
+
+  return result.detection
 }

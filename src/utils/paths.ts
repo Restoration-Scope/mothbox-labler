@@ -39,3 +39,18 @@ export function getNightDiskPathFromPhotos(params: { photos: PhotoEntity[] }): s
   return ''
 }
 
+/**
+ * Extracts the project ID from a night ID.
+ * Night IDs follow the pattern: project/site/deployment/night
+ * Returns the first segment (project name) or undefined if invalid.
+ */
+export function getProjectIdFromNightId(nightId?: string | null): string | undefined {
+  const id = (nightId ?? '').trim()
+  if (!id) return undefined
+
+  const parts = id.split('/').filter(Boolean)
+  if (!parts.length) return undefined
+
+  return parts[0]
+}
+

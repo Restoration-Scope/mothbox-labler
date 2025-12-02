@@ -6,7 +6,7 @@ import { nightsStore } from '~/stores/entities/4.nights'
 //
 import { nightIngestProgressStore } from '~/stores/ui'
 import { CenteredLoader } from '~/components/atomic/CenteredLoader'
-import { useAppLoading } from '~/features/folder-processing/files-queries'
+import { useAppLoading } from '~/features/data-flow/1.ingest/files-queries'
 import { NightView } from './night-view'
 import { useNightIngest } from './use-night-ingest'
 

@@ -22,11 +22,12 @@ import type { BadgeVariants } from '~/components/ui/badge'
 import { getClusterVariant } from '~/utils/colors'
 import { MoreVertical } from 'lucide-react'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '~/components/ui/dropdown-menu'
-import { setMorphoCover, normalizeMorphoKey } from '~/stores/morphospecies/covers'
+import { setMorphoCover } from '~/features/data-flow/3.persist/covers'
+import { normalizeMorphoKey } from '~/models/taxonomy/morphospecies'
 import { nightSummariesStore } from '~/stores/entities/night-summaries'
 import { Column, Row } from '~/styles'
 import { toast } from 'sonner'
-import { deriveTaxonName } from '~/models/taxonomy'
+import { deriveTaxonNameFromDetection } from '~/models/taxonomy/extract'
 
 export type PatchItemProps = {
   id: string
@@ -47,7 +48,7 @@ function PatchItemImpl(props: PatchItemProps) {
   const hoveredTopClusterId = useStore(selectedClusterIdStore)
   const hoveredSubClusterId = useStore(selectedSubClusterIdStore)
   const selected = useStore(selectedPatchIdsStore)
-  const label = detection ? deriveTaxonName({ detection }) || 'Unlabeled' : 'Unlabeled'
+  const label = detection ? deriveTaxonNameFromDetection({ detection }) || 'Unlabeled' : 'Unlabeled'
   const rank = typeof detection?.morphospecies === 'string' && !!detection?.morphospecies ? 'morphospecies' : detection?.taxon?.taxonRank
   const morphoKeyForDetection = (detection?.morphospecies || '').trim() ? normalizeMorphoKey(detection?.morphospecies || '') : ''
   const isMorphoBySummary = !!(
