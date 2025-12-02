@@ -107,7 +107,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   function handleSelect(label: string) {
     const value = (label ?? '').trim()
     if (!value) return
-    logIdentificationResult({ detectionIds })
+    logIdentificationResult({ detectionIds, label: value })
     onSubmit(value)
     onOpenChange(false)
   }
@@ -117,7 +117,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     const preferred = (t?.scientificName ?? '').trim()
     const label = preferred || getDisplayLabelForTaxon(t)
     if (!label) return
-    logIdentificationResult({ detectionIds })
+    logIdentificationResult({ detectionIds, label, taxon: t })
     onSubmit(label, t)
     onOpenChange(false)
   }
@@ -125,7 +125,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   function handleSubmitFreeText() {
     const value = query.trim()
     if (!value) return
-    logIdentificationResult({ detectionIds })
+    logIdentificationResult({ detectionIds, label: value })
     onSubmit(value)
     onOpenChange(false)
   }
@@ -181,7 +181,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
     }
 
     const partialTaxon: TaxonRecord = { scientificName: value, taxonRank: rank }
-    logIdentificationResult({ detectionIds })
+    logIdentificationResult({ detectionIds, label: value, taxon: partialTaxon })
     onSubmit(value, partialTaxon)
     onOpenChange(false)
   }
@@ -560,10 +560,12 @@ function checkParentRankExists(params: CheckParentRankExistsParams) {
 
 type LogIdentificationResultParams = {
   detectionIds?: string[]
+  label?: string
+  taxon?: TaxonRecord
 }
 
 function logIdentificationResult(params: LogIdentificationResultParams) {
-  const { detectionIds } = params
+  const { detectionIds, label, taxon } = params
   if (!detectionIds || detectionIds.length === 0) return
 
   const prevState = detectionsStore.get() || {}
@@ -577,6 +579,7 @@ function logIdentificationResult(params: LogIdentificationResultParams) {
     if (identifiedEntities.length > 0) {
       console.log('✅ identify: stored entities', {
         count: identifiedEntities.length,
+        action: { label, taxon },
         prevEntities: prevEntities.map((e) => e?.taxon),
         identifiedEntities: identifiedEntities.map((e) => e?.taxon),
       })

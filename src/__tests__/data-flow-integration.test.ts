@@ -283,7 +283,7 @@ describe('Data Flow Integration Tests', () => {
       expect(row.order).toBe('Diptera')
       expect(row.species).toBe('') // No species, just morphospecies
       expect(row.morphospecies).toBe('111')
-      expect(row.name).toBe('Lispe 111') // Genus + morphospecies for name column
+      expect(row.name).toBe('111') // Morphospecies only for name column (not "genus morphospecies")
     })
 
     it('auto Diptera → full species Musca domestica clears morphospecies', () => {
@@ -518,6 +518,58 @@ describe('Data Flow Integration Tests', () => {
 
       expect(row.species).toBe('irrorate')
       expect(row.genus).toBe('Pygoda')
+    })
+
+    it('name column: morphospecies only (not genus + morphospecies) even with genus present', () => {
+      // Simulates the bug from the export: "Forcipomyia Forcipomyia1" should be just "Forcipomyia1"
+      const detection: DetectionEntity = {
+        ...BASE_DETECTION,
+        morphospecies: 'Forcipomyia1',
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Ceratopogonidae',
+          genus: 'Forcipomyia',
+          scientificName: 'Forcipomyia',
+          taxonRank: 'genus',
+        },
+      }
+
+      const row = buildDarwinShapeFromDetection({
+        detection,
+        ...BASE_EXPORT_PARAMS,
+      })
+
+      // Name should be morphospecies only, not "genus morphospecies"
+      expect(row.name).toBe('Forcipomyia1')
+      expect(row.name).not.toBe('Forcipomyia Forcipomyia1')
+      expect(row.genus).toBe('Forcipomyia')
+      expect(row.morphospecies).toBe('Forcipomyia1')
+    })
+
+    it('name column: scientific name when species exists (no morphospecies)', () => {
+      const detection: DetectionEntity = {
+        ...BASE_DETECTION,
+        taxon: {
+          ...BASE_TAXON,
+          order: 'Diptera',
+          family: 'Muscidae',
+          genus: 'Musca',
+          species: 'domestica',
+          scientificName: 'Musca domestica',
+          taxonRank: 'species',
+        },
+      }
+
+      const row = buildDarwinShapeFromDetection({
+        detection,
+        ...BASE_EXPORT_PARAMS,
+      })
+
+      // Name should be scientific name (genus + species) when species exists
+      expect(row.name).toBe('Musca domestica')
+      expect(row.species).toBe('domestica')
+      expect(row.genus).toBe('Musca')
     })
   })
 })

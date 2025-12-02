@@ -13,20 +13,18 @@ export function deriveTaxonName(params: { detection: DetectionEntity }): string 
   const { detection } = params
   const taxon = detection?.taxon
 
-  // If there's a morphospecies and a genus, combine them
-  if (detection?.morphospecies && taxon?.genus) {
-    return `${taxon.genus} ${detection.morphospecies}`
+  // If morphospecies exists, name should be just the morphospecies (not "genus morphospecies")
+  if (detection?.morphospecies) {
+    return detection.morphospecies
   }
 
-  // If there's just a morphospecies (no genus), use it alone
-  if (detection?.morphospecies) return detection.morphospecies
-
-  const hasGenus = !!taxon?.genus
-  const hasSpecies = !!taxon?.species
-  if (hasGenus && hasSpecies && taxon?.genus && taxon?.species) {
-    return buildGenusSpeciesName({ genus: taxon.genus, species: taxon.species })
+  // If species exists (and no morphospecies), name should be the scientific name (genus + species)
+  const speciesValue = getSpeciesValue({ detection })
+  if (speciesValue && taxon?.genus) {
+    return buildGenusSpeciesName({ genus: taxon.genus, species: speciesValue })
   }
 
+  // Fallback to deepest taxonomic level
   const deepestLevel = getDeepestTaxonomicLevel({ taxon })
   if (deepestLevel) return deepestLevel
 

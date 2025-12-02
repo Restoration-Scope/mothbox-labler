@@ -44,7 +44,7 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       expect(name).toBe('Homo sapiens')
     })
 
-    it('should return genus + morphospecies when both exist', () => {
+    it('should return morphospecies only when morphospecies exists (even with genus)', () => {
       const detection: DetectionEntity = {
         ...BASE_DETECTION,
         label: 'Lispe',
@@ -60,7 +60,7 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       }
 
       const name = deriveTaxonName({ detection })
-      expect(name).toBe('Lispe 111')
+      expect(name).toBe('111') // morphospecies only, not "genus morphospecies"
     })
 
     it('should return morphospecies when only morphospecies exists (no genus)', () => {
@@ -166,7 +166,7 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       expect(name).toBe('Unknown')
     })
 
-    it('should prefer morphospecies over taxon species when both exist', () => {
+    it('should return morphospecies only when morphospecies exists (not genus + morphospecies)', () => {
       const detection: DetectionEntity = {
         ...BASE_DETECTION,
         label: 'Lispe',
@@ -180,7 +180,7 @@ describe('Darwin CSV Export - Taxonomy Columns', () => {
       }
 
       const name = deriveTaxonName({ detection })
-      expect(name).toBe('Lispe 111') // genus + morphospecies
+      expect(name).toBe('111') // morphospecies only, not "genus morphospecies"
     })
   })
 
