@@ -10,7 +10,7 @@ import { Button } from '~/components/ui/button'
 import { clearSelections } from '~/features/data-flow/1.ingest/files.service'
 import { useMemo, useState } from 'react'
 import { MorphoCatalogDialog } from '~/features/morphospecies/morpho-catalog-dialog'
-import { speciesListsStore } from '~/features/data-flow/2.identify/species-list.store'
+import { speciesListsStore, speciesListsLoadingStore } from '~/features/data-flow/2.identify/species-list.store'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 import { SpeciesPicker } from '~/features/data-flow/2.identify/species-picker'
 import { $isSpeciesPickerOpen, $speciesPickerProjectId } from '~/features/data-flow/2.identify/species-picker.state'
@@ -29,6 +29,7 @@ export function Nav() {
   const breadcrumbs = getBreadcrumbs({ pathname, projects, sites, deployments, nights })
   const selection = useStore(projectSpeciesSelectionStore)
   const speciesLists = useStore(speciesListsStore)
+  const isSpeciesLoading = useStore(speciesListsLoadingStore)
   const session = useStore(userSessionStore)
   const appReady = useAppReady()
   const [isMorphoOpen, setIsMorphoOpen] = useState(false)
@@ -54,15 +55,22 @@ export function Nav() {
         <div className='justify-self-center relative top-4 flex items-center gap-12'>
           {breadcrumbs.length ? <Breadcrumbs breadcrumbs={breadcrumbs} /> : null}
           {activeProjectId ? (
-            <button
-              className='text-12 px-8 py-4 rounded border hover:bg-neutral-50'
-              onClick={() => {
-                $speciesPickerProjectId.set(activeProjectId)
-                $isSpeciesPickerOpen.set(true)
-              }}
-            >
-              Species: {activeSpeciesName ?? 'Select…'}
-            </button>
+            isSpeciesLoading ? (
+              <div className='flex items-center gap-8 px-8 py-4 text-12 text-neutral-600'>
+                <Loader size={14} className='inline-block' />
+                <span>🌀 Loading species lists…</span>
+              </div>
+            ) : (
+              <button
+                className='text-12 px-8 py-4 rounded border hover:bg-neutral-50'
+                onClick={() => {
+                  $speciesPickerProjectId.set(activeProjectId)
+                  $isSpeciesPickerOpen.set(true)
+                }}
+              >
+                Species: {activeSpeciesName ?? 'Select…'}
+              </button>
+            )
           ) : null}
         </div>
 

@@ -14,3 +14,4 @@ export type SpeciesList = {
 }
 
 export const speciesListsStore = atom<Record<string, SpeciesList>>({})
+export const speciesListsLoadingStore = atom<boolean>(false)

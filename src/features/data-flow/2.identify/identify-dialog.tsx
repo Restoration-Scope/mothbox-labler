@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { Command, CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '~/components/ui/command'
 import { projectSpeciesSelectionStore } from '~/stores/species/project-species-list'
 import { searchSpecies } from './species-search'
-import { TaxonRecord } from './species-list.store'
+import { TaxonRecord, speciesListsLoadingStore } from './species-list.store'
 
 import { useStore } from '@nanostores/react'
 import { DialogTitle } from '@radix-ui/react-dialog'
@@ -15,6 +15,7 @@ import { TaxonKeyDialogContent } from './taxon-key-dialog'
 import { useConfirmDialog } from '~/components/dialogs/ConfirmDialog'
 import { detectMissingRanks } from '~/models/taxonomy/rank'
 import { TaxonomyGapFillDialogContent } from './taxonomy-gap-fill-dialog'
+import { CenteredLoader } from '~/components/atomic/CenteredLoader'
 
 const MAX_SPECIES_UI_RESULTS = 50
 
@@ -32,6 +33,7 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   const [query, setQuery] = useState('')
   const selection = useStore(projectSpeciesSelectionStore)
   const detections = useStore(detectionsStore)
+  const isSpeciesLoading = useStore(speciesListsLoadingStore)
   const listRef = useRef<HTMLDivElement>(null)
   const { setConfirmDialog } = useConfirmDialog()
 
@@ -235,21 +237,26 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
   return (
     <CommandDialog open={open} onOpenChange={onOpenChange} className='max-w-[520px] !p-0'>
       <DialogTitle className='hidden'>Identitfy</DialogTitle>
-      <Command shouldFilter={false}>
-        <CommandInput
-          placeholder='Type a label (species, genus, family, ...)'
-          value={query}
-          onValueChange={setQuery as any}
-          withSearchIcon
-          onKeyDown={(e: any) => {
-            const hasAnyResults = (speciesOptions?.length ?? 0) > 0
-            if (e.key === 'Enter' && query.trim() && !hasAnyResults) {
-              e.preventDefault()
-              handleSubmitFreeText()
-            }
-          }}
-        ></CommandInput>
-        <CommandList ref={listRef}>
+      {isSpeciesLoading ? (
+        <div className='p-40'>
+          <CenteredLoader>🌀 Loading species lists…</CenteredLoader>
+        </div>
+      ) : (
+        <Command shouldFilter={false}>
+          <CommandInput
+            placeholder='Type a label (species, genus, family, ...)'
+            value={query}
+            onValueChange={setQuery as any}
+            withSearchIcon
+            onKeyDown={(e: any) => {
+              const hasAnyResults = (speciesOptions?.length ?? 0) > 0
+              if (e.key === 'Enter' && query.trim() && !hasAnyResults) {
+                e.preventDefault()
+                handleSubmitFreeText()
+              }
+            }}
+          ></CommandInput>
+          <CommandList ref={listRef}>
           <CommandEmpty>No matches. Press Enter to use your text.</CommandEmpty>
 
           {query.trim().toUpperCase() === 'ERROR' ? (
@@ -374,8 +381,9 @@ export function IdentifyDialog(props: IdentifyDialogProps) {
           )}
 
           {/* No legacy suggestions rendered */}
-        </CommandList>
-      </Command>
+          </CommandList>
+        </Command>
+      )}
     </CommandDialog>
   )
 }
