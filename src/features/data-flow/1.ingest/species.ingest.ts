@@ -1,77 +1,116 @@
-import { speciesListsStore, type SpeciesList } from '~/features/data-flow/2.identify/species-list.store'
+import { speciesListsStore, speciesListsLoadingStore, type SpeciesList } from '~/features/data-flow/2.identify/species-list.store'
 import { invalidateSpeciesIndexForListId } from '~/features/data-flow/2.identify/species-search'
-import { csvToObjects } from '~/utils/csv'
 import type { IndexedFile as FolderIndexedFile } from './files.state'
-import { stableTaxonKey } from '~/models/taxonomy/keys'
-import type { TaxonRecord } from '~/models/taxonomy/types'
-import { mapRowToTaxonRecords } from '~/models/taxonomy/csv-parser'
+import type { SpeciesCsvWorkerRequest, SpeciesCsvWorkerResponse } from '~/workers/species-csv.types'
 
 export type IndexedFile = FolderIndexedFile
+
+let workerInstance: Worker | null = null
+
+function getWorker(): Worker {
+  if (!workerInstance) {
+    try {
+      workerInstance = new Worker(new URL('../../../workers/species-csv.worker.ts', import.meta.url), { type: 'module' })
+    } catch (err) {
+      throw err
+    }
+  }
+  return workerInstance
+}
 
 export async function ingestSpeciesListsFromFiles(params: { files: IndexedFile[] }) {
   const { files } = params
   if (!files?.length) return
 
   const lists: Record<string, SpeciesList> = { ...(speciesListsStore.get() || {}) }
+  const speciesFiles: IndexedFile[] = []
+
+  speciesListsLoadingStore.set(true)
 
   for (const f of files) {
     const pathLower = (f?.path ?? '').replaceAll('\\', '/').toLowerCase()
     const isSpeciesFolder = pathLower.includes('/species/') || pathLower.startsWith('species/')
     const isCsv = pathLower.endsWith('.csv') || pathLower.endsWith('.tsv')
-    if (!isSpeciesFolder || !isCsv) continue
-
-    try {
-      const rows = await readSpeciesCsvRows({ indexedFile: f })
-      if (!Array.isArray(rows) || rows.length === 0) continue
-
-      const records = rows.flatMap((row) => mapRowToTaxonRecords(row))
-
-      const seen: Record<string, boolean> = {}
-      const unique: TaxonRecord[] = []
-
-      for (const r of records) {
-        const key = stableTaxonKey(r)
-        if (!key || seen[key]) continue
-        seen[key] = true
-        unique.push(r)
-      }
-
-      const id = f?.name || f?.path
-      const fileName = f?.name || f?.path
-
-      const baseName = fileName?.replace('SpeciesList_', '').replace('SpeciesList_', '.csv').split('_')
-      const doi = baseName[2]
-      const name = baseName[0] + ' - ' + baseName[1]
-
-      lists[id] = {
-        id,
-        name,
-        doi,
-        fileName,
-        sourcePath: f.path,
-        records: unique,
-        recordCount: unique.length,
-      }
-
-      invalidateSpeciesIndexForListId(id)
-    } catch (err) {
-      console.log('🚨 species: failed to parse species list', { path: f?.path, err })
+    if (isSpeciesFolder && isCsv) {
+      speciesFiles.push(f)
     }
   }
 
-  speciesListsStore.set(lists)
+  if (speciesFiles.length === 0) {
+    speciesListsLoadingStore.set(false)
+    return
+  }
+
+  const worker = getWorker()
+
+  try {
+    for (const f of speciesFiles) {
+      try {
+        const file = f?.file || (await (f?.handle as any)?.getFile?.())
+        if (!file) continue
+
+        const csvText = await file.text()
+        if (!csvText) continue
+
+        const fileId = f?.name || f?.path
+        const fileName = f?.name || f?.path
+
+        const response = await processFileInWorker({ worker, csvText, fileId, fileName, sourcePath: f.path })
+
+        if (response) {
+          lists[response.id] = {
+            id: response.id,
+            name: response.name,
+            doi: response.doi,
+            fileName: response.fileName,
+            sourcePath: response.sourcePath,
+            records: response.records,
+            recordCount: response.recordCount,
+          }
+
+          invalidateSpeciesIndexForListId(response.id)
+        }
+      } catch (err) {
+        console.log('🚨 species: failed to parse species list', { path: f?.path, err })
+      }
+    }
+
+    const current = speciesListsStore.get() || {}
+    speciesListsStore.set({ ...current, ...lists })
+  } finally {
+    speciesListsLoadingStore.set(false)
+  }
 }
 
-async function readSpeciesCsvRows(params: { indexedFile: IndexedFile }) {
-  const { indexedFile } = params
+function processFileInWorker(params: {
+  worker: Worker
+  csvText: string
+  fileId: string
+  fileName: string
+  sourcePath: string
+}): Promise<SpeciesCsvWorkerResponse | null> {
+  const { worker, csvText, fileId, fileName, sourcePath } = params
+  const requestId = `${fileId}-${Date.now()}-${Math.random()}`
 
-  const file = indexedFile?.file || (await (indexedFile?.handle as any)?.getFile?.())
-  if (!file) return [] as any[]
+  return new Promise((resolve) => {
+    const request: SpeciesCsvWorkerRequest = {
+      requestId,
+      csvText,
+      fileId,
+      fileName,
+      sourcePath,
+    }
 
-  const text = await file.text()
-  if (!text) return [] as any[]
+    const messageHandler = (event: MessageEvent<SpeciesCsvWorkerResponse | null>) => {
+      if (!event.data || (event.data as any).requestId !== requestId) {
+        return
+      }
+      worker.removeEventListener('message', messageHandler)
+      resolve(event.data)
+    }
 
-  const rows = csvToObjects({ csvContent: text, hasHeaders: true }) as any[]
-  const result = Array.isArray(rows) ? rows : []
-  return result
+    worker.addEventListener('message', messageHandler)
+    worker.addEventListener('error', () => {})
+    worker.postMessage(request)
+  })
 }
