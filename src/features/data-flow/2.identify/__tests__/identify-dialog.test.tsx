@@ -106,7 +106,7 @@ describe('IdentifyDialog - identification logic', () => {
   it('identifies detection with tribe taxon', () => {
     const detection: DetectionEntity = {
       ...createBaseDetection(),
-      taxon: { family: 'TestFamily' },
+      taxon: { scientificName: 'TestFamily', family: 'TestFamily' },
     }
     const taxon: TaxonRecord = {
       scientificName: 'TestTribe',
@@ -128,7 +128,7 @@ describe('IdentifyDialog - identification logic', () => {
   it('identifies detection with subfamily taxon', () => {
     const detection: DetectionEntity = {
       ...createBaseDetection(),
-      taxon: { family: 'TestFamily' },
+      taxon: { scientificName: 'TestFamily', family: 'TestFamily' },
     }
     const taxon: TaxonRecord = {
       scientificName: 'TestSubfamily',
@@ -150,7 +150,7 @@ describe('IdentifyDialog - identification logic', () => {
   it('identifies detection with suborder taxon', () => {
     const detection: DetectionEntity = {
       ...createBaseDetection(),
-      taxon: { order: 'Diptera' },
+      taxon: { scientificName: 'Diptera', order: 'Diptera' },
     }
     const taxon: TaxonRecord = {
       scientificName: 'TestSuborder',
@@ -172,7 +172,7 @@ describe('IdentifyDialog - identification logic', () => {
   it('identifies detection with morphospecies label', () => {
     const detection: DetectionEntity = {
       ...createBaseDetection(),
-      taxon: { order: 'Diptera', family: 'Muscidae' },
+      taxon: { scientificName: 'Muscidae', order: 'Diptera', family: 'Muscidae' },
     }
 
     const result = identifyDetection({
